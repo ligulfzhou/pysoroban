@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=58", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pysoroban-compiler"
+version = "0.1.0"
+description = "A deterministic, statically typed Python contract compiler for Stellar"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+authors = [{ name = "PySoroban Contributors" }]
+dependencies = []
+
+[project.scripts]
+pysoroban = "pysoroban.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
