@@ -1,0 +1,76 @@
+{
+  "network": "testnet",
+  "network_passphrase": "Test SDF Network ; September 2015",
+  "verified_at": "2026-09-03",
+  "protocol": 25,
+  "contracts": {
+    "math": {
+      "contract_id": "CB53RXQYMVPOLRG7UJHYWTXWIYI6C5CRHZ5O2WOFFN6A7LCBVXCIE3NL",
+      "wasm_hash": "330609a5120d05942f49d4c0717fe12a2652c6890ae658ee532b3087dc755fa2",
+      "upload_transaction": "98d34dbc0bfac3822bb85c5cd062aaf52d9450419b97f405746d0f29b7fb9d92",
+      "deploy_transaction": "eced9c472f941f19e6ede81a675ab8a07fe3265d5e0ee28ac91f130ee63a34b2",
+      "verified_calls": {
+        "add(7, 35)": 42,
+        "max(-9, 4)": 4,
+        "is_positive(-1)": false,
+        "sum_to(10)": 45,
+        "sum_to(0)": 0
+      }
+    },
+    "counter": {
+      "contract_id": "CBUIEGZBBVEITJGOINR2IGAD4QPDAFFSJHJNPZI5WPSCLX6L5F3UU6CT",
+      "wasm_hash": "ddeab1ccce86b4c1c37be725076e3b1afecc0049ad626b71da36b8c375907bfa",
+      "upload_transaction": "a989acfa93eb93a36859299667980ff09af44f83a7d1383c303bc985ece2fa8b",
+      "deploy_transaction": "451139d86340174eb41db7b21212e6d02ad7bc40221d499d02edb9bb8ba2a6c0",
+      "increment_transactions": [
+        "b886d1f2963df01d6fd29b46ee5e3eaf0913ecf61387d53bd3369e5507ac382d"
+      ],
+      "verified_sequence": [5]
+    },
+    "typed_events": {
+      "contract_id": "CBL2NYIUMMVXWYRD4SDBJ6CLPWPBSDCMHXBFVKR2X74UPVSBAGHFBFXN",
+      "wasm_hash": "9f4da43ce2f50ef3ff98fe2b6736a82b2de37a1fa966bf6fc1e19c406e0393a7",
+      "upload_transaction": "a40799a1087029f2ab659585b5f74c5e880b5422319ed125c053368fa6634440",
+      "deploy_transaction": "48d4fdaa7d7a72175ba44edb3a44164c348415bd3a685ef38920c460b72b5ead",
+      "record_transaction": "93033bbcaae2c1ade56f0e92a6dd6295cba0aed7edacd7bdc78cef4b3f6a1918",
+      "verified_calls": {
+        "generation()": 2,
+        "offset(-40000000000000000)": -40000000000000007,
+        "label()": "PySoroban",
+        "fingerprint()": "70792d736f726f62616e",
+        "record(owner, 100000000000000000)": 100000000000000000
+      },
+      "verified_event": {
+        "name": "Updated",
+        "topics": [
+          {"symbol": "updated"},
+          {"address": "GBTZVQRXWUTOBJZU5VEZZVNOQIEP7TIHORJFG26FVAHJGCUPDC22BULU"}
+        ],
+        "data": {"u64": "100000000000000000"}
+      }
+    },
+    "math_proxy": {
+      "contract_id": "CCLC6RU3HXIVIBWMMF6K6OEIDSMY7FBKLSDVI46A7Z3TKM65Z4P4OHEU",
+      "wasm_hash": "b9a714ac7eca068ffab8a5189f05e548414429d7081970118a591fa5cfc0b25a",
+      "upload_transaction": "25eaa22051f2b3956f5327de9555bfce9f1db42def13cea48ff61af302fdfe62",
+      "deploy_transaction": "3e49995bca6152c603846a711fcde6e8ccc2b02c9773592b8e3c8428ddc65553",
+      "target_contract": "CB53RXQYMVPOLRG7UJHYWTXWIYI6C5CRHZ5O2WOFFN6A7LCBVXCIE3NL",
+      "verified_calls": {
+        "add_with(math, 5, 7)": 12,
+        "sum_with(math, 10)": 45
+      }
+    },
+    "vector_math": {
+      "contract_id": "CABB6XS7ERQNYLJUKW2BCAPN7IZL4DNY3Q53RMC2GB72N2HLWSXFSOZX",
+      "wasm_hash": "fc9fc3c47b93ca9ed7991de0c52af4a4e6a18302f10dca15336ed45436456f3f",
+      "upload_transaction": "4c366b16a1159ed6a482a45ddadb5fe7eafae1d96d63f590a7b2ba1af2c72c3e",
+      "deploy_transaction": "5b44dba312e5a3de3663e8dc2df770c955347325e0b541d1b962b33a4880b0b5",
+      "verified_calls": {
+        "count([3,5,8])": 3,
+        "first([3,5,8])": 3,
+        "sum([3,5,8])": 16,
+        "echo([3,5,8])": [3,5,8]
+      }
+    }
+  }
+}

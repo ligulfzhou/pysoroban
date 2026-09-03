@@ -18,3 +18,10 @@ class Math:
     def is_positive(self, value: i32) -> boolean:
         return value > 0
 
+    @public
+    def sum_to(self, stop: i32) -> i32:
+        """Sum the integers from zero up to, but excluding, stop."""
+        total: i32 = 0
+        for value in range(stop):
+            total = total + value
+        return total
