@@ -5,7 +5,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="pysoroban-compiler",
-    version="0.7.0",
+    version="0.8.0",
     description="A deterministic, statically typed Python contract compiler for Stellar",
     packages=find_packages("src"),
     package_dir={"": "src"},

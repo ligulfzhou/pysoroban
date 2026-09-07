@@ -60,6 +60,19 @@ class CliTests(unittest.TestCase):
 
             self.assertEqual(exit_code, 1)
             self.assertIn("exactly one @contract class", stderr.getvalue())
+            self.assertIn(str(source), stderr.getvalue())
+
+    def test_check_reports_file_line_and_column(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "invalid.py"
+            source.write_text(VALID_SOURCE.replace("value * 2", "str(value)"), encoding="utf-8")
+            stderr = io.StringIO()
+            with redirect_stderr(stderr):
+                exit_code = main(["check", str(source)])
+
+            self.assertEqual(exit_code, 1)
+            self.assertIn(f"{source}:8:16", stderr.getvalue())
+            self.assertIn("unsupported function or method call", stderr.getvalue())
 
     def test_inspect_emits_machine_readable_function_and_event_abi(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -96,6 +109,39 @@ class CliTests(unittest.TestCase):
             wasm.write_bytes(wasm.read_bytes() + b"changed")
             with redirect_stdout(io.StringIO()):
                 self.assertEqual(main(["verify", str(source), "--wasm", str(wasm), "--json"]), 1)
+
+    def test_inspect_and_validate_compiled_wasm(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "checked.py"
+            wasm = Path(directory) / "checked.wasm"
+            source.write_text(VALID_SOURCE, encoding="utf-8")
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(main(["build", str(source), "--output", str(wasm)]), 0)
+
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                self.assertEqual(main(["inspect", str(wasm), "--json"]), 0)
+            inspected = json.loads(stdout.getvalue())
+            self.assertEqual(inspected["contract"], "Checked")
+            self.assertEqual(inspected["protocol"], 25)
+            self.assertEqual([item["name"] for item in inspected["functions"]], ["double"])
+            self.assertEqual([item["name"] for item in inspected["exports"]], ["double", "memory"])
+
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                self.assertEqual(main(["validate", str(wasm), "--json"]), 0)
+            validated = json.loads(stdout.getvalue())
+            self.assertEqual(validated["status"], "valid")
+            self.assertEqual(validated["sha256"], inspected["sha256"])
+
+    def test_validate_rejects_malformed_artifact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            wasm = Path(directory) / "bad.wasm"
+            wasm.write_bytes(b"not wasm")
+            stderr = io.StringIO()
+            with redirect_stderr(stderr):
+                self.assertEqual(main(["validate", str(wasm)]), 1)
+            self.assertIn("not a WebAssembly", stderr.getvalue())
 
 
 if __name__ == "__main__":

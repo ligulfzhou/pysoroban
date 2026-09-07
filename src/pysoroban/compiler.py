@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Union
 
+from .errors import CompileError
 from .frontend import parse_contract
 from .ir import Contract as IRContract
 from .lowering import lower_contract
@@ -18,7 +19,12 @@ class CompilationResult:
 
 def check_source(source: str, source_name: Optional[str] = None) -> Contract:
     """Parse and type-check a contract without generating WebAssembly."""
-    return parse_contract(source, source_name)
+    try:
+        return parse_contract(source, source_name)
+    except CompileError as exc:
+        if source_name and not exc.source_name:
+            raise exc.with_source(source_name) from exc
+        raise
 
 
 def check_file(source_path: Union[str, Path]) -> Contract:

@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from .abi import contract_abi
+from .artifact import ArtifactError, inspect_wasm_file
 from .compiler import check_file, compile_file
 from .errors import CompileError
 
@@ -20,9 +21,12 @@ def build_parser() -> argparse.ArgumentParser:
     check = subparsers.add_parser("check", help="parse and type-check without generating Wasm")
     check.add_argument("source", type=Path)
     check.add_argument("--json", action="store_true", help="print machine-readable check information")
-    inspect = subparsers.add_parser("inspect", help="print the checked contract ABI")
-    inspect.add_argument("source", type=Path)
-    inspect.add_argument("--json", action="store_true", help="print the complete ABI as JSON")
+    inspect = subparsers.add_parser("inspect", help="inspect a Python contract or compiled Wasm artifact")
+    inspect.add_argument("input", type=Path)
+    inspect.add_argument("--json", action="store_true", help="print complete inspection data as JSON")
+    validate = subparsers.add_parser("validate", help="validate a compiled PySoroban Wasm artifact")
+    validate.add_argument("wasm", type=Path)
+    validate.add_argument("--json", action="store_true", help="print machine-readable validation information")
     verify = subparsers.add_parser("verify", help="rebuild source and compare it byte-for-byte with a Wasm artifact")
     verify.add_argument("source", type=Path)
     verify.add_argument("--wasm", type=Path, required=True)
@@ -53,11 +57,19 @@ def main(argv=None) -> int:
                 print(f"Wrote {info['output']} ({info['size']} bytes, protocol {info['protocol']})")
             return 0
         if args.command == "inspect":
-            abi = contract_abi(check_file(args.source))
+            is_wasm = args.input.suffix.lower() == ".wasm"
+            abi = inspect_wasm_file(args.input) if is_wasm else contract_abi(check_file(args.input))
             if args.json:
                 print(json.dumps(abi, sort_keys=True))
             else:
-                print(f"Contract {abi['contract']}")
+                if is_wasm:
+                    print(
+                        f"Artifact {abi['contract']} ({abi['size']} bytes, "
+                        f"protocol {abi['protocol']})"
+                    )
+                    print(f"  sha256 {abi['sha256']}")
+                else:
+                    print(f"Contract {abi['contract']}")
                 for function in abi["functions"]:
                     inputs = ", ".join(f"{item['name']}: {item['type']}" for item in function["inputs"])
                     outputs = ", ".join(function["outputs"]) or "None"
@@ -69,6 +81,29 @@ def main(argv=None) -> int:
                     )
                     data = ", ".join(f"{item['name']}: {item['type']}" for item in event["data"])
                     print(f"  event {event['name']}({topics}) data({data})")
+                if is_wasm:
+                    for item in abi["imports"]:
+                        print(f"  import {item['module']}.{item['name']} ({item['kind']})")
+                    for item in abi["exports"]:
+                        print(f"  export {item['name']} ({item['kind']})")
+            return 0
+        if args.command == "validate":
+            info = inspect_wasm_file(args.wasm)
+            result = {
+                "contract": info["contract"],
+                "protocol": info["protocol"],
+                "sha256": info["sha256"],
+                "size": info["size"],
+                "status": "valid",
+                "wasm": str(args.wasm),
+            }
+            if args.json:
+                print(json.dumps(result, sort_keys=True))
+            else:
+                print(
+                    f"Valid {result['contract']}: {result['sha256']} "
+                    f"({result['size']} bytes, protocol {result['protocol']})"
+                )
             return 0
         if args.command == "verify":
             result = compile_file(args.source, protocol=args.protocol)
@@ -106,7 +141,7 @@ def main(argv=None) -> int:
             else:
                 print(f"Checked {info['contract']} ({', '.join(info['functions'])}): ok")
             return 0
-    except (CompileError, OSError) as exc:
+    except (ArtifactError, CompileError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     return 2

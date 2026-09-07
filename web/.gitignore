@@ -41,4 +41,4 @@ yarn-error.log*
 
 # Browser compiler release artifact. Keep only the wheel used by this build.
 /public/compiler/pysoroban_compiler-*.whl
-!/public/compiler/pysoroban_compiler-0.7.0-py3-none-any.whl
+!/public/compiler/pysoroban_compiler-0.8.0-py3-none-any.whl

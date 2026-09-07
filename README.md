@@ -1,5 +1,7 @@
 # PySoroban
 
+[![CI](https://github.com/ligulfzhou/pysoroban/actions/workflows/ci.yml/badge.svg)](https://github.com/ligulfzhou/pysoroban/actions/workflows/ci.yml)
+
 PySoroban is an experimental, deterministic, statically typed Python contract
 language for Stellar. It compiles a deliberately small Python subset **directly
 to Soroban-compatible WebAssembly**. It does not generate Rust and it does not
@@ -71,14 +73,24 @@ pysoroban check examples/counter_contract.py
 pysoroban check examples/counter_contract.py --json
 ```
 
-Inspect a stable, machine-readable ABI and verify that an artifact is the exact
-deterministic output of its source:
+Inspect a stable, machine-readable ABI, inspect or validate the compiled Wasm
+without its source, and verify that an artifact is the exact deterministic
+output of its source:
 
 ```bash
 pysoroban inspect examples/typed_events_contract.py --json
+pysoroban inspect dist/math_contract.wasm
+pysoroban validate dist/math_contract.wasm --json
 pysoroban verify examples/typed_events_contract.py \
   --wasm dist/typed-events-testnet.wasm
 ```
+
+Artifact inspection decodes the Soroban protocol metadata, contract functions,
+typed events, host imports, Wasm exports, section sizes, and SHA-256 digest.
+`validate` checks WebAssembly framing and section ordering together with the
+PySoroban contract XDR subset. CI additionally runs the platform WebAssembly
+validator and rebuilds, validates, and verifies every example. See
+[`docs/VALIDATION.md`](docs/VALIDATION.md) for the exact validation boundary.
 
 `pysoroban build --json` also reports the artifact SHA-256, protocol, functions,
 and typed events for CI and deployment manifests.
@@ -217,6 +229,11 @@ separate WebAssembly toolchain.
 ```bash
 python3 -m unittest discover -s tests -v
 PYTHONPATH=src python3 -m pysoroban build examples/math_contract.py
+PYTHONPATH=src python3 -m pysoroban validate dist/math_contract.wasm
 ```
+
+GitHub Actions runs the compiler suite on Python 3.9 and 3.13, validates every
+example as WebAssembly, builds an installable wheel, and builds/tests/lints the
+Cloudflare demo with Node 24.
 
 Licensed under Apache-2.0.

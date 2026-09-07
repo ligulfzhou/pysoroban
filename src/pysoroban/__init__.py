@@ -7,6 +7,7 @@ by the Python runtime.
 
 from .compiler import CompilationResult, check_file, check_source, compile_file, compile_source
 from .abi import contract_abi
+from .artifact import ArtifactError, inspect_wasm, inspect_wasm_file, validate_wasm, validate_wasm_file
 
 
 class i32:
@@ -151,6 +152,7 @@ def public(fn):
 
 
 __all__ = [
+    "ArtifactError",
     "CompilationResult",
     "Address",
     "Bytes",
@@ -169,8 +171,12 @@ __all__ = [
     "events",
     "i32",
     "i64",
+    "inspect_wasm",
+    "inspect_wasm_file",
     "public",
     "storage",
     "u32",
     "u64",
+    "validate_wasm",
+    "validate_wasm_file",
 ]
