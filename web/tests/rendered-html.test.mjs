@@ -19,9 +19,11 @@ test("renders the PySoroban live proof", async () => {
   assert.match(html, /<title>PySoroban — Python contracts for Stellar<\/title>/i);
   assert.match(html, /Python contracts\./);
   assert.match(html, /Real Stellar Wasm\./);
+  assert.match(html, /pip install --pre pysoroban-compiler/);
+  assert.match(html, /https:\/\/pypi\.org\/project\/pysoroban-compiler\//);
   assert.match(html, /Compile in browser/);
   assert.match(html, /Test before testnet/);
-  assert.match(html, /56 \/ 56/);
+  assert.match(html, /57 \/ 57/);
   assert.match(html, /Run nested call/);
   assert.match(html, /Sum live vector/);
   assert.match(html, /Look up live map/);

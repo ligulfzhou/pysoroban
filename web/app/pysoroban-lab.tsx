@@ -506,6 +506,7 @@ export function PySorobanLab() {
           <span>PySoroban</span>
         </a>
         <nav aria-label="Main navigation">
+          <a href="#install">Install</a>
           <a href="#compiler">Compiler</a>
           <a href="#testing">Testing</a>
           <a href="#deployments">Deployments</a>
@@ -517,7 +518,7 @@ export function PySorobanLab() {
           target="_blank"
           rel="noreferrer"
         >
-          Protocol 25 <span aria-hidden="true">↗</span>
+          GitHub <span aria-hidden="true">↗</span>
         </a>
       </header>
 
@@ -542,6 +543,20 @@ export function PySorobanLab() {
             </a>
             <a className="text-action" href="#live-calls">
               Call a live contract <span aria-hidden="true">→</span>
+            </a>
+          </div>
+          <div className="install-card" id="install">
+            <div className="install-release">
+              <span>PyPI alpha</span>
+              <strong>0.9.0a1</strong>
+            </div>
+            <code>pip install --pre pysoroban-compiler</code>
+            <a
+              href="https://pypi.org/project/pysoroban-compiler/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              View package <span aria-hidden="true">↗</span>
             </a>
           </div>
         </div>
@@ -569,7 +584,7 @@ export function PySorobanLab() {
       <section className="proof-strip" aria-label="Project facts">
         <div><strong>0</strong><span>Rust artifacts</span></div>
         <div><strong>726 B</strong><span>Map Wasm</span></div>
-        <div><strong>56/56</strong><span>Compiler tests</span></div>
+        <div><strong>57/57</strong><span>Compiler tests</span></div>
         <div><strong>6</strong><span>Live contracts</span></div>
       </section>
 
@@ -704,7 +719,7 @@ assert contract.storage["total"] == result
 assert contract.last_events == (Event(("updated", "alice"), result),)`}</code></pre>
           <div className="test-result-card">
             <span className="test-status">● all checks passed</span>
-            <strong>56 / 56</strong>
+            <strong>57 / 57</strong>
             <p>Compiler, Typed IR, CLI, auth, storage, events, vectors, maps, and numeric boundaries.</p>
             <small>Deterministic IR simulator · network integration remains on testnet</small>
           </div>

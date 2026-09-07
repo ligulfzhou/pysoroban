@@ -116,6 +116,24 @@ a { color: inherit; text-decoration: none; }
 .primary-action:hover, .compile-button:hover:not(:disabled) { transform: translate(2px,2px); box-shadow: 2px 2px 0 var(--blue); }
 .text-action { font-weight: 620; }
 
+.install-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  max-width: 680px;
+  margin-top: 32px;
+  padding: 14px 16px;
+  border: 1px solid rgba(7,17,31,.15);
+  border-radius: 10px;
+  background: rgba(255,255,255,.64);
+}
+.install-release { display: flex; flex-direction: column; gap: 3px; }
+.install-release span { color: var(--muted); font-family: var(--mono); font-size: 9px; letter-spacing: .07em; text-transform: uppercase; }
+.install-release strong { font-family: var(--mono); font-size: 12px; }
+.install-card code { min-width: 0; overflow-x: auto; color: #253653; font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+.install-card > a { color: #3e56d5; font-size: 12px; font-weight: 660; white-space: nowrap; }
+
 .pipeline-card {
   align-self: center;
   position: relative;
@@ -252,6 +270,7 @@ footer > span { justify-self: end; font-family: var(--mono); font-size: 10px; }
   .hero h1 { font-size: 52px; }
   .hero-actions { align-items: stretch; flex-direction: column; }
   .primary-action { width: 100%; }
+  .install-card { grid-template-columns: 1fr; gap: 10px; }
   .proof-strip strong { font-size: 16px; }
   .proof-strip > div { flex-direction: column; align-items: center; gap: 4px; }
   .section { padding-top: 78px; padding-bottom: 78px; }
