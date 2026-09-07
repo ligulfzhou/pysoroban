@@ -200,6 +200,29 @@ Success will be measured through verifiable engineering and launch outputs:
 - independently reproducible artifacts and release hashes;
 - downstream contracts or examples built from the public package after v1.0.
 
+## Real-world validation strategy
+
+PySoroban will be validated with progressively harder DeFi workloads rather
+than only small syntax examples:
+
+1. A constant-product AMM reference contract exercises checked asset math,
+   token transfers, authorization, persistent state, liquidity shares, and
+   contract events.
+2. A bounded lending kernel exercises oracle calls, collateral and liability
+   accounting, health-factor checks, and multi-contract composition. This is a
+   compatibility and compiler-validation workload, not a promise to fork or
+   replace the complete Blend protocol.
+3. The existing LumAgg execution contract is used as the flagship application
+   workload. Its PySoroban implementation exercises nested route types,
+   multi-hop and split swaps, dynamic cross-contract calls, authorization, and
+   atomic slippage enforcement.
+
+The AMM and lending contracts are reference software and will be deployed with
+test assets only. They are not represented as audited production financial
+protocols. The LumAgg port will be mandatory on testnet; any production-funds
+deployment will require a separate security review and will not replace the
+existing Rust production contract merely to satisfy a grant milestone.
+
 ## Proposed roadmap and budget
 
 **Total request: USD 60,000 worth of XLM**
@@ -216,6 +239,9 @@ The project duration is approximately five months. Audit fees are excluded.
 
 Deliverables:
 
+- Add checked `i128`/`u128` asset arithmetic and the fixed-point primitives
+  required by Soroban DeFi contracts, with explicit overflow, division, and
+  rounding semantics.
 - Implement statically typed user-defined contract structs and enums across
   parsing, type checking, Typed IR, contract XDR, Wasm lowering, and tests.
 - Add safe mutable operations for `Vec[T]` and `Map[K, V]`, with explicit
@@ -223,6 +249,10 @@ Deliverables:
 - Publish a versioned language specification defining accepted syntax, types,
   integer behavior, control flow, determinism, and rejected Python features.
 - Improve source diagnostics for type, ABI, and unsupported-feature errors.
+- Compile and execute a constant-product AMM reference implementation in the
+  local differential test environment, covering pool initialization,
+  deposit/withdraw, liquidity-share accounting, and swaps with a minimum-output
+  check.
 
 Completion evidence:
 
@@ -231,6 +261,8 @@ Completion evidence:
 - Unit and IR/Wasm differential suites cover every new type and collection
   operation with no regressions.
 - Examples compile reproducibly from a clean install of the released wheel.
+- AMM invariant tests demonstrate reserve conservation, monotonic share
+  accounting, and rejection of invalid or under-minimum swaps.
 
 ### Tranche 2 — Testnet hardening and developer workflow
 
@@ -251,6 +283,12 @@ Deliverables:
   checksums, compatibility metadata, and upgrade documentation.
 - Expand the browser lab to demonstrate the new language features and expose
   testnet transaction evidence.
+- Deploy and exercise the PySoroban AMM on Stellar testnet with test assets,
+  and publish parity tests against an equivalent Rust/Soroban reference.
+- Deliver a bounded Blend-style lending kernel on testnet covering supply,
+  withdraw, borrow, repay, an oracle interface, and collateral health checks.
+  Backstop, emissions, governance, liquidation auctions, and production-funds
+  deployment are explicitly outside this milestone.
 
 Completion evidence:
 
@@ -259,6 +297,8 @@ Completion evidence:
 - CI publishes a machine-readable conformance report and deterministic hashes.
 - All reference deployment IDs and transactions are public and linked from the
   demo.
+- AMM and lending-kernel invariant suites and end-to-end testnet transactions
+  are reproducible from the tagged release.
 
 ### Tranche 3 — v1.0 and mainnet-ready public launch
 
@@ -276,9 +316,16 @@ Deliverables:
   migration guidance, and a maintainer release/incident process.
 - Produce signed, reproducible v1.0 wheels and example Wasm artifacts with an
   SBOM and public checksums.
-- Deploy non-custodial reference contracts compiled by v1.0 to Stellar mainnet
-  and publish verified contract IDs, hashes, invocations, and a recorded
-  end-to-end demonstration.
+- Port the core LumAgg aggregator execution contract to PySoroban, including
+  typed routes, multi-hop and split execution, token authorization,
+  cross-contract DEX calls, atomic failure, and minimum-output enforcement.
+- Run the PySoroban LumAgg contract against testnet DEX fixtures and publish
+  behavioral parity results against the existing Rust implementation.
+- Deploy non-custodial, non-production reference contracts compiled by v1.0 to
+  Stellar mainnet and publish verified contract IDs, hashes, invocations, and a
+  recorded end-to-end demonstration. A production-funds LumAgg migration is
+  outside the acceptance criteria unless the port receives an appropriate
+  external security review.
 
 Completion evidence:
 
@@ -287,6 +334,9 @@ Completion evidence:
   with standard Stellar tools.
 - Public CI, conformance, security, documentation, and mainnet evidence are
   linked from the project website.
+- A public LumAgg testnet demonstration completes quote, route construction,
+  transaction simulation, authorization, execution, and result verification
+  using a contract compiled directly from Python.
 
 ## Team
 
