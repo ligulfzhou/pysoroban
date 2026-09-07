@@ -92,6 +92,14 @@ class Vec:
         return cls
 
 
+class Map:
+    """A homogeneous Soroban map type, written Map[K, V]."""
+
+    @classmethod
+    def __class_getitem__(cls, item):
+        return cls
+
+
 class _InstanceStorage:
     def get_i32(self, key):
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
@@ -160,6 +168,7 @@ __all__ = [
     "Symbol",
     "Topic",
     "Vec",
+    "Map",
     "boolean",
     "check_file",
     "check_source",

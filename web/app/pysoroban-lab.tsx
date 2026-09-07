@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 const PYODIDE_URL =
   "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.mjs";
 const COMPILER_WHEEL =
-  "/compiler/pysoroban_compiler-0.8.0-py3-none-any.whl";
+  "/compiler/pysoroban_compiler-0.9.0-py3-none-any.whl";
 const RPC_URL = "https://soroban-testnet.stellar.org";
 const SOURCE_ACCOUNT =
   "GBTZVQRXWUTOBJZU5VEZZVNOQIEP7TIHORJFG26FVAHJGCUPDC22BULU";
@@ -177,6 +177,35 @@ class VectorMath:
         return values
 `,
   },
+  maps: {
+    name: "Scores",
+    file: "map_contract.py",
+    id: "CBBIUQP2T3LRIZFZQURB7XSXSJMZ6KLE6ONQZXRNST6LTA5CYHYKCIO3",
+    hash: "40321305…18c9d2",
+    transaction:
+      "3896c98adee9e640a9f1ac9e5a635da048c8998faf923705f4d9117478d0d960",
+    source: `from pysoroban import Map, Symbol, boolean, contract, i32, public
+
+
+@contract
+class Scores:
+    @public
+    def score(self, scores: Map[Symbol, i32], player: Symbol) -> i32:
+        return scores[player]
+
+    @public
+    def contains(self, scores: Map[Symbol, i32], player: Symbol) -> boolean:
+        return scores.has(player)
+
+    @public
+    def count(self, scores: Map[Symbol, i32]) -> i32:
+        return len(scores)
+
+    @public
+    def echo(self, scores: Map[Symbol, i32]) -> Map[Symbol, i32]:
+        return scores
+`,
+  },
 } as const;
 
 type ContractKey = keyof typeof contracts;
@@ -235,7 +264,10 @@ json.dumps({
 async function simulateCall(
   contractId: string,
   method: string,
-  args: Array<{ value: number | string | number[]; type: "i32" | "address" | "vec_i32" }>,
+  args: Array<{
+    value: number | string | number[] | Record<string, number>;
+    type: "i32" | "address" | "symbol" | "vec_i32" | "map_symbol_i32";
+  }>,
 ) {
   const Stellar = await import("@stellar/stellar-sdk");
   const server = new Stellar.rpc.Server(RPC_URL);
@@ -253,6 +285,15 @@ async function simulateCall(
                 Stellar.nativeToScVal(value, { type: "i32" }),
               ),
             )
+          : arg.type === "map_symbol_i32"
+            ? Stellar.xdr.ScVal.scvMap(
+                Object.entries(arg.value as Record<string, number>).map(
+                  ([key, value]) => new Stellar.xdr.ScMapEntry({
+                    key: Stellar.nativeToScVal(key, { type: "symbol" }),
+                    val: Stellar.nativeToScVal(value, { type: "i32" }),
+                  }),
+                ),
+              )
           : Stellar.nativeToScVal(arg.value as number | string, { type: arg.type }),
         ),
       ),
@@ -297,7 +338,10 @@ export function PySorobanLab() {
   const [proxyResult, setProxyResult] = useState<string>("—");
   const [vectorInput, setVectorInput] = useState("3, 5, 8");
   const [vectorResult, setVectorResult] = useState<string>("—");
-  const [callState, setCallState] = useState<"idle" | "math" | "counter" | "typed" | "proxy" | "vectors">(
+  const [mapInput, setMapInput] = useState('{"alice":9,"bob":12}');
+  const [mapPlayer, setMapPlayer] = useState("bob");
+  const [mapResult, setMapResult] = useState<string>("—");
+  const [callState, setCallState] = useState<"idle" | "math" | "counter" | "typed" | "proxy" | "vectors" | "maps">(
     "idle",
   );
   const [callLedger, setCallLedger] = useState<number | null>(null);
@@ -433,6 +477,27 @@ export function PySorobanLab() {
     }
   }
 
+  async function callMaps() {
+    setCallState("maps");
+    setMapResult("…");
+    try {
+      const scores = JSON.parse(mapInput) as Record<string, number>;
+      if (!scores || Array.isArray(scores) || Object.values(scores).some((value) => !Number.isInteger(value))) {
+        throw new Error("Enter a JSON object with integer scores");
+      }
+      const result = await simulateCall(contracts.maps.id, "score", [
+        { value: scores, type: "map_symbol_i32" },
+        { value: mapPlayer, type: "symbol" },
+      ]);
+      setMapResult(String(result.value));
+      setCallLedger(result.ledger);
+    } catch (error) {
+      setMapResult(error instanceof Error ? error.message : "Call failed");
+    } finally {
+      setCallState("idle");
+    }
+  }
+
   return (
     <main>
       <header className="site-header">
@@ -448,7 +513,7 @@ export function PySorobanLab() {
         </nav>
         <a
           className="github-link"
-          href="https://github.com/stellar"
+          href="https://github.com/ligulfzhou/pysoroban"
           target="_blank"
           rel="noreferrer"
         >
@@ -503,9 +568,9 @@ export function PySorobanLab() {
 
       <section className="proof-strip" aria-label="Project facts">
         <div><strong>0</strong><span>Rust artifacts</span></div>
-        <div><strong>1,125 B</strong><span>Typed Wasm</span></div>
-        <div><strong>52/52</strong><span>Compiler tests</span></div>
-        <div><strong>5</strong><span>Live contracts</span></div>
+        <div><strong>726 B</strong><span>Map Wasm</span></div>
+        <div><strong>56/56</strong><span>Compiler tests</span></div>
+        <div><strong>6</strong><span>Live contracts</span></div>
       </section>
 
       <section className="section compiler-section" id="compiler">
@@ -639,8 +704,8 @@ assert contract.storage["total"] == result
 assert contract.last_events == (Event(("updated", "alice"), result),)`}</code></pre>
           <div className="test-result-card">
             <span className="test-status">● all checks passed</span>
-            <strong>52 / 52</strong>
-            <p>Compiler, Typed IR, CLI, auth, storage, events, and numeric boundaries.</p>
+            <strong>56 / 56</strong>
+            <p>Compiler, Typed IR, CLI, auth, storage, events, vectors, maps, and numeric boundaries.</p>
             <small>Deterministic IR simulator · network integration remains on testnet</small>
           </div>
         </div>
@@ -653,7 +718,7 @@ assert contract.last_events == (Event(("updated", "alice"), result),)`}</code></
             <h2>Deployed, not mocked.</h2>
           </div>
           <p>
-            All five artifacts were uploaded with Stellar CLI and accepted by
+            All six artifacts were uploaded with Stellar CLI and accepted by
             testnet. Contract IDs and deployment transactions are public.
           </p>
         </div>
@@ -790,6 +855,24 @@ assert contract.last_events == (Event(("updated", "alice"), result),)`}</code></
             </div>
             <button onClick={callVectors} disabled={callState !== "idle"}>
               {callState === "vectors" ? "Calling testnet…" : "Sum live vector"}
+              <span aria-hidden="true">→</span>
+            </button>
+          </article>
+
+          <article className="call-card">
+            <div className="call-card-title">
+              <div><span>Scores</span><h3>score(scores, player)</h3></div>
+              <span className="method-badge">Map[Symbol, i32]</span>
+            </div>
+            <div className="call-inputs">
+              <label>Scores JSON<input value={mapInput} onChange={(e) => setMapInput(e.target.value)} /></label>
+              <label>Player symbol<input value={mapPlayer} onChange={(e) => setMapPlayer(e.target.value)} /></label>
+            </div>
+            <div className="call-result">
+              <span>Player score</span><strong>{mapResult}</strong>
+            </div>
+            <button onClick={callMaps} disabled={callState !== "idle"}>
+              {callState === "maps" ? "Calling testnet…" : "Look up live map"}
               <span aria-hidden="true">→</span>
             </button>
           </article>

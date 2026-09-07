@@ -3,7 +3,7 @@ import re
 from typing import Dict, Iterable, List, Optional, Set
 
 from .errors import CompileError, fail
-from .model import Contract, Event, EventField, Function, Parameter, ValueType, VEC_ELEMENT_TYPES, VEC_TYPES_BY_ELEMENT
+from .model import Contract, Event, EventField, Function, MapType, Parameter, ValueType, VEC_ELEMENT_TYPES, VEC_TYPES_BY_ELEMENT
 
 
 TYPE_NAMES = {
@@ -52,7 +52,7 @@ def _integer_literal(node: ast.expr) -> Optional[int]:
     return None
 
 
-def _annotation(node: Optional[ast.expr], *, allow_void: bool = False) -> ValueType:
+def _annotation(node: Optional[ast.expr], *, allow_void: bool = False):
     if node is None:
         if allow_void:
             return ValueType.VOID
@@ -64,6 +64,16 @@ def _annotation(node: Optional[ast.expr], *, allow_void: bool = False) -> ValueT
         if element not in VEC_TYPES_BY_ELEMENT:
             fail(node, "unsupported Vec element type")
         result = VEC_TYPES_BY_ELEMENT[element]
+    elif isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "Map":
+        if not isinstance(node.slice, ast.Tuple) or len(node.slice.elts) != 2:
+            fail(node, "Map requires key and value types")
+        key = _annotation(node.slice.elts[0])
+        value = _annotation(node.slice.elts[1])
+        if key in VEC_ELEMENT_TYPES or isinstance(key, MapType):
+            fail(node.slice.elts[0], "Map keys must be scalar contract types")
+        if value in VEC_ELEMENT_TYPES or isinstance(value, MapType):
+            fail(node.slice.elts[1], "nested collection values are not supported yet")
+        result = MapType(key, value)
     elif isinstance(node, ast.Constant) and node.value is None:
         result = ValueType.VOID
     else:
@@ -116,8 +126,8 @@ def _parse_events(module: ast.Module) -> List[Event]:
                 fail(child, "event field names are limited to 30 UTF-8 bytes")
             field_names.add(field_name)
             value_type, is_topic = _event_annotation(child.annotation)
-            if is_topic and value_type in VEC_ELEMENT_TYPES:
-                fail(child, "Vec values cannot be event topics")
+            if is_topic and (value_type in VEC_ELEMENT_TYPES or isinstance(value_type, MapType)):
+                fail(child, "collection values cannot be event topics")
             if is_topic and saw_data:
                 fail(child, "Topic fields must appear before the event data field")
             if not is_topic:
@@ -207,7 +217,7 @@ class TypeChecker:
     def check_statement(self, node: ast.stmt):
         if isinstance(node, ast.Return):
             actual = ValueType.VOID if node.value is None else self.check_expr(node.value)
-            if actual is not self.function.result:
+            if actual != self.function.result:
                 fail(node, f"expected return type {self.function.result.value}, got {actual.value}")
             return
         if isinstance(node, ast.AnnAssign):
@@ -215,7 +225,7 @@ class TypeChecker:
                 fail(node, "annotated assignments require a simple name and value")
             declared = _annotation(node.annotation)
             actual = self.check_expr(node.value)
-            if declared is not actual:
+            if declared != actual:
                 fail(node, f"cannot assign {actual.value} to {declared.value}")
             self._bind(node.target, declared)
             return
@@ -240,7 +250,7 @@ class TypeChecker:
                 self.check_statement(child)
             else_vars = dict(self.variables)
             for name in set(body_vars) & set(else_vars):
-                if body_vars[name] is else_vars[name]:
+                if body_vars[name] == else_vars[name]:
                     self.variables[name] = body_vars[name]
             return
         if isinstance(node, ast.For):
@@ -286,15 +296,20 @@ class TypeChecker:
             return self.variables[node.id]
         if isinstance(node, ast.Subscript):
             if not isinstance(node.value, ast.Name) or node.value.id not in self.variables:
-                fail(node, "vector indexing requires a Vec variable")
-            vector_type = self.variables[node.value.id]
-            if vector_type not in VEC_ELEMENT_TYPES:
-                fail(node.value, "only Vec values can be indexed")
+                fail(node, "collection indexing requires a Vec or Map variable")
+            collection_type = self.variables[node.value.id]
             if isinstance(node.slice, ast.Slice):
-                fail(node.slice, "Vec slicing is not supported yet")
-            if self.check_expr(node.slice) is not ValueType.I32:
-                fail(node.slice, "Vec indices must be i32")
-            return VEC_ELEMENT_TYPES[vector_type]
+                fail(node.slice, "collection slicing is not supported")
+            index_type = self.check_expr(node.slice)
+            if collection_type in VEC_ELEMENT_TYPES:
+                if index_type is not ValueType.I32:
+                    fail(node.slice, "Vec indices must be i32")
+                return VEC_ELEMENT_TYPES[collection_type]
+            if isinstance(collection_type, MapType):
+                if index_type != collection_type.key:
+                    fail(node.slice, f"Map key expects {collection_type.key.value}, got {index_type.value}")
+                return collection_type.value_type
+            fail(node.value, "only Vec and Map values can be indexed")
         if isinstance(node, ast.UnaryOp):
             operand = self.check_expr(node.operand)
             if isinstance(node.op, ast.USub) and operand in {ValueType.I32, ValueType.I64}:
@@ -336,11 +351,22 @@ class TypeChecker:
         path = _attribute_path(node.func)
         if path == ["len"]:
             if len(node.args) != 1 or not isinstance(node.args[0], ast.Name):
-                fail(node, "len() requires one Vec variable")
+                fail(node, "len() requires one Vec or Map variable")
             value_type = self.variables.get(node.args[0].id)
-            if value_type not in VEC_ELEMENT_TYPES:
-                fail(node.args[0], "len() is only supported for Vec values")
+            if value_type not in VEC_ELEMENT_TYPES and not isinstance(value_type, MapType):
+                fail(node.args[0], "len() is only supported for Vec and Map values")
             return ValueType.I32
+        if len(path) == 2 and path[1] == "has":
+            owner = path[0]
+            map_type = self.variables.get(owner)
+            if not isinstance(map_type, MapType):
+                fail(node, "has() is only available on Map values")
+            if len(node.args) != 1:
+                fail(node, "Map.has() takes one key")
+            actual = self.check_expr(node.args[0])
+            if actual != map_type.key:
+                fail(node.args[0], f"Map key expects {map_type.key.value}, got {actual.value}")
+            return ValueType.BOOL
         if len(path) == 1 and path[0] in {"i32", "u32", "i64", "u64"}:
             value = _integer_literal(node.args[0]) if len(node.args) == 1 else None
             if value is None:
@@ -422,7 +448,7 @@ class TypeChecker:
                     fail(constructor, f"{event.name}() expects {len(event.fields)} arguments, got {len(constructor.args)}")
                 for field, value in zip(event.fields, constructor.args):
                     actual = self.check_expr(value)
-                    if actual is not field.type:
+                    if actual != field.type:
                         fail(value, f"event field {field.name!r} expects {field.type.value}, got {actual.value}")
                 return ValueType.VOID
             if len(node.args) != 2:

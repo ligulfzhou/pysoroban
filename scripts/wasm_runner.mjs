@@ -25,6 +25,11 @@ function vectorElement(type) {
     : null;
 }
 
+function mapTypes(type) {
+  const match = /^Map\[([^,]+), ([^\]]+)\]$/.exec(type);
+  return match ? { key: match[1], value: match[2] } : null;
+}
+
 class MiniSorobanHost {
   constructor() {
     this.objects = new Map();
@@ -51,12 +56,27 @@ class MiniSorobanHost {
     if (type === "i64" || type === "u64") {
       return this.put({ kind: type, value: BigInt(value) });
     }
+    if (["Address", "Symbol", "String", "Bytes"].includes(type)) {
+      return this.put({ kind: type, value });
+    }
     const element = vectorElement(type);
     if (element) {
       return this.put({
         kind: "vec",
         element,
         values: value.map((item) => this.encode(item, element)),
+      });
+    }
+    const map = mapTypes(type);
+    if (map) {
+      return this.put({
+        kind: "map",
+        key: map.key,
+        value: map.value,
+        entries: Object.entries(value).map(([key, item]) => [
+          this.encode(key, map.key),
+          this.encode(item, map.value),
+        ]),
       });
     }
     throw new Error(`runner cannot encode ${type}`);
@@ -73,9 +93,18 @@ class MiniSorobanHost {
       if (tag === U64_SMALL_TAG) return (bits >> 8n).toString();
       return this.get(value).value.toString();
     }
+    if (["Address", "Symbol", "String", "Bytes"].includes(type)) {
+      return this.get(value).value;
+    }
     const element = vectorElement(type);
     if (element) {
       return this.get(value).values.map((item) => this.decode(item, element));
+    }
+    const map = mapTypes(type);
+    if (map) {
+      return Object.fromEntries(
+        this.get(value).entries.map(([key, item]) => [this.decode(key, map.key), this.decode(item, map.value)]),
+      );
     }
     if (type === "None" || type === "void") return null;
     throw new Error(`runner cannot decode ${type}`);
@@ -90,6 +119,13 @@ class MiniSorobanHost {
     return this.put({ kind, value });
   }
 
+  equal(left, right) {
+    const leftObject = this.objects.get(BigInt.asUintN(64, left).toString());
+    const rightObject = this.objects.get(BigInt.asUintN(64, right).toString());
+    if (!leftObject || !rightObject) return left === right;
+    return leftObject.kind === rightObject.kind && leftObject.value === rightObject.value;
+  }
+
   function(module, name) {
     const key = `${module}.${name}`;
     if (key === "i._") return (value) => this.put({ kind: "u64", value: BigInt.asUintN(64, value) });
@@ -101,6 +137,13 @@ class MiniSorobanHost {
     if (key === "b.j") return (offset, length) => this.memoryObject("Symbol", offset, length);
     if (key === "v.3") return (vector) => tagged32(this.get(vector).values.length, U32_TAG);
     if (key === "v.1") return (vector, index) => this.get(vector).values[Number(decodeU32(index))];
+    if (key === "m.3") return (map) => tagged32(this.get(map).entries.length, U32_TAG);
+    if (key === "m.4") return (map, wanted) => this.get(map).entries.some(([key]) => this.equal(key, wanted)) ? 1n : 0n;
+    if (key === "m.1") return (map, wanted) => {
+      const entry = this.get(map).entries.find(([key]) => this.equal(key, wanted));
+      if (!entry) throw new Error("map key not found");
+      return entry[1];
+    };
     if (key === "x.0") {
       return (left, right) => BigInt(this.get(left).value === this.get(right).value ? 0 : 1);
     }

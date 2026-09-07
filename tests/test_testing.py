@@ -98,6 +98,19 @@ class Wrapping:
         with self.assertRaisesRegex(InvocationError, "out of bounds"):
             vectors.invoke("first", [])
 
+    def test_executes_and_validates_typed_maps(self):
+        maps = ContractTest.from_file(ROOT / "examples/map_contract.py")
+        scores = {"alice": 9, "bob": 12}
+        self.assertEqual(maps.invoke("score", scores, "bob"), 12)
+        self.assertTrue(maps.invoke("contains", scores, "alice"))
+        self.assertFalse(maps.invoke("contains", scores, "carol"))
+        self.assertEqual(maps.invoke("count", scores), 2)
+        self.assertEqual(maps.invoke("echo", scores), scores)
+        with self.assertRaisesRegex(InvocationError, "Map key 'carol' was not found"):
+            maps.invoke("score", scores, "carol")
+        with self.assertRaisesRegex(InvocationError, "not a valid i32"):
+            maps.invoke("count", {"alice": "bad"})
+
     def test_typed_storage_get_detects_wrong_or_missing_value(self):
         source = '''
 from pysoroban import Symbol, contract, public, storage, u64

@@ -21,9 +21,10 @@ test("renders the PySoroban live proof", async () => {
   assert.match(html, /Real Stellar Wasm\./);
   assert.match(html, /Compile in browser/);
   assert.match(html, /Test before testnet/);
-  assert.match(html, /52 \/ 52/);
+  assert.match(html, /56 \/ 56/);
   assert.match(html, /Run nested call/);
   assert.match(html, /Sum live vector/);
+  assert.match(html, /Look up live map/);
   assert.match(html, /Deployed, not mocked\./);
   assert.match(html, /Call the contracts yourself\./);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Sequence, Tuple
 
 from . import ir
-from .model import ValueType, VEC_ELEMENT_TYPES
+from .model import ContractType, ValueType, VEC_ELEMENT_TYPES, is_object_type
 from .xdr import contract_spec, environment_metadata
 
 
@@ -48,13 +48,7 @@ OBJ_CMP = 12
 CONTRACT_EVENT = 13
 CONTRACT_CALL = 14
 
-OBJECT_TYPES = {
-    ValueType.ADDRESS,
-    ValueType.BYTES,
-    ValueType.STRING,
-    ValueType.SYMBOL,
-} | set(VEC_ELEMENT_TYPES)
-I64_TYPES = OBJECT_TYPES | {ValueType.I64, ValueType.U64}
+I64_TYPES = {ValueType.I64, ValueType.U64}
 
 
 class LiteralPool:
@@ -143,7 +137,7 @@ class FunctionEmitter:
         first_local = len(self.function.params)
         for offset, item in enumerate(names):
             native[item] = first_local + offset
-        local_types = [0x7E if types[item] in I64_TYPES else 0x7F for item in names]
+        local_types = [0x7E if types[item] in I64_TYPES or is_object_type(types[item]) else 0x7F for item in names]
         scratch = len(self.function.params) + len(local_types)
         local_types.append(0x7E)
         return Locals(param_raw, native, types, local_types, scratch)
@@ -176,7 +170,7 @@ class FunctionEmitter:
             return raw + b"\x42\x01\x51"
         if value_type in {ValueType.I64, ValueType.U64}:
             return raw + self._decode_i64_val(value_type)
-        if value_type in OBJECT_TYPES:
+        if is_object_type(value_type):
             return raw
         raise AssertionError(value_type)
 
@@ -274,7 +268,7 @@ class FunctionEmitter:
             return self.expression(node.left) + self.expression(node.right) + bytes([opcodes[node.op]])
         if isinstance(node, ir.Compare):
             operand_type = node.left.type
-            if operand_type in OBJECT_TYPES:
+            if is_object_type(operand_type):
                 compared = self.expression(node.left) + self.expression(node.right) + b"\x10" + uleb(OBJ_CMP)
                 return compared + b"\x50" + (b"" if node.op == "eq" else b"\x45")
             i32_opcodes = {
@@ -371,9 +365,23 @@ class FunctionEmitter:
                 b"\x10", uleb(self.host_indices[("v", "1")]),
             ])
             return raw + self._decode_call_result(node.type)
+        if node.op == "map_len":
+            return (
+                self.expression(node.args[0])
+                + b"\x10" + uleb(self.host_indices[("m", "3")])
+                + b"\x42\x20\x88\xa7"
+            )
+        if node.op in {"map_get", "map_has"}:
+            map_value, key = node.args
+            raw = b"".join([
+                self.expression(map_value),
+                self.expression(key), self.encode_val(key.type),
+                b"\x10", uleb(self.host_indices[("m", "1" if node.op == "map_get" else "4")]),
+            ])
+            return raw + self._decode_call_result(node.type)
         raise AssertionError(node.op)
 
-    def _decode_call_result(self, value_type: ValueType) -> bytes:
+    def _decode_call_result(self, value_type: ContractType) -> bytes:
         if value_type is ValueType.I32:
             return b"\x42\x20\x87\xa7"
         if value_type is ValueType.U32:
@@ -382,7 +390,7 @@ class FunctionEmitter:
             return b"\x42\x01\x51"
         if value_type in {ValueType.I64, ValueType.U64}:
             return self._decode_i64_val(value_type)
-        if value_type in OBJECT_TYPES:
+        if is_object_type(value_type):
             return b""
         raise AssertionError(value_type)
 
@@ -392,7 +400,7 @@ class FunctionEmitter:
         return b"\x41" + sleb(signed, 32) + FunctionEmitter.encode_val(ValueType.U32)
 
     @staticmethod
-    def encode_val(value_type: ValueType) -> bytes:
+    def encode_val(value_type: ContractType) -> bytes:
         if value_type is ValueType.I32:
             # Preserve the i32 bit pattern, shift it into Val.major, add tag 5.
             return b"\xad\x42\x20\x86\x42" + sleb(I32_TAG) + b"\x84"
@@ -404,7 +412,7 @@ class FunctionEmitter:
             return b"\x10" + uleb(OBJ_FROM_U64)
         if value_type is ValueType.BOOL:
             return b"\xad"  # i64.extend_i32_u; tags are false=0, true=1
-        if value_type in OBJECT_TYPES:
+        if is_object_type(value_type):
             return b""
         if value_type is ValueType.VOID:
             return b"\x42" + sleb(VOID_TAG)
@@ -418,6 +426,12 @@ def emit_module(contract: ir.Contract, protocol: int = 25) -> bytes:
         optional_imports.append(("v", "1", 2))
     if _uses_host_op(contract, "vec_len"):
         optional_imports.append(("v", "3", 1))
+    if _uses_host_op(contract, "map_get"):
+        optional_imports.append(("m", "1", 2))
+    if _uses_host_op(contract, "map_len"):
+        optional_imports.append(("m", "3", 1))
+    if _uses_host_op(contract, "map_has"):
+        optional_imports.append(("m", "4", 2))
     if _uses_host_op(contract, "contract_call"):
         optional_imports.append(CONTRACT_CALL_IMPORT)
     host_imports = HOST_IMPORTS + tuple(optional_imports)

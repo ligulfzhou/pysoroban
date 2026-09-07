@@ -6,7 +6,7 @@ from typing import Dict, List, Tuple
 from . import ir
 from .errors import fail
 from .frontend import CONTRACT_CALL_TYPES, _attribute_path, _integer_literal, function_body
-from .model import Contract, Event, Function, Parameter, ValueType, VEC_ELEMENT_TYPES
+from .model import Contract, Event, Function, MapType, Parameter, ValueType, VEC_ELEMENT_TYPES
 
 
 ANNOTATIONS = {
@@ -122,8 +122,10 @@ class FunctionLowerer:
         if isinstance(node, ast.Name):
             return ir.Local(node.id, self.types[node.id])
         if isinstance(node, ast.Subscript):
-            vector = ir.Local(node.value.id, self.types[node.value.id])
-            return ir.HostCall("vec_get", (vector, self.expression(node.slice)), VEC_ELEMENT_TYPES[vector.type])
+            collection = ir.Local(node.value.id, self.types[node.value.id])
+            if isinstance(collection.type, MapType):
+                return ir.HostCall("map_get", (collection, self.expression(node.slice)), collection.type.value_type)
+            return ir.HostCall("vec_get", (collection, self.expression(node.slice)), VEC_ELEMENT_TYPES[collection.type])
         if isinstance(node, ast.UnaryOp):
             operand = self.expression(node.operand)
             if isinstance(node.op, ast.USub):
@@ -152,7 +154,15 @@ class FunctionLowerer:
         path = _attribute_path(node.func)
         if path == ["len"]:
             value = node.args[0]
-            return ir.HostCall("vec_len", (ir.Local(value.id, self.types[value.id]),), ValueType.I32)
+            collection = ir.Local(value.id, self.types[value.id])
+            op = "map_len" if isinstance(collection.type, MapType) else "vec_len"
+            return ir.HostCall(op, (collection,), ValueType.I32)
+        if len(path) == 2 and path[1] == "has":
+            return ir.HostCall(
+                "map_has",
+                (ir.Local(path[0], self.types[path[0]]), self.expression(node.args[0])),
+                ValueType.BOOL,
+            )
         if len(path) == 1 and path[0] in ANNOTATIONS:
             value = _integer_literal(node.args[0]) if path[0] in {"i32", "u32", "i64", "u64"} else node.args[0].value
             return ir.Constant(value, ANNOTATIONS[path[0]])

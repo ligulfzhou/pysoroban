@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
-from .model import Event, Parameter, ValueType
+from .model import ContractType, Event, Parameter, ValueType
 
 
 @dataclass(frozen=True)
@@ -15,7 +15,7 @@ class Constant:
 @dataclass(frozen=True)
 class Local:
     name: str
-    type: ValueType
+    type: ContractType
 
 
 @dataclass(frozen=True)
@@ -45,7 +45,7 @@ class Compare:
 class HostCall:
     op: str
     args: Tuple["Expression", ...]
-    type: ValueType
+    type: ContractType
 
 
 Expression = Union[Constant, Local, Unary, Binary, Compare, HostCall]
@@ -90,7 +90,7 @@ Statement = Union[Return, SetLocal, If, ForRange, Drop]
 class Function:
     name: str
     params: Tuple[Parameter, ...]
-    result: ValueType
+    result: ContractType
     locals: Tuple[Parameter, ...]
     body: Tuple[Statement, ...]
     doc: str = ""

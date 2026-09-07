@@ -142,6 +142,31 @@ stellar contract invoke --id "$VECTOR_ID" --source alice --network testnet \
 
 Expected results: `16` and `[3,5,8]`.
 
+## Build and deploy typed maps
+
+```bash
+pysoroban build examples/map_contract.py -o dist/map-testnet.wasm
+
+MAP_ID=$(stellar contract deploy \
+  --wasm dist/map-testnet.wasm \
+  --source alice \
+  --network testnet)
+
+stellar contract invoke --id "$MAP_ID" --source alice --network testnet \
+  --send no -- score --scores '{"alice":9,"bob":12}' --player bob
+
+stellar contract invoke --id "$MAP_ID" --source alice --network testnet \
+  --send no -- contains --scores '{"alice":9}' --player bob
+
+stellar contract invoke --id "$MAP_ID" --source alice --network testnet \
+  --send no -- count --scores '{"alice":9,"bob":12}'
+
+stellar contract invoke --id "$MAP_ID" --source alice --network testnet \
+  --send no -- echo --scores '{"alice":9,"bob":-12}'
+```
+
+Expected results: `12`, `false`, `2`, and `{"alice":9,"bob":-12}`.
+
 ## What this proves
 
 - contract environment and interface metadata are accepted by the network;
@@ -159,5 +184,7 @@ Expected results: `16` and `[3,5,8]`.
   Soroban argument vector.
 - `Vec[T]` interfaces, vector length/index access, loops over vectors, and
   vector results round-trip through the network.
+- `Map[K, V]` interfaces, typed lookup/membership/length, and map results
+  round-trip through the network.
 
 It does not constitute a security audit or production-readiness claim.

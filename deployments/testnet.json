@@ -1,7 +1,7 @@
 {
   "network": "testnet",
   "network_passphrase": "Test SDF Network ; September 2015",
-  "verified_at": "2026-09-03",
+  "verified_at": "2026-09-07",
   "protocol": 25,
   "contracts": {
     "math": {
@@ -70,6 +70,18 @@
         "first([3,5,8])": 3,
         "sum([3,5,8])": 16,
         "echo([3,5,8])": [3,5,8]
+      }
+    },
+    "scores": {
+      "contract_id": "CBBIUQP2T3LRIZFZQURB7XSXSJMZ6KLE6ONQZXRNST6LTA5CYHYKCIO3",
+      "wasm_hash": "40321305f22c5229d98e3eac59dc1b116a006b7a7fca9369a131943bc618c9d2",
+      "upload_transaction": "78ed5fa51a99172a72a534ab414eb68df70595848e3251e7ebfda2385617e5c4",
+      "deploy_transaction": "3896c98adee9e640a9f1ac9e5a635da048c8998faf923705f4d9117478d0d960",
+      "verified_calls": {
+        "score({alice:9,bob:12}, bob)": 12,
+        "contains({alice:9}, bob)": false,
+        "count({alice:9,bob:12})": 2,
+        "echo({alice:9,bob:-12})": {"alice":9,"bob":-12}
       }
     }
   }

@@ -329,6 +329,23 @@ class Vectors:
         self.assertIn(b"\x01v\x011", result.wasm)
         self.assertIn(b"\x01v\x013", result.wasm)
 
+    def test_compiles_generic_map_signatures_and_rejects_bad_keys(self):
+        source = '''
+from pysoroban import Map, Symbol, contract, i32, public
+@contract
+class Lookup:
+    @public
+    def get(self, values: Map[Symbol, i32], key: Symbol) -> i32:
+        return values[key]
+'''
+        result = compile_source(source)
+        self.assertEqual(result.contract.functions[0].params[0].type.value, "Map[Symbol, i32]")
+        self.assertIn(b"m\x011", result.wasm)
+
+        invalid = source.replace("values[key]", "values[1]")
+        with self.assertRaisesRegex(Exception, "Map key expects Symbol, got i32"):
+            compile_source(invalid)
+
     def test_rejects_invalid_vec_annotations_and_indexing(self):
         cases = [
             ("Vec[None]", "None is not valid"),

@@ -128,6 +128,26 @@ class Vectors:
         self.assertEqual(result.functions[0].body[0].value.type, ValueType.I32)
         self.assertEqual(result.functions[1].body[0].value.op, "vec_len")
 
+    def test_lowers_map_access_presence_and_length_to_host_calls(self):
+        source = '''
+from pysoroban import Map, Symbol, boolean, contract, i32, public
+@contract
+class Maps:
+    @public
+    def get(self, values: Map[Symbol, i32], key: Symbol) -> i32:
+        return values[key]
+    @public
+    def has(self, values: Map[Symbol, i32], key: Symbol) -> boolean:
+        return values.has(key)
+    @public
+    def count(self, values: Map[Symbol, i32]) -> i32:
+        return len(values)
+'''
+        functions = compile_source(source).ir.functions
+        self.assertEqual(functions[0].body[0].value.op, "map_get")
+        self.assertEqual(functions[1].body[0].value.op, "map_has")
+        self.assertEqual(functions[2].body[0].value.op, "map_len")
+
 
 if __name__ == "__main__":
     unittest.main()

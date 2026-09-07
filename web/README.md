@@ -5,7 +5,7 @@ An interactive proof page for the experimental PySoroban compiler.
 The page demonstrates three separate pieces of the project:
 
 - **Compile:** edit a Python contract and compile it to Soroban-compatible Wasm in the browser. Pyodide runs the actual `pysoroban` compiler wheel; the page reports the artifact size, exports and SHA-256 digest.
-- **Deploy:** inspect five contracts compiled by the current PySoroban compiler and deployed to Stellar testnet, with links to their contract and deployment transaction records.
+- **Deploy:** inspect six contracts compiled by the current PySoroban compiler and deployed to Stellar testnet, with links to their contract and deployment transaction records.
 - **Call:** simulate read-only calls against those live contracts through Stellar's public testnet RPC. No wallet or secret key is required.
 
 This is an experimental language-tooling prototype, not a production smart-contract platform.
@@ -38,7 +38,7 @@ npm run lint
 The browser installs the pure-Python wheel at:
 
 ```text
-public/compiler/pysoroban_compiler-0.8.0-py3-none-any.whl
+public/compiler/pysoroban_compiler-0.9.0-py3-none-any.whl
 ```
 
 Rebuild it from the repository root after changing the Python compiler:

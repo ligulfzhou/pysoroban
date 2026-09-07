@@ -79,6 +79,17 @@ SUITES = (
         ),
     ),
     (
+        "maps",
+        ROOT / "examples" / "map_contract.py",
+        (
+            ("map-score", "score", ({"alice": 9, "bob": 12}, "bob")),
+            ("map-has", "contains", ({"alice": 9}, "alice")),
+            ("map-missing", "contains", ({"alice": 9}, "bob")),
+            ("map-count", "count", ({"alice": 9, "bob": 12},)),
+            ("map-echo", "echo", ({"alice": 9, "bob": -12},)),
+        ),
+    ),
+    (
         "numeric-boundaries",
         NUMERIC_SOURCE,
         (
@@ -102,6 +113,8 @@ def _normalized(value):
         return str(value)
     if isinstance(value, (list, tuple)):
         return [_normalized(item) for item in value]
+    if isinstance(value, dict):
+        return {_normalized(key): _normalized(item) for key, item in value.items()}
     return value
 
 

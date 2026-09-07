@@ -30,6 +30,8 @@ run it locally with `cd web && npm install && npm run dev`.
   bounds, lowered to native Wasm loops
 - homogeneous `Vec[T]` parameters and results, `len(values)`, and typed
   `values[index]` access
+- homogeneous `Map[K, V]` parameters and results with typed indexing,
+  `values.has(key)`, and `len(values)`
 - direct Wasm binary generation in pure Python
 - Soroban `Val` ABI conversion
 - generated `contractenvmetav0`, `contractspecv0`, and `contractmetav0`
@@ -47,8 +49,7 @@ run it locally with `cd web && npm install && npm run dev`.
 - automated differential tests comparing Typed IR execution with generated
   Wasm for arithmetic, branches, loops, integer boundaries, and vectors
 
-Maps, user-defined contract types, and mutable collection operations are
-planned next.
+User-defined contract types and mutable collection operations are planned next.
 
 ## Quick start
 
@@ -208,6 +209,21 @@ def sum(self, values: Vec[i32]) -> i32:
 
 The current vector element types are all existing scalar and object types.
 Nested vectors, slicing, and mutation are intentionally deferred.
+
+Homogeneous maps use two type parameters. The first release supports scalar
+keys and values, read-only indexing, membership, length, and pass-through
+results:
+
+```python
+from pysoroban import Map, Symbol, i32
+
+def score(self, scores: Map[Symbol, i32], player: Symbol) -> i32:
+    if scores.has(player):
+        return scores[player]
+    return 0
+```
+
+Nested collections and map mutation are intentionally deferred.
 
 ## Architecture
 

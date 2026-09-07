@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 
 class ValueType(str, Enum):
@@ -40,16 +40,40 @@ VEC_ELEMENT_TYPES = {value: key for key, value in VEC_TYPES_BY_ELEMENT.items()}
 
 
 @dataclass(frozen=True)
+class MapType:
+    """A homogeneous Soroban map type carried through the typed pipeline."""
+
+    key: ValueType
+    value_type: ValueType
+
+    @property
+    def value(self) -> str:
+        return f"Map[{self.key.value}, {self.value_type.value}]"
+
+
+ContractType = Union[ValueType, MapType]
+
+
+def is_object_type(value_type: ContractType) -> bool:
+    return isinstance(value_type, MapType) or value_type in {
+        ValueType.ADDRESS,
+        ValueType.BYTES,
+        ValueType.STRING,
+        ValueType.SYMBOL,
+    } | set(VEC_ELEMENT_TYPES)
+
+
+@dataclass(frozen=True)
 class Parameter:
     name: str
-    type: ValueType
+    type: ContractType
 
 
 @dataclass(frozen=True)
 class Function:
     name: str
     params: Tuple[Parameter, ...]
-    result: ValueType
+    result: ContractType
     node: object
     doc: str = ""
 
@@ -57,7 +81,7 @@ class Function:
 @dataclass(frozen=True)
 class EventField:
     name: str
-    type: ValueType
+    type: ContractType
     topic: bool
     doc: str = ""
 

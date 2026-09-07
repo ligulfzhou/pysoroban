@@ -1,6 +1,6 @@
 import struct
 
-from .model import Contract, ValueType, VEC_ELEMENT_TYPES
+from .model import Contract, MapType, ValueType, VEC_ELEMENT_TYPES
 
 
 SPEC_TYPES = {
@@ -32,7 +32,9 @@ def environment_metadata(protocol: int) -> bytes:
     return u32(0) + u32(protocol) + u32(0)
 
 
-def spec_type(value_type: ValueType) -> bytes:
+def spec_type(value_type) -> bytes:
+    if isinstance(value_type, MapType):
+        return u32(1004) + spec_type(value_type.key) + spec_type(value_type.value_type)
     if value_type in VEC_ELEMENT_TYPES:
         return u32(1002) + spec_type(VEC_ELEMENT_TYPES[value_type])
     return u32(SPEC_TYPES[value_type])

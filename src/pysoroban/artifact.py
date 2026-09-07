@@ -184,6 +184,8 @@ def _read_spec_type(reader: _XdrReader) -> str:
     kind = reader.u32()
     if kind == 1002:
         return "Vec[{}]".format(_read_spec_type(reader))
+    if kind == 1004:
+        return "Map[{}, {}]".format(_read_spec_type(reader), _read_spec_type(reader))
     if kind not in SPEC_TYPE_NAMES:
         raise ArtifactError(f"unsupported contract spec type {kind}")
     return SPEC_TYPE_NAMES[kind]

@@ -63,6 +63,22 @@ class Meter:
         self.assertEqual(event["topics"][0]["type"], "Address")
         self.assertEqual(event["data"][0]["type"], "u64")
 
+    def test_inspects_map_contract_spec_and_host_imports(self):
+        source = """
+from pysoroban import Map, Symbol, contract, i32, public
+@contract
+class Lookup:
+    @public
+    def get(self, values: Map[Symbol, i32], key: Symbol) -> i32:
+        return values[key]
+"""
+        result = inspect_wasm(compile_source(source).wasm)
+        self.assertEqual(result["functions"][0]["inputs"][0]["type"], "Map[Symbol, i32]")
+        self.assertIn(
+            {"module": "m", "name": "1", "kind": "function", "type_index": 1},
+            result["imports"],
+        )
+
     def test_rejects_non_wasm_missing_soroban_sections_and_truncation(self):
         with self.assertRaisesRegex(ArtifactError, "not a WebAssembly"):
             validate_wasm(b"not wasm")

@@ -9,14 +9,14 @@ native Soroban host remains the source of truth for integration testing.
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
-from typing import Iterable, Mapping, Optional, Tuple, Union
+from typing import Dict, Iterable, Mapping, Optional, Tuple, Union
 
 from . import ir
 from .compiler import CompilationResult, compile_source
-from .model import ValueType, VEC_ELEMENT_TYPES
+from .model import MapType, ValueType, VEC_ELEMENT_TYPES
 
 
-NativeValue = Union[None, bool, int, str, bytes, list, tuple]
+NativeValue = Union[None, bool, int, str, bytes, list, tuple, Dict]
 
 
 class InvocationError(Exception):
@@ -221,6 +221,15 @@ class ContractTest:
             if index < 0 or index >= len(vector):
                 raise InvocationError(f"Vec index {index} is out of bounds")
             return vector[index]
+        if call.op == "map_len":
+            return len(values[0])
+        if call.op == "map_has":
+            return values[1] in values[0]
+        if call.op == "map_get":
+            map_value, key = values
+            if key not in map_value:
+                raise InvocationError(f"Map key {key!r} was not found")
+            return map_value[key]
         raise AssertionError(call.op)
 
 
@@ -260,6 +269,12 @@ def _validate_native(value: NativeValue, value_type: ValueType, label: str) -> N
                     _validate_native(item, VEC_ELEMENT_TYPES[value_type], f"{label}[{index}]")
             except InvocationError:
                 raise
+    elif isinstance(value_type, MapType):
+        valid = isinstance(value, dict)
+        if valid:
+            for key, item in value.items():
+                _validate_native(key, value_type.key, f"{label} key")
+                _validate_native(item, value_type.value_type, f"{label}[{key!r}]")
     else:
         valid = False
     if not valid:
