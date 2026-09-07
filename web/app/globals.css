@@ -191,8 +191,13 @@ a { color: inherit; text-decoration: none; }
 .artifact-details dd { margin: 0; overflow-wrap: anywhere; color: #c9d6e7; }
 .compile-button { width: 100%; margin-top: auto; box-shadow: 4px 4px 0 var(--acid); }
 .compile-button:hover:not(:disabled) { box-shadow: 2px 2px 0 var(--acid); }
+.compile-button.compiled { border-color: #35445a; background: transparent; color: #aebbd0; box-shadow: none; }
+.compile-button.compiled:hover:not(:disabled) { border-color: #61718a; color: var(--white); box-shadow: none; }
 .compile-button:disabled, .download-button:disabled { cursor: not-allowed; opacity: .5; }
-.download-button { width: 100%; margin-top: 12px; padding: 13px; border: 1px solid #35445a; border-radius: 8px; background: transparent; color: #d4deeb; cursor: pointer; }
+.download-button { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 12px; padding: 14px 16px; border: 1px solid #35445a; border-radius: 8px; background: transparent; color: #78879b; cursor: pointer; transition: transform .18s, border-color .18s, background .18s, box-shadow .18s; }
+.download-button.ready { border-color: var(--acid); background: var(--acid); color: var(--ink); font-weight: 750; box-shadow: 4px 4px 0 var(--blue); }
+.download-button.ready:hover { transform: translate(2px,2px); box-shadow: 2px 2px 0 var(--blue); }
+.download-button.ready span:last-child { font-family: var(--mono); font-size: 18px; line-height: 1; }
 .build-note, .build-error { margin: 14px 0 0; font-size: 11px; line-height: 1.5; color: #6f8097; }
 .build-error { color: #ff918f; max-height: 80px; overflow: auto; }
 

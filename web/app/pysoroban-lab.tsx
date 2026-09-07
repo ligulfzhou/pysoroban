@@ -673,19 +673,24 @@ export function PySorobanLab() {
             </dl>
             {compileError && <p className="build-error">{compileError}</p>}
             <button
-              className="compile-button"
+              className={`compile-button ${compileResult ? "compiled" : ""}`}
               onClick={handleCompile}
               disabled={compileState === "loading"}
             >
-              {compileState === "loading" ? "Loading compiler…" : "Compile in browser"}
-              <span aria-hidden="true">⌘</span>
+              {compileState === "loading"
+                ? "Loading compiler…"
+                : compileResult
+                  ? "Recompile"
+                  : "Compile in browser"}
+              <span aria-hidden="true">{compileResult ? "↻" : "⌘"}</span>
             </button>
             <button
-              className="download-button"
+              className={`download-button ${compileResult ? "ready" : ""}`}
               onClick={downloadWasm}
               disabled={!compileResult}
             >
-              Download .wasm
+              <span>{compileResult ? `Download ${compileResult.contract}.wasm` : "Download .wasm"}</span>
+              <span aria-hidden="true">↓</span>
             </button>
             <p className="build-note">
               First build loads the Python runtime. Later builds are instant.

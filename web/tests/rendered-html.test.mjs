@@ -22,6 +22,7 @@ test("renders the PySoroban live proof", async () => {
   assert.match(html, /pip install --pre pysoroban-compiler/);
   assert.match(html, /https:\/\/pypi\.org\/project\/pysoroban-compiler\//);
   assert.match(html, /Compile in browser/);
+  assert.match(html, /Download \.wasm/);
   assert.match(html, /Test before testnet/);
   assert.match(html, /57 \/ 57/);
   assert.match(html, /Run nested call/);
