@@ -37,14 +37,16 @@ PySoroban has a working open-source v0.9 compiler and public live demo. Six
 contracts generated directly from Python have been uploaded, deployed, and
 invoked successfully on Stellar testnet, covering arithmetic, authorization,
 instance storage, typed events, cross-contract calls, vectors, and maps. The
-compiler has 56 automated tests plus 26 Typed IR/Wasm differential cases, with
-CI on Python 3.9 and 3.13. The browser demo installs the real compiler wheel,
+compiler has 57 automated tests plus 26 Typed IR/Wasm differential cases, with
+CI on Python 3.9 and 3.13. The public `pysoroban-compiler 0.9.0a1` alpha is
+installable from PyPI. The browser demo installs the real compiler wheel,
 builds downloadable Wasm locally, links deployment transactions, and performs
 read-only calls against the testnet contracts.
 
 Evidence:
 
 - https://github.com/ligulfzhou/pysoroban
+- https://pypi.org/project/pysoroban-compiler/
 - https://pysoroban.xyz
 - https://github.com/ligulfzhou/pysoroban/blob/main/deployments/testnet.json
 - https://github.com/ligulfzhou/pysoroban/actions

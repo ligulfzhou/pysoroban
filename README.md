@@ -1,6 +1,7 @@
 # PySoroban
 
 [![CI](https://github.com/ligulfzhou/pysoroban/actions/workflows/ci.yml/badge.svg)](https://github.com/ligulfzhou/pysoroban/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/pysoroban-compiler.svg)](https://pypi.org/project/pysoroban-compiler/)
 
 PySoroban is an experimental, deterministic, statically typed Python contract
 language for Stellar. It compiles a deliberately small Python subset **directly
