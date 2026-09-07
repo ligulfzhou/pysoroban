@@ -12,11 +12,12 @@ embed a Python runtime in the contract.
 
 The Math, authorized Counter, and typed-event examples have been deployed and
 invoked on Stellar testnet. See
-[the reproducible testnet verification](docs/TESTNET.md).
+[the reproducible testnet verification](https://github.com/ligulfzhou/pysoroban/blob/main/docs/TESTNET.md).
 
 The [PySoroban Live Proof](https://pysoroban.xyz)
 can compile the example contracts in the browser, show their deployed testnet
-records, and simulate live read-only calls. Its source lives in [`web/`](web/);
+records, and simulate live read-only calls. Its source lives in
+[the repository's `web/` directory](https://github.com/ligulfzhou/pysoroban/tree/main/web);
 run it locally with `cd web && npm install && npm run dev`.
 
 ## What works
@@ -58,15 +59,36 @@ Python 3.9 or later is required.
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
-pip install -e .
-pysoroban build examples/math_contract.py
+pip install --pre pysoroban-compiler
 ```
 
-The output is `dist/math_contract.wasm`. Inspect it with Stellar CLI:
+The published package is an alpha preview. Install a source checkout with
+`pip install -e .` when contributing to the compiler.
+
+Save the following contract as `contract.py`:
+
+```python
+from pysoroban import contract, i32, public
+
+@contract
+class Math:
+    @public
+    def add(self, left: i32, right: i32) -> i32:
+        return left + right
+```
+
+Then compile and inspect it:
 
 ```bash
-stellar contract info interface --wasm dist/math_contract.wasm
-stellar contract info env-meta --wasm dist/math_contract.wasm
+pysoroban build contract.py
+pysoroban validate dist/contract.wasm
+```
+
+Inspect the output with Stellar CLI:
+
+```bash
+stellar contract info interface --wasm dist/contract.wasm
+stellar contract info env-meta --wasm dist/contract.wasm
 ```
 
 For editor hooks and CI, validate source without producing a Wasm artifact:
@@ -93,7 +115,8 @@ typed events, host imports, Wasm exports, section sizes, and SHA-256 digest.
 `validate` checks WebAssembly framing and section ordering together with the
 PySoroban contract XDR subset. CI additionally runs the platform WebAssembly
 validator and rebuilds, validates, and verifies every example. See
-[`docs/VALIDATION.md`](docs/VALIDATION.md) for the exact validation boundary.
+[the validation documentation](https://github.com/ligulfzhou/pysoroban/blob/main/docs/VALIDATION.md)
+for the exact validation boundary.
 
 `pysoroban build --json` also reports the artifact SHA-256, protocol, functions,
 and typed events for CI and deployment manifests.
@@ -124,7 +147,8 @@ assert contract.last_events == (Event(("updated", "alice"), result),)
 
 This environment interprets the checked Typed IR. It is intended for fast unit
 tests, while Stellar testnet remains the integration-test source of truth. See
-[`docs/TESTING.md`](docs/TESTING.md) for the API and limitations.
+[the testing documentation](https://github.com/ligulfzhou/pysoroban/blob/main/docs/TESTING.md)
+for the API and limitations.
 
 ## Contract example
 
@@ -227,7 +251,8 @@ Nested collections and map mutation are intentionally deferred.
 
 ## Architecture
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full compiler
+See [the architecture documentation](https://github.com/ligulfzhou/pysoroban/blob/main/docs/ARCHITECTURE.md)
+for the full compiler
 architecture, trust boundaries, and validation strategy.
 
 ```text
@@ -263,4 +288,4 @@ Run the same differential suite locally when Node.js is available:
 PYTHONPATH=src python3 scripts/differential_test.py
 ```
 
-Licensed under Apache-2.0.
+Licensed under MIT. See [the license](https://github.com/ligulfzhou/pysoroban/blob/main/LICENSE).

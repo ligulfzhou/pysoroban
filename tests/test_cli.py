@@ -35,6 +35,14 @@ class Meter:
 
 
 class CliTests(unittest.TestCase):
+    def test_reports_package_version(self):
+        stdout = io.StringIO()
+        with self.assertRaises(SystemExit) as raised, redirect_stdout(stdout):
+            main(["--version"])
+
+        self.assertEqual(raised.exception.code, 0)
+        self.assertEqual(stdout.getvalue().strip(), "pysoroban 0.9.0a1")
+
     def test_check_reports_contract_without_writing_wasm(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "checked.py"

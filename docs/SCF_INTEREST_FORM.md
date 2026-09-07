@@ -354,7 +354,7 @@ state that this is currently a solo-led open-source project.]
 
 ## Sustainability
 
-PySoroban will remain Apache-2.0 open source. After v1.0, maintenance will focus
+PySoroban will remain MIT-licensed open source. After v1.0, maintenance will focus
 on Stellar protocol compatibility, security fixes, reproducible releases, and
 carefully versioned language additions. The small language boundary and
 dependency-free compiler are deliberate choices to keep long-term maintenance

@@ -1,16 +1,37 @@
 [build-system]
-requires = ["setuptools>=58", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pysoroban-compiler"
-version = "0.9.0"
+version = "0.9.0a1"
 description = "A deterministic, statically typed Python contract compiler for Stellar"
 readme = "README.md"
 requires-python = ">=3.9"
-license = { text = "Apache-2.0" }
-authors = [{ name = "PySoroban Contributors" }]
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "ligulfzhou" }]
+keywords = ["stellar", "soroban", "smart-contracts", "webassembly", "compiler"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Compilers",
+]
 dependencies = []
+
+[project.urls]
+Homepage = "https://pysoroban.xyz"
+Documentation = "https://github.com/ligulfzhou/pysoroban/tree/main/docs"
+Repository = "https://github.com/ligulfzhou/pysoroban"
+Issues = "https://github.com/ligulfzhou/pysoroban/issues"
+Changelog = "https://github.com/ligulfzhou/pysoroban/blob/main/CHANGELOG.md"
 
 [project.scripts]
 pysoroban = "pysoroban.cli:main"

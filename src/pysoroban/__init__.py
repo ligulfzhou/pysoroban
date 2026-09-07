@@ -5,6 +5,8 @@ support. The compiler reads the source as an AST; contracts are never executed
 by the Python runtime.
 """
 
+__version__ = "0.9.0a1"
+
 from .compiler import CompilationResult, check_file, check_source, compile_file, compile_source
 from .abi import contract_abi
 from .artifact import ArtifactError, inspect_wasm, inspect_wasm_file, validate_wasm, validate_wasm_file

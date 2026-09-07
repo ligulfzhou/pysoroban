@@ -38,7 +38,7 @@ npm run lint
 The browser installs the pure-Python wheel at:
 
 ```text
-public/compiler/pysoroban_compiler-0.9.0-py3-none-any.whl
+public/compiler/pysoroban_compiler-0.9.0a1-py3-none-any.whl
 ```
 
 Rebuild it from the repository root after changing the Python compiler:

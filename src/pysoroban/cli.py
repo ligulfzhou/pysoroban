@@ -4,6 +4,7 @@ import json
 import sys
 from pathlib import Path
 
+from . import __version__
 from .abi import contract_abi
 from .artifact import ArtifactError, inspect_wasm_file
 from .compiler import check_file, compile_file
@@ -12,6 +13,7 @@ from .errors import CompileError
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pysoroban", description="Compile typed Python contracts directly to Stellar Wasm")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
     build = subparsers.add_parser("build", help="compile a Python contract to Wasm")
     build.add_argument("source", type=Path)
