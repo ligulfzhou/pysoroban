@@ -21,8 +21,8 @@ npm run dev
 
 Open <http://localhost:3000>.
 
-The current Cloudflare deployment is available at
-<https://pysoroban-live-proof.ligulfzhou53.workers.dev>.
+The current Cloudflare deployment is available at <https://pysoroban.xyz>.
+The `workers.dev` address remains enabled as a deployment fallback.
 
 ## Verify
 

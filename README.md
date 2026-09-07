@@ -14,7 +14,7 @@ The Math, authorized Counter, and typed-event examples have been deployed and
 invoked on Stellar testnet. See
 [the reproducible testnet verification](docs/TESTNET.md).
 
-The [PySoroban Live Proof](https://pysoroban-live-proof.ligulfzhou53.workers.dev)
+The [PySoroban Live Proof](https://pysoroban.xyz)
 can compile the example contracts in the browser, show their deployed testnet
 records, and simulate live read-only calls. Its source lives in [`web/`](web/);
 run it locally with `cd web && npm install && npm run dev`.

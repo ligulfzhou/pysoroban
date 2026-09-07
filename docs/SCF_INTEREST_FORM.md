@@ -45,13 +45,13 @@ read-only calls against the testnet contracts.
 Evidence:
 
 - https://github.com/ligulfzhou/pysoroban
-- https://pysoroban-live-proof.ligulfzhou53.workers.dev
+- https://pysoroban.xyz
 - https://github.com/ligulfzhou/pysoroban/blob/main/deployments/testnet.json
 - https://github.com/ligulfzhou/pysoroban/actions
 
 ### Website
 
-https://pysoroban-live-proof.ligulfzhou53.workers.dev
+https://pysoroban.xyz
 
 ### Planned Stellar Integration
 
@@ -109,7 +109,7 @@ and use their actual referral code.
 Python smart contracts that compile directly to Soroban-compatible WebAssembly,
 without generated Rust or an embedded Python runtime.
 
-**Website:** https://pysoroban-live-proof.ligulfzhou53.workers.dev
+**Website:** https://pysoroban.xyz
 
 **Repository:** https://github.com/ligulfzhou/pysoroban
 

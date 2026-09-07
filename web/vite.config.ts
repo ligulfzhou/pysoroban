@@ -9,6 +9,12 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const localBindingConfig = {
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
+  workers_dev: true,
+  preview_urls: true,
+  routes: [
+    { pattern: "pysoroban.xyz", custom_domain: true },
+    { pattern: "www.pysoroban.xyz", custom_domain: true },
+  ],
 };
 
 export default defineConfig(async () => {
