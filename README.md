@@ -227,6 +227,9 @@ Nested collections and map mutation are intentionally deferred.
 
 ## Architecture
 
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full compiler
+architecture, trust boundaries, and validation strategy.
+
 ```text
 Python source
     -> CPython AST parser
