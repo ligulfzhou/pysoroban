@@ -21,7 +21,7 @@ test("renders the PySoroban live proof", async () => {
   assert.match(html, /Real Stellar Wasm\./);
   assert.match(html, /Compile in browser/);
   assert.match(html, /Test before testnet/);
-  assert.match(html, /51 \/ 51/);
+  assert.match(html, /52 \/ 52/);
   assert.match(html, /Run nested call/);
   assert.match(html, /Sum live vector/);
   assert.match(html, /Deployed, not mocked\./);

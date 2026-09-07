@@ -44,6 +44,8 @@ run it locally with `cd web && npm install && npm run dev`.
 - a deterministic Python test environment for calls, per-invocation auth,
   instance storage, events, and Wasm-style integer wrapping
 - deterministic builds with no compiler dependencies
+- automated differential tests comparing Typed IR execution with generated
+  Wasm for arithmetic, branches, loops, integer boundaries, and vectors
 
 Maps, user-defined contract types, and mutable collection operations are
 planned next.
@@ -233,7 +235,13 @@ PYTHONPATH=src python3 -m pysoroban validate dist/math_contract.wasm
 ```
 
 GitHub Actions runs the compiler suite on Python 3.9 and 3.13, validates every
-example as WebAssembly, builds an installable wheel, and builds/tests/lints the
-Cloudflare demo with Node 24.
+example as WebAssembly, runs the Typed IR/Wasm differential suite, builds an
+installable wheel, and builds/tests/lints the Cloudflare demo with Node 24.
+
+Run the same differential suite locally when Node.js is available:
+
+```bash
+PYTHONPATH=src python3 scripts/differential_test.py
+```
 
 Licensed under Apache-2.0.

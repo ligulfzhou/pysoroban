@@ -48,8 +48,9 @@ the artifact is the deterministic output of that source and compiler version.
 
 The GitHub Actions workflow builds every example and applies Node's
 `WebAssembly.validate()` in addition to `pysoroban validate`. It also runs the
-unit tests across the minimum and current Python versions and builds the web
-demo.
+unit tests across the minimum and current Python versions, compares Typed IR
+results with generated Wasm for deterministic execution cases, and builds the
+web demo.
 
 ## Stellar integration
 

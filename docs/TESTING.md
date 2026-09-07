@@ -114,3 +114,23 @@ assert vectors.invoke("sum", [3, 5, 8]) == 16
 
 Every new host operation should have both interpreter tests and a Stellar
 integration test before it is treated as supported.
+
+## Typed IR/Wasm differential suite
+
+The repository also executes identical cases through the Python Typed IR
+interpreter and the generated WebAssembly:
+
+```bash
+PYTHONPATH=src python scripts/differential_test.py
+```
+
+The current cases cover signed and unsigned integer wrapping, boolean branches,
+comparisons, parameter-bounded loops, and `Vec[i32]` length, indexing, summing,
+and round trips. A small Node-based host implements only the object operations
+needed by those cases.
+
+This catches disagreements between lowering, the IR interpreter, Soroban `Val`
+encoding, and Wasm instruction emission. It is not a replacement for the real
+Soroban host: storage, authorization trees, event recording, fees, metering,
+ledger state, and cross-contract execution remain covered by unit tests and
+testnet integration as appropriate.

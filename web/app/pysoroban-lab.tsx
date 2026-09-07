@@ -504,7 +504,7 @@ export function PySorobanLab() {
       <section className="proof-strip" aria-label="Project facts">
         <div><strong>0</strong><span>Rust artifacts</span></div>
         <div><strong>1,125 B</strong><span>Typed Wasm</span></div>
-        <div><strong>51/51</strong><span>Compiler tests</span></div>
+        <div><strong>52/52</strong><span>Compiler tests</span></div>
         <div><strong>5</strong><span>Live contracts</span></div>
       </section>
 
@@ -639,7 +639,7 @@ assert contract.storage["total"] == result
 assert contract.last_events == (Event(("updated", "alice"), result),)`}</code></pre>
           <div className="test-result-card">
             <span className="test-status">● all checks passed</span>
-            <strong>51 / 51</strong>
+            <strong>52 / 52</strong>
             <p>Compiler, Typed IR, CLI, auth, storage, events, and numeric boundaries.</p>
             <small>Deterministic IR simulator · network integration remains on testnet</small>
           </div>
