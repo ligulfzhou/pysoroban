@@ -29,6 +29,7 @@ test("renders the PySoroban live proof", async () => {
   assert.match(html, /Sum live vector/);
   assert.match(html, /Look up live map/);
   assert.match(html, /Deployed, not mocked\./);
+  assert.match(html, /Swipe to explore/);
   assert.match(html, /Call the contracts yourself\./);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
 });

@@ -209,6 +209,17 @@ class Scores:
 } as const;
 
 type ContractKey = keyof typeof contracts;
+
+// Keep the landing page focused as the deployment catalog grows. New
+// contracts can be promoted here without making the section indefinitely tall.
+const featuredContractKeys: ContractKey[] = [
+  "math",
+  "counter",
+  "typed",
+  "proxy",
+  "vectors",
+  "maps",
+];
 type Pyodide = {
   loadPackage: (name: string) => Promise<void>;
   runPythonAsync: (code: string) => Promise<unknown>;
@@ -742,8 +753,11 @@ assert contract.last_events == (Event(("updated", "alice"), result),)`}</code></
             testnet. Contract IDs and deployment transactions are public.
           </p>
         </div>
+        <p className="deployment-swipe-hint" aria-hidden="true">
+          Swipe to explore <span>→</span>
+        </p>
         <div className="deployment-grid">
-          {(Object.keys(contracts) as ContractKey[]).map((key) => {
+          {featuredContractKeys.map((key) => {
             const item = contracts[key];
             return (
               <article className="deployment-card" key={key}>
