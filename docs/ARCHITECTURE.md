@@ -28,7 +28,7 @@ semantics, or place an interpreter on-chain.
 ## Compilation pipeline
 
 ```mermaid
-flowchart LR
+flowchart TB
     A["Restricted Python source"] --> B["CPython AST parser"]
     B --> C["Contract and event discovery"]
     C --> D["Static type checker"]
