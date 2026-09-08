@@ -91,6 +91,38 @@ Storage, authorization, events, collection access, and cross-contract calls
 are lowered to protocol host functions. The compiler does not reimplement
 ledger behavior inside the guest.
 
+## End-to-end ownership of semantics
+
+Every language feature has one responsible representation at each compiler
+boundary. For example, unsigned floor division follows this path:
+
+| Boundary | Representation and responsibility |
+| --- | --- |
+| Python source | `numerator // denominator` is familiar syntax only. |
+| Frontend | Accepts `//` only when both operands have the same `u32` or `u64` type; signed Python floor semantics are deliberately rejected. |
+| Typed IR | Records `Binary("div", ..., type)` so the backend never infers signedness from syntax. |
+| Wasm backend | Selects `i32.div_u` or `i64.div_u`; a zero divisor traps. |
+| Test environment | Executes integer floor division, reports a zero divisor as an invocation failure, and applies the same integer-width rules. |
+| Differential suite | Runs identical unsigned cases through Typed IR and an independent WebAssembly engine and compares results. |
+
+The same ownership rule applies to host behavior: frontend method shapes become
+explicit `HostCall` operations, while the backend alone maps those operations
+to protocol import names and Soroban `Val` encoding. This separation is what
+makes a source-language feature reviewable from syntax to artifact.
+
+## Reference workloads
+
+Small examples isolate individual compiler features; larger reference
+workloads test whether those features compose. The first such workload is the
+[constant-product AMM accounting kernel](AMM_DESIGN.md). It combines unsigned
+fee arithmetic, authorization, storage, events, and slippage checks while
+explicitly stopping short of token custody.
+
+A workload only advances to testnet when all required semantics exist in the
+frontend, Typed IR, Wasm backend, test environment, and validation suite. This
+prevents application examples from relying on behavior that is simulated but
+not actually emitted, or emitted but not testable.
+
 ## Determinism and trust boundaries
 
 The same source and compiler version produce byte-identical Wasm. The compiler
@@ -148,6 +180,10 @@ calls are recorded in `deployments/testnet.json`.
   arbitrary Python objects are excluded.
 - Collection mutation and nested collection types are not yet supported.
 - User-defined contract structs and enums are not yet supported.
+- Signed floor division is not supported; `//` currently has explicit unsigned
+  `u32` and `u64` semantics only.
+- Arithmetic currently wraps at its integer width. Checked wide asset math is a
+  prerequisite for a tokenized AMM.
 - The compiler currently targets a single declared Stellar protocol version.
 - The project has not completed an independent security audit.
 

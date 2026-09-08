@@ -37,7 +37,7 @@ PySoroban has a working open-source v0.9 compiler and public live demo. Six
 contracts generated directly from Python have been uploaded, deployed, and
 invoked successfully on Stellar testnet, covering arithmetic, authorization,
 instance storage, typed events, cross-contract calls, vectors, and maps. The
-compiler has 57 automated tests plus 26 Typed IR/Wasm differential cases, with
+compiler has 63 automated tests plus 28 Typed IR/Wasm differential cases, with
 CI on Python 3.9 and 3.13. The public `pysoroban-compiler 0.9.0a1` alpha is
 installable from PyPI. The browser demo installs the real compiler wheel,
 builds downloadable Wasm locally, links deployment transactions, and performs
@@ -168,6 +168,9 @@ An open-source compiler MVP is already live and independently verifiable:
   maps.
 - The repository includes unit, Typed IR, artifact, and IR/Wasm differential
   tests running on Python 3.9 and 3.13 in CI.
+- A non-tokenized constant-product accounting kernel compiles today and tests
+  fee math, reserve updates, authorization, events, and minimum-output checks;
+  token custody and asset-safe wide arithmetic remain future work.
 - A public Cloudflare demo loads the actual Python compiler wheel in the browser,
   lets visitors edit and compile contracts, and performs read-only calls against
   deployed testnet contracts.
@@ -251,8 +254,9 @@ Deliverables:
 - Publish a versioned language specification defining accepted syntax, types,
   integer behavior, control flow, determinism, and rejected Python features.
 - Improve source diagnostics for type, ABI, and unsupported-feature errors.
-- Compile and execute a constant-product AMM reference implementation in the
-  local differential test environment, covering pool initialization,
+- Extend the existing non-tokenized accounting kernel into a complete
+  constant-product AMM reference implementation in the local differential test
+  environment, covering token transfers, pool initialization,
   deposit/withdraw, liquidity-share accounting, and swaps with a minimum-output
   check.
 

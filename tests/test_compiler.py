@@ -63,7 +63,17 @@ class Bad:
         with self.assertRaisesRegex(CompileError, "does not return on every path"):
             compile_source(source)
 
-    def test_rejects_unimplemented_python_floor_division(self):
+    def test_compiles_unsigned_floor_division_and_rejects_signed_semantics(self):
+        supported = """
+from pysoroban import contract, public, u64
+@contract
+class Ratio:
+    @public
+    def value(self, numerator: u64, denominator: u64) -> u64:
+        return numerator // denominator
+"""
+        self.assertIn(b"\x80", compile_source(supported).wasm)
+
         source = """
 from pysoroban import contract, i32, public
 @contract
@@ -72,7 +82,7 @@ class Bad:
     def value(self, x: i32) -> i32:
         return x // 2
 """
-        with self.assertRaisesRegex(CompileError, "supported arithmetic operators"):
+        with self.assertRaisesRegex(CompileError, "only for u32 and u64"):
             compile_source(source)
 
     def test_compiles_storage_and_auth_imports(self):

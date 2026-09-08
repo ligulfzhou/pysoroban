@@ -264,6 +264,10 @@ class FunctionEmitter:
                 "or": 0x72,
             }
             i64_opcodes = {"add": 0x7C, "sub": 0x7D, "mul": 0x7E}
+            if node.type is ValueType.U32:
+                i32_opcodes["div"] = 0x6E  # i32.div_u
+            if node.type is ValueType.U64:
+                i64_opcodes["div"] = 0x80  # i64.div_u
             opcodes = i64_opcodes if node.type in {ValueType.I64, ValueType.U64} else i32_opcodes
             return self.expression(node.left) + self.expression(node.right) + bytes([opcodes[node.op]])
         if isinstance(node, ir.Compare):

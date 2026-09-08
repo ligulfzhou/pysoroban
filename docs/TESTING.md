@@ -90,7 +90,9 @@ remains an integration-test concern.
 
 The interpreter validates `i32`, `u32`, `i64`, and `u64` argument ranges.
 Arithmetic follows the current Wasm backend and wraps at the corresponding
-32- or 64-bit boundary.
+32- or 64-bit boundary. Unsigned `u32` and `u64` floor division uses Wasm's
+unsigned division semantics; a zero divisor raises `InvocationError` in this
+environment and traps in generated Wasm.
 
 `for` loops over `range()` execute with the same start-inclusive,
 stop-exclusive behavior as the Wasm backend.
@@ -110,7 +112,7 @@ assert vectors.invoke("sum", [3, 5, 8]) == 16
 - It does not meter CPU, memory, ledger I/O, or fees.
 - It does not reproduce ledger TTL, sequence, timestamp, or network state.
 - Address values are represented as Python strings and are not StrKey-decoded.
-- Maps, nested vectors, and mutable vector operations are not implemented yet.
+- Nested collections and mutable collection operations are not implemented yet.
 
 Every new host operation should have both interpreter tests and a Stellar
 integration test before it is treated as supported.
@@ -124,10 +126,10 @@ interpreter and the generated WebAssembly:
 PYTHONPATH=src python scripts/differential_test.py
 ```
 
-The current cases cover signed and unsigned integer wrapping, boolean branches,
-comparisons, parameter-bounded loops, and `Vec[i32]` length, indexing, summing,
-and round trips. A small Node-based host implements only the object operations
-needed by those cases.
+The current cases cover signed and unsigned integer wrapping, unsigned
+division, boolean branches, comparisons, parameter-bounded loops, vectors, and
+maps. A small Node-based host implements only the object operations needed by
+those cases.
 
 This catches disagreements between lowering, the IR interpreter, Soroban `Val`
 encoding, and Wasm instruction emission. It is not a replacement for the real

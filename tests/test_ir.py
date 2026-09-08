@@ -29,6 +29,19 @@ class Select:
         self.assertIsInstance(function.body[1], ir.If)
         self.assertIsInstance(function.body[2], ir.Return)
 
+    def test_lowers_unsigned_floor_division_explicitly(self):
+        source = '''
+from pysoroban import contract, public, u64
+@contract
+class Ratio:
+    @public
+    def divide(self, numerator: u64, denominator: u64) -> u64:
+        return numerator // denominator
+'''
+        expression = compile_source(source).ir.functions[0].body[0].value
+        self.assertIsInstance(expression, ir.Binary)
+        self.assertEqual((expression.op, expression.type), ("div", ValueType.U64))
+
     def test_lowers_storage_to_explicit_host_operations(self):
         source = """
 from pysoroban import Address, contract, i32, public, storage

@@ -26,7 +26,7 @@ run it locally with `cd web && npm install && npm run dev`.
 - `@contract` classes and `@public` methods
 - `i32`, `u32`, `i64`, `u64`, `boolean`, `Address`, `Symbol`, `String`,
   `Bytes`, and `None` signatures
-- integer arithmetic: `+`, `-`, `*`
+- integer arithmetic: `+`, `-`, `*`, plus `//` for `u32` and `u64`
 - comparisons, boolean expressions, local variables, and `if/else`
 - metered `for` loops using `range(stop)` or `range(start, stop)` with `i32`
   bounds, lowered to native Wasm loops
@@ -52,6 +52,12 @@ run it locally with `cd web && npm install && npm run dev`.
   Wasm for arithmetic, branches, loops, integer boundaries, and vectors
 
 User-defined contract types and mutable collection operations are planned next.
+
+`examples/amm_kernel_contract.py` is the first composed DeFi workload. It
+implements constant-product quoting, authorized reserve accounting, slippage
+checks, and typed events. It is deliberately not tokenized yet; see the
+[AMM reference design](https://github.com/ligulfzhou/pysoroban/blob/main/docs/AMM_DESIGN.md)
+for the safety boundary and the gates to a testnet AMM.
 
 ## Quick start
 
@@ -253,8 +259,8 @@ Nested collections and map mutation are intentionally deferred.
 ## Architecture
 
 See [the architecture documentation](https://github.com/ligulfzhou/pysoroban/blob/main/docs/ARCHITECTURE.md)
-for the full compiler
-architecture, trust boundaries, and validation strategy.
+for the full compiler architecture, semantic ownership, trust boundaries, and
+validation strategy.
 
 ```text
 Python source
@@ -274,7 +280,7 @@ separate WebAssembly toolchain.
 ## Development
 
 ```bash
-python3 -m unittest discover -s tests -v
+PYTHONPATH=src python3 -m unittest discover -s tests -v
 PYTHONPATH=src python3 -m pysoroban build examples/math_contract.py
 PYTHONPATH=src python3 -m pysoroban validate dist/math_contract.wasm
 ```

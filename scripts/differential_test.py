@@ -49,6 +49,14 @@ class Numeric:
     @public
     def next_u64(self, value: u64) -> u64:
         return value + u64(1)
+
+    @public
+    def ratio_u32(self, numerator: u32, denominator: u32) -> u32:
+        return numerator // denominator
+
+    @public
+    def ratio_u64(self, numerator: u64, denominator: u64) -> u64:
+        return numerator // denominator
 """
 
 
@@ -101,6 +109,8 @@ SUITES = (
             ("u32-wrap", "next_u32", (2**32 - 1,)),
             ("i64-wrap", "next_i64", (2**63 - 1,)),
             ("u64-wrap", "next_u64", (2**64 - 1,)),
+            ("u32-division", "ratio_u32", (2**32 - 1, 3)),
+            ("u64-division", "ratio_u64", (2**64 - 1, 997)),
         ),
     ),
 )

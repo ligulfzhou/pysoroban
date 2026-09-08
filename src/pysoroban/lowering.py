@@ -26,6 +26,7 @@ BINARY_OPS = {
     ast.Add: "add",
     ast.Sub: "sub",
     ast.Mult: "mul",
+    ast.FloorDiv: "div",
 }
 
 COMPARE_OPS = {

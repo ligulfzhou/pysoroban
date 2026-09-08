@@ -163,7 +163,12 @@ class ContractTest:
                 return left and right
             if expression.op == "or":
                 return left or right
-            value = {"add": left + right, "sub": left - right, "mul": left * right}[expression.op]
+            if expression.op == "div":
+                if right == 0:
+                    raise InvocationError("integer division by zero")
+                value = left // right
+            else:
+                value = {"add": left + right, "sub": left - right, "mul": left * right}[expression.op]
             return _wrap_integer(value, expression.type)
         if isinstance(expression, ir.Compare):
             left = self._expression(expression.left, variables)

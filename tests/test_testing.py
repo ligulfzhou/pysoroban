@@ -69,6 +69,24 @@ class Wrapping:
         self.assertEqual(contract.invoke("signed", 2**31 - 1), -(2**31))
         self.assertEqual(contract.invoke("unsigned", 2**64 - 1), 0)
 
+    def test_unsigned_floor_division_and_zero_divisor(self):
+        source = '''
+from pysoroban import contract, public, u32, u64
+@contract
+class Ratio:
+    @public
+    def ratio32(self, left: u32, right: u32) -> u32:
+        return left // right
+    @public
+    def ratio64(self, left: u64, right: u64) -> u64:
+        return left // right
+'''
+        contract = ContractTest.from_source(source)
+        self.assertEqual(contract.invoke("ratio32", 10, 3), 3)
+        self.assertEqual(contract.invoke("ratio64", 2**63, 3), 3_074_457_345_618_258_602)
+        with self.assertRaisesRegex(InvocationError, "division by zero"):
+            contract.invoke("ratio64", 1, 0)
+
     def test_executes_parameter_bounded_for_ranges(self):
         contract = ContractTest.from_file(ROOT / "examples/math_contract.py")
         self.assertEqual(contract.invoke("sum_to", 10), 45)

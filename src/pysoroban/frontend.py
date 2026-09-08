@@ -323,8 +323,12 @@ class TypeChecker:
                 ValueType.I32, ValueType.U32, ValueType.I64, ValueType.U64
             }:
                 fail(node, "arithmetic operands must have the same numeric type")
+            if isinstance(node.op, ast.FloorDiv):
+                if left not in {ValueType.U32, ValueType.U64}:
+                    fail(node, "floor division is currently supported only for u32 and u64")
+                return left
             if not isinstance(node.op, (ast.Add, ast.Sub, ast.Mult)):
-                fail(node, "supported arithmetic operators are +, -, and *")
+                fail(node, "supported arithmetic operators are +, -, *, and unsigned //")
             return left
         if isinstance(node, ast.BoolOp):
             if not all(self.check_expr(value) is ValueType.BOOL for value in node.values):
