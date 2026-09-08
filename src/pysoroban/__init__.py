@@ -28,6 +28,14 @@ class u64:
     """Unsigned 64-bit Soroban contract value."""
 
 
+class i128:
+    """Signed 128-bit Soroban contract value."""
+
+
+class u128:
+    """Unsigned 128-bit Soroban contract value."""
+
+
 class boolean:
     """Soroban boolean contract value."""
 
@@ -51,6 +59,12 @@ class Address:
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
     def call_u64(self, function, *args):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def call_i128(self, function, *args):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def call_u128(self, function, *args):
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
     def call_bool(self, function, *args):
@@ -121,6 +135,12 @@ class _InstanceStorage:
     def get_u64(self, key):
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
+    def get_i128(self, key):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def get_u128(self, key):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
     def get_symbol(self, key):
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
@@ -185,12 +205,14 @@ __all__ = [
     "events",
     "i32",
     "i64",
+    "i128",
     "inspect_wasm",
     "inspect_wasm_file",
     "public",
     "storage",
     "u32",
     "u64",
+    "u128",
     "validate_wasm",
     "validate_wasm_file",
 ]

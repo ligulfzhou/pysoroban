@@ -69,6 +69,43 @@ class Wrapping:
         self.assertEqual(contract.invoke("signed", 2**31 - 1), -(2**31))
         self.assertEqual(contract.invoke("unsigned", 2**64 - 1), 0)
 
+    def test_executes_wide_integer_boundaries_comparisons_storage_and_events(self):
+        contract = ContractTest.from_file(ROOT / "examples/wide_integer_contract.py")
+        minimum = -(2**127)
+        maximum = 2**128 - 1
+        amount = -(2**100)
+
+        self.assertEqual(contract.invoke("echo_i128", minimum), minimum)
+        self.assertEqual(contract.invoke("echo_u128", maximum), maximum)
+        self.assertEqual(contract.invoke("minimum_i128"), minimum)
+        self.assertEqual(contract.invoke("maximum_u128"), maximum)
+        self.assertTrue(contract.invoke("less_i128", minimum, -1))
+        self.assertTrue(contract.invoke("less_u128", 2**64, maximum))
+        self.assertEqual(contract.invoke("echo_i128s", [minimum, 0, 2**127 - 1]), [minimum, 0, 2**127 - 1])
+        self.assertEqual(contract.invoke("lookup_u128", {"maximum": maximum}, "maximum"), maximum)
+        self.assertEqual(contract.invoke("record", "alice", amount, auth={"alice"}), amount)
+        self.assertEqual(contract.storage["alice"], amount)
+        self.assertEqual(contract.last_events, (Event(("amount_recorded", "alice"), amount),))
+
+        with self.assertRaisesRegex(InvocationError, "not a valid i128"):
+            contract.invoke("echo_i128", 2**127)
+        with self.assertRaisesRegex(InvocationError, "not a valid u128"):
+            contract.invoke("echo_u128", -1)
+
+    def test_executes_i128_cross_contract_result(self):
+        token_source = '''
+from pysoroban import Address, contract, i128, public
+@contract
+class Token:
+    @public
+    def balance(self, owner: Address) -> i128:
+        return i128(1267650600228229401496703205376)
+'''
+        token = ContractTest.from_source(token_source)
+        caller = ContractTest.from_file(ROOT / "examples/wide_integer_contract.py")
+        caller.register_contract("token", token)
+        self.assertEqual(caller.invoke("remote_balance", "token", "alice"), 2**100)
+
     def test_unsigned_floor_division_and_zero_divisor(self):
         source = '''
 from pysoroban import contract, public, u32, u64

@@ -212,6 +212,10 @@ class C:
             ("u32", str(2**32)),
             ("i64", str(2**63)),
             ("u64", str(2**64)),
+            ("i128", str(2**127)),
+            ("i128", str(-(2**127) - 1)),
+            ("u128", "-1"),
+            ("u128", str(2**128)),
         ]
         for type_name, literal in cases:
             with self.subTest(type_name=type_name, literal=literal):
@@ -225,6 +229,41 @@ class Bad:
 '''
                 with self.assertRaisesRegex(CompileError, "outside the .* range"):
                     compile_source(source)
+
+    def test_compiles_wide_integer_abi_literals_and_comparisons(self):
+        source = '''
+from pysoroban import boolean, contract, i128, public, u128
+@contract
+class Wide:
+    @public
+    def minimum(self) -> i128:
+        return i128(-170141183460469231731687303715884105728)
+    @public
+    def maximum(self) -> u128:
+        return u128(340282366920938463463374607431768211455)
+    @public
+    def less(self, left: i128, right: i128) -> boolean:
+        return left < right
+'''
+        result = compile_source(source)
+        self.assertEqual(
+            [function.result.value for function in result.contract.functions],
+            ["i128", "u128", "boolean"],
+        )
+        self.assertIn(b"\x01i\x016", result.wasm)
+        self.assertIn(b"\x01i\x013", result.wasm)
+
+    def test_rejects_wide_integer_arithmetic_until_semantics_are_defined(self):
+        source = '''
+from pysoroban import contract, i128, public
+@contract
+class Bad:
+    @public
+    def add(self, left: i128, right: i128) -> i128:
+        return left + right
+'''
+        with self.assertRaisesRegex(CompileError, "i128/u128 arithmetic is not supported yet"):
+            compile_source(source)
 
     def test_requires_explicit_typed_integer_literals(self):
         source = '''

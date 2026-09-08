@@ -53,7 +53,7 @@ class MiniSorobanHost {
     if (type === "i32") return tagged32(value, I32_TAG);
     if (type === "u32") return tagged32(value, U32_TAG);
     if (type === "boolean") return value ? 1n : 0n;
-    if (type === "i64" || type === "u64") {
+    if (["i64", "u64", "i128", "u128"].includes(type)) {
       return this.put({ kind: type, value: BigInt(value) });
     }
     if (["Address", "Symbol", "String", "Bytes"].includes(type)) {
@@ -91,6 +91,9 @@ class MiniSorobanHost {
       const tag = bits & 0xffn;
       if (tag === I64_SMALL_TAG) return (BigInt.asIntN(64, bits) >> 8n).toString();
       if (tag === U64_SMALL_TAG) return (bits >> 8n).toString();
+      return this.get(value).value.toString();
+    }
+    if (type === "i128" || type === "u128") {
       return this.get(value).value.toString();
     }
     if (["Address", "Symbol", "String", "Bytes"].includes(type)) {
@@ -132,6 +135,14 @@ class MiniSorobanHost {
     if (key === "i.0") return (value) => BigInt.asIntN(64, this.get(value).value);
     if (key === "i.1") return (value) => this.put({ kind: "i64", value: BigInt.asIntN(64, value) });
     if (key === "i.2") return (value) => BigInt.asIntN(64, this.get(value).value);
+    if (key === "i.3") return (hi, lo) => this.put({
+      kind: "u128",
+      value: (BigInt.asUintN(64, hi) << 64n) | BigInt.asUintN(64, lo),
+    });
+    if (key === "i.6") return (hi, lo) => this.put({
+      kind: "i128",
+      value: BigInt.asIntN(128, (BigInt.asUintN(64, hi) << 64n) | BigInt.asUintN(64, lo)),
+    });
     if (key === "b.3") return (offset, length) => this.memoryObject("Bytes", offset, length);
     if (key === "b.i") return (offset, length) => this.memoryObject("String", offset, length);
     if (key === "b.j") return (offset, length) => this.memoryObject("Symbol", offset, length);
@@ -145,7 +156,12 @@ class MiniSorobanHost {
       return entry[1];
     };
     if (key === "x.0") {
-      return (left, right) => BigInt(this.get(left).value === this.get(right).value ? 0 : 1);
+      return (left, right) => {
+        const leftValue = this.get(left).value;
+        const rightValue = this.get(right).value;
+        if (leftValue === rightValue) return 0n;
+        return leftValue < rightValue ? -1n : 1n;
+      };
     }
     if (key === "x.1") return () => VOID_TAG;
     return () => {

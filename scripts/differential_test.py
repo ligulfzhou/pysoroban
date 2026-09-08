@@ -113,6 +113,24 @@ SUITES = (
             ("u64-division", "ratio_u64", (2**64 - 1, 997)),
         ),
     ),
+    (
+        "wide-integers",
+        ROOT / "examples" / "wide_integer_contract.py",
+        (
+            ("i128-min-echo", "echo_i128", (-(2**127),)),
+            ("i128-max-echo", "echo_i128", (2**127 - 1,)),
+            ("u128-zero-echo", "echo_u128", (0,)),
+            ("u128-max-echo", "echo_u128", (2**128 - 1,)),
+            ("i128-min-literal", "minimum_i128", ()),
+            ("u128-max-literal", "maximum_u128", ()),
+            ("i128-less", "less_i128", (-(2**127), 2**127 - 1)),
+            ("i128-not-less", "less_i128", (2**100, -(2**100))),
+            ("u128-less", "less_u128", (2**64, 2**127)),
+            ("u128-not-less", "less_u128", (2**128 - 1, 2**128 - 1)),
+            ("i128-vector", "echo_i128s", ([2**127 - 1, 0, -(2**127)],)),
+            ("u128-map", "lookup_u128", ({"maximum": 2**128 - 1}, "maximum")),
+        ),
+    ),
 )
 
 

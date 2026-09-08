@@ -74,6 +74,33 @@ class Event:
         self.assertEqual(body[1].value.op, "event_publish")
         self.assertEqual(body[1].value.args[0].type, ValueType.SYMBOL)
 
+    def test_lowers_wide_literals_storage_and_cross_contract_results(self):
+        source = '''
+from pysoroban import Address, Symbol, contract, i128, public, storage, u128
+@contract
+class Wide:
+    @public
+    def maximum(self) -> u128:
+        return u128(340282366920938463463374607431768211455)
+    @public
+    def stored(self, owner: Address) -> i128:
+        return storage.instance.get_i128(owner)
+    @public
+    def remote(self, token: Address, owner: Address) -> i128:
+        return token.call_i128(Symbol("balance"), owner)
+'''
+        functions = compile_source(source).ir.functions
+        literal = functions[0].body[0].value
+        self.assertEqual((literal.type, literal.value), (ValueType.U128, 2**128 - 1))
+        self.assertEqual(
+            (functions[1].body[0].value.op, functions[1].body[0].value.type),
+            ("storage_get_i128", ValueType.I128),
+        )
+        self.assertEqual(
+            (functions[2].body[0].value.op, functions[2].body[0].value.type),
+            ("contract_call", ValueType.I128),
+        )
+
     def test_lowers_typed_event_to_prefix_dynamic_topics_and_data(self):
         source = '''
 from pysoroban import Address, Topic, contract, event, events, public, u64

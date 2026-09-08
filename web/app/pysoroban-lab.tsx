@@ -595,8 +595,8 @@ export function PySorobanLab() {
       <section className="proof-strip" aria-label="Project facts">
         <div><strong>0</strong><span>Rust artifacts</span></div>
         <div><strong>726 B</strong><span>Map Wasm</span></div>
-        <div><strong>66/66</strong><span>Compiler tests</span></div>
-        <div><strong>6</strong><span>Live contracts</span></div>
+        <div><strong>72/72</strong><span>Compiler tests</span></div>
+        <div><strong>6</strong><span>Featured contracts</span></div>
       </section>
 
       <section className="section compiler-section" id="compiler">
@@ -735,7 +735,7 @@ assert contract.storage["total"] == result
 assert contract.last_events == (Event(("updated", "alice"), result),)`}</code></pre>
           <div className="test-result-card">
             <span className="test-status">● all checks passed</span>
-            <strong>66 / 66</strong>
+            <strong>72 / 72</strong>
             <p>Compiler, Typed IR, CLI, auth, storage, events, vectors, maps, and numeric boundaries.</p>
             <small>Deterministic IR simulator · network integration remains on testnet</small>
           </div>
@@ -749,8 +749,8 @@ assert contract.last_events == (Event(("updated", "alice"), result),)`}</code></
             <h2>Deployed, not mocked.</h2>
           </div>
           <p>
-            All six artifacts were uploaded with Stellar CLI and accepted by
-            testnet. Contract IDs and deployment transactions are public.
+            All six featured artifacts were uploaded with Stellar CLI and
+            accepted by testnet. Contract IDs and deployment transactions are public.
           </p>
         </div>
         <p className="deployment-swipe-hint" aria-hidden="true">

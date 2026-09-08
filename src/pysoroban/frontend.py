@@ -12,6 +12,8 @@ TYPE_NAMES = {
     "u32": ValueType.U32,
     "i64": ValueType.I64,
     "u64": ValueType.U64,
+    "i128": ValueType.I128,
+    "u128": ValueType.U128,
     "Symbol": ValueType.SYMBOL,
     "String": ValueType.STRING,
     "Bytes": ValueType.BYTES,
@@ -26,6 +28,8 @@ CONTRACT_CALL_TYPES = {
     "call_u32": ValueType.U32,
     "call_i64": ValueType.I64,
     "call_u64": ValueType.U64,
+    "call_i128": ValueType.I128,
+    "call_u128": ValueType.U128,
     "call_bool": ValueType.BOOL,
     "call_address": ValueType.ADDRESS,
     "call_symbol": ValueType.SYMBOL,
@@ -321,9 +325,12 @@ class TypeChecker:
         if isinstance(node, ast.BinOp):
             left, right = self.check_expr(node.left), self.check_expr(node.right)
             if left is not right or left not in {
-                ValueType.I32, ValueType.U32, ValueType.I64, ValueType.U64
+                ValueType.I32, ValueType.U32, ValueType.I64, ValueType.U64,
+                ValueType.I128, ValueType.U128,
             }:
                 fail(node, "arithmetic operands must have the same numeric type")
+            if left in {ValueType.I128, ValueType.U128}:
+                fail(node, "i128/u128 arithmetic is not supported yet")
             if isinstance(node.op, ast.FloorDiv):
                 if left not in {ValueType.U32, ValueType.U64}:
                     fail(node, "floor division is currently supported only for u32 and u64")
@@ -341,7 +348,10 @@ class TypeChecker:
             left, right = self.check_expr(node.left), self.check_expr(node.comparators[0])
             if left is not right:
                 fail(node, "comparison operands must have the same type")
-            if left not in {ValueType.I32, ValueType.U32, ValueType.I64, ValueType.U64} and not isinstance(
+            if left not in {
+                ValueType.I32, ValueType.U32, ValueType.I64, ValueType.U64,
+                ValueType.I128, ValueType.U128,
+            } and not isinstance(
                 node.ops[0], (ast.Eq, ast.NotEq)
             ):
                 fail(node, f"{left.value} only supports == and !=")
@@ -372,7 +382,7 @@ class TypeChecker:
             if actual != map_type.key:
                 fail(node.args[0], f"Map key expects {map_type.key.value}, got {actual.value}")
             return ValueType.BOOL
-        if len(path) == 1 and path[0] in {"i32", "u32", "i64", "u64"}:
+        if len(path) == 1 and path[0] in {"i32", "u32", "i64", "u64", "i128", "u128"}:
             value = _integer_literal(node.args[0]) if len(node.args) == 1 else None
             if value is None:
                 fail(node, f"{path[0]}() requires one integer literal")
@@ -381,6 +391,8 @@ class TypeChecker:
                 "u32": (0, 2**32 - 1),
                 "i64": (-(2**63), 2**63 - 1),
                 "u64": (0, 2**64 - 1),
+                "i128": (-(2**127), 2**127 - 1),
+                "u128": (0, 2**128 - 1),
             }
             lower, upper = bounds[path[0]]
             if not lower <= value <= upper:
@@ -424,6 +436,8 @@ class TypeChecker:
                 "get_u32": ValueType.U32,
                 "get_i64": ValueType.I64,
                 "get_u64": ValueType.U64,
+                "get_i128": ValueType.I128,
+                "get_u128": ValueType.U128,
                 "get_bool": ValueType.BOOL,
                 "get_symbol": ValueType.SYMBOL,
                 "get_string": ValueType.STRING,

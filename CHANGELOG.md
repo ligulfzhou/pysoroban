@@ -8,6 +8,10 @@ All notable changes to PySoroban are documented here.
   Typed IR, test environment, and direct Wasm backend.
 - Add `Address.call_void(...)` for statically typed cross-contract calls whose
   target returns `None`.
+- Add Soroban `i128` and `u128` ABI values, checked literals, comparisons,
+  storage getters, typed events, collections, cross-contract results, artifact
+  inspection, and Typed IR/Wasm differential coverage. Arithmetic remains an
+  explicit future step.
 - Add a constant-product AMM accounting kernel with authorization, reserve
   storage, typed events, slippage checks, and invariant tests.
 - Document the AMM safety boundary and the compiler gates required before a

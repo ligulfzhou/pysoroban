@@ -239,9 +239,16 @@ class ContractTest:
 
 
 def _wrap_integer(value: int, value_type: ValueType) -> int:
-    bits = 64 if value_type in {ValueType.I64, ValueType.U64} else 32
+    bits = {
+        ValueType.I32: 32,
+        ValueType.U32: 32,
+        ValueType.I64: 64,
+        ValueType.U64: 64,
+        ValueType.I128: 128,
+        ValueType.U128: 128,
+    }[value_type]
     value %= 2**bits
-    if value_type in {ValueType.I32, ValueType.I64} and value >= 2 ** (bits - 1):
+    if value_type in {ValueType.I32, ValueType.I64, ValueType.I128} and value >= 2 ** (bits - 1):
         value -= 2**bits
     return value
 
@@ -251,7 +258,10 @@ def _validate_native(value: NativeValue, value_type: ValueType, label: str) -> N
         valid = value is None
     elif value_type is ValueType.BOOL:
         valid = isinstance(value, bool)
-    elif value_type in {ValueType.I32, ValueType.U32, ValueType.I64, ValueType.U64}:
+    elif value_type in {
+        ValueType.I32, ValueType.U32, ValueType.I64, ValueType.U64,
+        ValueType.I128, ValueType.U128,
+    }:
         valid = isinstance(value, int) and not isinstance(value, bool)
         if valid:
             bounds = {
@@ -259,6 +269,8 @@ def _validate_native(value: NativeValue, value_type: ValueType, label: str) -> N
                 ValueType.U32: (0, 2**32 - 1),
                 ValueType.I64: (-(2**63), 2**63 - 1),
                 ValueType.U64: (0, 2**64 - 1),
+                ValueType.I128: (-(2**127), 2**127 - 1),
+                ValueType.U128: (0, 2**128 - 1),
             }
             lower, upper = bounds[value_type]
             valid = lower <= value <= upper

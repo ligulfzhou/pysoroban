@@ -56,6 +56,8 @@ SPEC_TYPE_NAMES = {
     5: "i32",
     6: "u64",
     7: "i64",
+    10: "u128",
+    11: "i128",
     14: "Bytes",
     16: "String",
     17: "Symbol",

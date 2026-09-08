@@ -33,11 +33,11 @@ Do not select End-User Application if a developer-tool option is available.
 
 ### Current Traction
 
-PySoroban has a working open-source v0.9 compiler and public live demo. Six
+PySoroban has a working open-source v0.9 compiler and public live demo. Seven
 contracts generated directly from Python have been uploaded, deployed, and
 invoked successfully on Stellar testnet, covering arithmetic, authorization,
 instance storage, typed events, cross-contract calls, vectors, and maps. The
-compiler has 66 automated tests plus 28 Typed IR/Wasm differential cases, with
+compiler has 72 automated tests plus 40 Typed IR/Wasm differential cases, with
 CI on Python 3.9 and 3.13. The public `pysoroban-compiler 0.9.0a1` alpha is
 installable from PyPI. The browser demo installs the real compiler wheel,
 builds downloadable Wasm locally, links deployment transactions, and performs
@@ -162,7 +162,7 @@ release criteria are all built around Soroban.
 An open-source compiler MVP is already live and independently verifiable:
 
 - Python source compiles directly to deterministic Soroban Wasm.
-- Six reference contracts have been accepted and invoked on Stellar testnet.
+- Seven reference contracts have been accepted and invoked on Stellar testnet.
 - The compiler supports typed integers and host objects, control flow, bounded
   loops, storage, authorization, events, cross-contract calls, vectors, and
   maps.
@@ -170,7 +170,8 @@ An open-source compiler MVP is already live and independently verifiable:
   tests running on Python 3.9 and 3.13 in CI.
 - A non-tokenized constant-product accounting kernel compiles today and tests
   fee math, reserve updates, authorization, events, and minimum-output checks;
-  token custody and asset-safe wide arithmetic remain future work.
+  `i128`/`u128` value transport is implemented and testnet-verified; token
+  custody and asset-safe wide arithmetic remain future work.
 - A public Cloudflare demo loads the actual Python compiler wheel in the browser,
   lets visitors edit and compile contracts, and performs read-only calls against
   deployed testnet contracts.

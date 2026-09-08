@@ -60,8 +60,8 @@ parsed as data, validated, lowered into typed operations, and encoded.
 
 ## Type and value model
 
-Supported scalar types are `i32`, `u32`, `i64`, `u64`, `boolean`, `Address`,
-`Symbol`, `String`, and `Bytes`. Homogeneous `Vec[T]` and scalar
+Supported scalar types are `i32`, `u32`, `i64`, `u64`, `i128`, `u128`,
+`boolean`, `Address`, `Symbol`, `String`, and `Bytes`. Homogeneous `Vec[T]` and scalar
 `Map[K, V]` types are also represented in the contract model and Soroban XDR
 specification.
 
@@ -74,8 +74,10 @@ backend from having to infer source-language types.
 Exported contract functions use Soroban's 64-bit `Val` ABI. The generated
 wrapper decodes incoming `Val` values into native Wasm `i32` or `i64` values
 where practical, executes the function body, and encodes the result back into a
-`Val`. Soroban host objects such as addresses, strings, vectors, and maps remain
-opaque handles.
+`Val`. Soroban host objects such as addresses, strings, vectors, maps, and wide
+integers remain opaque handles. Literal `i128` and `u128` values are split into
+high and low 64-bit pieces and constructed through the protocol host interface;
+parameters and results otherwise remain `Val` values across the Wasm boundary.
 
 ## Wasm and Soroban integration
 
@@ -184,8 +186,10 @@ calls are recorded in `deployments/testnet.json`.
 - User-defined contract structs and enums are not yet supported.
 - Signed floor division is not supported; `//` currently has explicit unsigned
   `u32` and `u64` semantics only.
-- Arithmetic currently wraps at its integer width. Checked wide asset math is a
-  prerequisite for a tokenized AMM.
+- `i128` and `u128` support ABI pass-through, checked literals, comparisons,
+  storage, events, collections, and cross-contract results, but not arithmetic.
+- Existing 32- and 64-bit arithmetic wraps at its integer width. Checked wide
+  asset math remains a prerequisite for a tokenized AMM.
 - The compiler currently targets a single declared Stellar protocol version.
 - The project has not completed an independent security audit.
 

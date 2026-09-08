@@ -39,9 +39,10 @@ The current implementation must not hold real assets because it does not yet
 have all of the primitives required for safe token accounting:
 
 - arithmetic is `u64` and wraps on overflow;
-- `call_void` can represent a `None`-returning contract call, but the Stellar
-  token `transfer` amount is `i128`, which is not yet supported;
-- there is no checked `u128`/`i128` or `mul_div` primitive;
+- `i128` can now cross the ABI and `call_void` can represent a
+  `None`-returning contract call, but token composition has not yet been
+  integrated and verified against the current Stellar token interface;
+- there is no checked `u128`/`i128` arithmetic or `mul_div` primitive;
 - rejected operations return zero instead of raising a typed contract error;
 - liquidity deposits and withdrawals do not transfer or verify token balances;
 - the testing environment is not a full Soroban host and does not meter
@@ -54,16 +55,16 @@ These are explicit compiler-development gates, not deferred application polish.
 
 ### Gate 1 — asset-safe arithmetic
 
-- Add checked `u128`/`i128` values through the frontend, Typed IR, XDR, Wasm
-  backend, and test environment.
+- Build checked `u128`/`i128` arithmetic on top of the wide-value support now
+  present in the frontend, Typed IR, XDR, Wasm backend, and test environment.
 - Define multiplication, division, rounding, overflow, and division-by-zero
   semantics in the language specification.
 - Add a checked `mul_div` operation suitable for reserve and share math.
 
 ### Gate 2 — contract composition and failure
 
-- Use the existing statically typed `call_void` path with the future `i128`
-  value type to model Stellar token `transfer` exactly.
+- Use the existing statically typed `call_void` and `i128` paths to model the
+  current Stellar token interface exactly.
 - Add typed contract errors or an explicit abort operation so invalid swaps
   revert rather than returning an ambiguous numeric sentinel.
 - Test authorization forwarding and atomic rollback on a real Soroban host.

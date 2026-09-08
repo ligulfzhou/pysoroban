@@ -14,6 +14,8 @@ ANNOTATIONS = {
     "u32": ValueType.U32,
     "i64": ValueType.I64,
     "u64": ValueType.U64,
+    "i128": ValueType.I128,
+    "u128": ValueType.U128,
     "boolean": ValueType.BOOL,
     "bool": ValueType.BOOL,
     "Address": ValueType.ADDRESS,
@@ -165,7 +167,9 @@ class FunctionLowerer:
                 ValueType.BOOL,
             )
         if len(path) == 1 and path[0] in ANNOTATIONS:
-            value = _integer_literal(node.args[0]) if path[0] in {"i32", "u32", "i64", "u64"} else node.args[0].value
+            value = _integer_literal(node.args[0]) if path[0] in {
+                "i32", "u32", "i64", "u64", "i128", "u128"
+            } else node.args[0].value
             return ir.Constant(value, ANNOTATIONS[path[0]])
         if len(path) == 2 and path[1] == "require_auth":
             return ir.HostCall("require_auth", (ir.Local(path[0], ValueType.ADDRESS),), ValueType.VOID)
@@ -184,6 +188,8 @@ class FunctionLowerer:
                 "get_u32": ("storage_get_u32", ValueType.U32),
                 "get_i64": ("storage_get_i64", ValueType.I64),
                 "get_u64": ("storage_get_u64", ValueType.U64),
+                "get_i128": ("storage_get_i128", ValueType.I128),
+                "get_u128": ("storage_get_u128", ValueType.U128),
                 "get_bool": ("storage_get_bool", ValueType.BOOL),
                 "get_symbol": ("storage_get_symbol", ValueType.SYMBOL),
                 "get_string": ("storage_get_string", ValueType.STRING),

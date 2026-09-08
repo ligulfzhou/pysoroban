@@ -79,6 +79,27 @@ class Lookup:
             result["imports"],
         )
 
+    def test_inspects_wide_integer_function_and_event_types(self):
+        source = """
+from pysoroban import Address, Topic, contract, event, events, i128, public, u128
+@event
+class Recorded:
+    owner: Topic[Address]
+    amount: i128
+@contract
+class Wide:
+    @public
+    def echo(self, value: u128) -> u128:
+        return value
+    @public
+    def publish(self, owner: Address, amount: i128) -> None:
+        events.publish(Recorded(owner, amount))
+"""
+        result = inspect_wasm(compile_source(source).wasm)
+        self.assertEqual(result["functions"][0]["inputs"][0]["type"], "u128")
+        self.assertEqual(result["functions"][0]["outputs"], ["u128"])
+        self.assertEqual(result["events"][0]["data"][0]["type"], "i128")
+
     def test_rejects_non_wasm_missing_soroban_sections_and_truncation(self):
         with self.assertRaisesRegex(ArtifactError, "not a WebAssembly"):
             validate_wasm(b"not wasm")

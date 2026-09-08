@@ -49,6 +49,7 @@ CONTRACT_EVENT = 13
 CONTRACT_CALL = 14
 
 I64_TYPES = {ValueType.I64, ValueType.U64}
+WIDE_INTEGER_TYPES = {ValueType.I128, ValueType.U128}
 
 
 class LiteralPool:
@@ -241,6 +242,18 @@ class FunctionEmitter:
                     ValueType.SYMBOL: SYMBOL_FROM_MEMORY,
                 }[node.type]
                 return self._u32_val(offset) + self._u32_val(len(raw)) + b"\x10" + uleb(constructor)
+            if node.type in WIDE_INTEGER_TYPES:
+                bits = node.value % (2**128)
+                hi = bits >> 64
+                lo = bits & (2**64 - 1)
+                signed_hi = hi if hi < 2**63 else hi - 2**64
+                signed_lo = lo if lo < 2**63 else lo - 2**64
+                constructor = ("i", "6") if node.type is ValueType.I128 else ("i", "3")
+                return b"".join([
+                    b"\x42", sleb(signed_hi),
+                    b"\x42", sleb(signed_lo),
+                    b"\x10", uleb(self.host_indices[constructor]),
+                ])
             if node.type in {ValueType.I64, ValueType.U64}:
                 value = node.value if node.value < 2**63 else node.value - 2**64
                 return b"\x42" + sleb(value)
@@ -274,7 +287,12 @@ class FunctionEmitter:
             operand_type = node.left.type
             if is_object_type(operand_type):
                 compared = self.expression(node.left) + self.expression(node.right) + b"\x10" + uleb(OBJ_CMP)
-                return compared + b"\x50" + (b"" if node.op == "eq" else b"\x45")
+                if node.op == "eq":
+                    return compared + b"\x50"  # i64.eqz
+                if node.op == "ne":
+                    return compared + b"\x50\x45"  # !(i64.eqz)
+                order_opcodes = {"lt": 0x53, "gt": 0x55, "le": 0x57, "ge": 0x59}
+                return compared + b"\x42\x00" + bytes([order_opcodes[node.op]])
             i32_opcodes = {
                 "eq": 0x46,
                 "ne": 0x47,
@@ -323,7 +341,10 @@ class FunctionEmitter:
                 return raw + self._decode_i64_val(value_type)
             if node.op == "storage_get_bool":
                 return raw + b"\x42\x01\x51"
-            if node.op in {"storage_get_symbol", "storage_get_string", "storage_get_bytes"}:
+            if node.op in {
+                "storage_get_i128", "storage_get_u128", "storage_get_symbol",
+                "storage_get_string", "storage_get_bytes",
+            }:
                 return raw
         if node.op == "event_publish":
             topics, data = node.args[:-1], node.args[-1]
@@ -442,6 +463,10 @@ def emit_module(contract: ir.Contract, protocol: int = 25) -> bytes:
         optional_imports.append(("m", "4", 2))
     if _uses_host_op(contract, "contract_call"):
         optional_imports.append(CONTRACT_CALL_IMPORT)
+    if _uses_constant_type(contract, ValueType.U128):
+        optional_imports.append(("i", "3", 2))
+    if _uses_constant_type(contract, ValueType.I128):
+        optional_imports.append(("i", "6", 2))
     host_imports = HOST_IMPORTS + tuple(optional_imports)
     host_indices = {(module, field): index for index, (module, field, _) in enumerate(host_imports)}
     emitters = [FunctionEmitter(function, literals, host_indices) for function in contract.functions]
@@ -548,6 +573,30 @@ def _uses_host_op(contract: ir.Contract, op: str) -> bool:
         if isinstance(node, (ir.Return, ir.SetLocal, ir.Drop)):
             value = node.value
             return expression(value)
+        if isinstance(node, ir.If):
+            return expression(node.test) or any(statement(child) for child in node.body + node.otherwise)
+        if isinstance(node, ir.ForRange):
+            return expression(node.start) or expression(node.stop) or any(statement(child) for child in node.body)
+        return False
+
+    return any(statement(item) for function in contract.functions for item in function.body)
+
+
+def _uses_constant_type(contract: ir.Contract, value_type: ValueType) -> bool:
+    def expression(node: ir.Expression) -> bool:
+        if isinstance(node, ir.Constant):
+            return node.type is value_type
+        if isinstance(node, ir.HostCall):
+            return any(expression(arg) for arg in node.args)
+        if isinstance(node, ir.Unary):
+            return expression(node.operand)
+        if isinstance(node, (ir.Binary, ir.Compare)):
+            return expression(node.left) or expression(node.right)
+        return False
+
+    def statement(node: ir.Statement) -> bool:
+        if isinstance(node, (ir.Return, ir.SetLocal, ir.Drop)):
+            return expression(node.value)
         if isinstance(node, ir.If):
             return expression(node.test) or any(statement(child) for child in node.body + node.otherwise)
         if isinstance(node, ir.ForRange):

@@ -18,6 +18,8 @@ pysoroban verify examples/typed_events_contract.py \
 pysoroban verify examples/cross_contract.py \
   --wasm dist/cross-contract-testnet.wasm
 pysoroban verify examples/vector_contract.py --wasm dist/vector-testnet.wasm
+pysoroban verify examples/wide_integer_contract.py \
+  --wasm dist/wide-integer-testnet.wasm
 ```
 
 ## Prerequisites
@@ -167,6 +169,33 @@ stellar contract invoke --id "$MAP_ID" --source alice --network testnet \
 
 Expected results: `12`, `false`, `2`, and `{"alice":9,"bob":-12}`.
 
+## Build and deploy wide integers
+
+```bash
+pysoroban build examples/wide_integer_contract.py \
+  -o dist/wide-integer-testnet.wasm
+
+WIDE_ID=$(stellar contract deploy \
+  --wasm dist/wide-integer-testnet.wasm \
+  --source alice \
+  --network testnet)
+
+stellar contract invoke --id "$WIDE_ID" --source alice --network testnet \
+  --send no -- minimum_i128
+
+stellar contract invoke --id "$WIDE_ID" --source alice --network testnet \
+  --send no -- maximum_u128
+
+stellar contract invoke --id "$WIDE_ID" --source alice --network testnet \
+  --send no -- echo_i128s \
+  --values '["-170141183460469231731687303715884105728","0","170141183460469231731687303715884105727"]'
+```
+
+Expected results are the exact `i128` minimum, the exact `u128` maximum, and
+the same three-element vector. The recorded deployment also verifies signed
+comparison, a `Map[Symbol, u128]` lookup, authorized instance storage, and an
+`AmountRecorded` event carrying `i128` data.
+
 ## What this proves
 
 - contract environment and interface metadata are accepted by the network;
@@ -186,5 +215,7 @@ Expected results: `12`, `false`, `2`, and `{"alice":9,"bob":-12}`.
   vector results round-trip through the network.
 - `Map[K, V]` interfaces, typed lookup/membership/length, and map results
   round-trip through the network.
+- full-range `i128` and `u128` values, ordering, collections, storage, and
+  typed event data round-trip through the network.
 
 It does not constitute a security audit or production-readiness claim.
