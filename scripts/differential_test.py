@@ -9,7 +9,7 @@ import sys
 import tempfile
 
 from pysoroban import compile_source
-from pysoroban.testing import ContractTest
+from pysoroban.testing import ContractTest, InvocationError
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -127,6 +127,16 @@ SUITES = (
             ("i128-not-less", "less_i128", (2**100, -(2**100))),
             ("u128-less", "less_u128", (2**64, 2**127)),
             ("u128-not-less", "less_u128", (2**128 - 1, 2**128 - 1)),
+            ("i128-add", "add_i128", (-(2**100), 2**99)),
+            ("i128-subtract", "subtract_i128", (2**100, 2**99)),
+            ("u128-add", "add_u128", (2**100, 2**99)),
+            ("u128-subtract", "subtract_u128", (2**100, 2**99)),
+            ("i128-add-positive-overflow", "add_i128", (2**127 - 1, 1), "unreachable"),
+            ("i128-add-negative-overflow", "add_i128", (-(2**127), -1), "unreachable"),
+            ("i128-subtract-positive-overflow", "subtract_i128", (2**127 - 1, -1), "unreachable"),
+            ("i128-subtract-negative-overflow", "subtract_i128", (-(2**127), 1), "unreachable"),
+            ("u128-add-overflow", "add_u128", (2**128 - 1, 1), "unreachable"),
+            ("u128-subtract-underflow", "subtract_u128", (0, 1), "unreachable"),
             ("i128-vector", "echo_i128s", ([2**127 - 1, 0, -(2**127)],)),
             ("u128-map", "lookup_u128", ({"maximum": 2**128 - 1}, "maximum")),
         ),
@@ -164,17 +174,30 @@ def run(node: str) -> dict:
             wasm.write_bytes(compilation.wasm)
             functions = {function.name: function for function in compilation.ir.functions}
             encoded_cases = []
-            for case_name, function_name, args in cases:
+            for case in cases:
+                case_name, function_name, args = case[:3]
+                expected_trap = case[3] if len(case) == 4 else None
                 function = functions[function_name]
-                expected = contract.invoke(function_name, *args)
-                encoded_cases.append({
+                if expected_trap:
+                    try:
+                        contract.invoke(function_name, *args)
+                    except InvocationError:
+                        expected = None
+                    else:
+                        raise RuntimeError(f"Typed IR case {case_name!r} did not fail")
+                else:
+                    expected = contract.invoke(function_name, *args)
+                encoded_case = {
                     "name": case_name,
                     "function": function_name,
                     "params": [param.type.value for param in function.params],
                     "result": function.result.value,
                     "args": [_normalized(value) for value in args],
                     "expected": _normalized(expected),
-                })
+                }
+                if expected_trap:
+                    encoded_case["expectedTrap"] = expected_trap
+                encoded_cases.append(encoded_case)
             suites.append({"name": suite_name, "wasm": str(wasm), "cases": encoded_cases})
 
         manifest = output / "manifest.json"

@@ -34,6 +34,22 @@ class WideIntegers:
         return left < right
 
     @public
+    def add_i128(self, left: i128, right: i128) -> i128:
+        return left + right
+
+    @public
+    def subtract_i128(self, left: i128, right: i128) -> i128:
+        return left - right
+
+    @public
+    def add_u128(self, left: u128, right: u128) -> u128:
+        return left + right
+
+    @public
+    def subtract_u128(self, left: u128, right: u128) -> u128:
+        return left - right
+
+    @public
     def echo_i128s(self, values: Vec[i128]) -> Vec[i128]:
         return values
 

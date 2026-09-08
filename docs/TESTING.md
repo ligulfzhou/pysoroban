@@ -90,9 +90,9 @@ remains an integration-test concern.
 
 The interpreter validates `i32`, `u32`, `i64`, `u64`, `i128`, and `u128`
 argument ranges. Arithmetic follows the current Wasm backend and wraps at the
-corresponding 32- or 64-bit boundary. Wide integers currently support value
-transport and comparisons but deliberately reject arithmetic. Unsigned `u32`
-and `u64` floor division uses Wasm's
+corresponding 32- or 64-bit boundary. Wide integer addition and subtraction are
+checked and fail on overflow; multiplication and division remain deliberately
+unsupported. Unsigned `u32` and `u64` floor division uses Wasm's
 unsigned division semantics; a zero divisor raises `InvocationError` in this
 environment and traps in generated Wasm.
 
@@ -129,7 +129,7 @@ PYTHONPATH=src python scripts/differential_test.py
 ```
 
 The current cases cover signed and unsigned integer wrapping, unsigned
-division, `i128`/`u128` boundaries and ordering, boolean branches, comparisons,
+division, `i128`/`u128` boundaries, ordering, and checked add/subtract, boolean branches, comparisons,
 parameter-bounded loops, vectors, and maps. A small Node-based host implements
 only the object operations needed by those cases.
 

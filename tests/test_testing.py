@@ -81,6 +81,10 @@ class Wrapping:
         self.assertEqual(contract.invoke("maximum_u128"), maximum)
         self.assertTrue(contract.invoke("less_i128", minimum, -1))
         self.assertTrue(contract.invoke("less_u128", 2**64, maximum))
+        self.assertEqual(contract.invoke("add_i128", -(2**100), 2**99), -(2**99))
+        self.assertEqual(contract.invoke("subtract_i128", 2**100, 2**99), 2**99)
+        self.assertEqual(contract.invoke("add_u128", 2**100, 2**99), 3 * 2**99)
+        self.assertEqual(contract.invoke("subtract_u128", 2**100, 2**99), 2**99)
         self.assertEqual(contract.invoke("echo_i128s", [minimum, 0, 2**127 - 1]), [minimum, 0, 2**127 - 1])
         self.assertEqual(contract.invoke("lookup_u128", {"maximum": maximum}, "maximum"), maximum)
         self.assertEqual(contract.invoke("record", "alice", amount, auth={"alice"}), amount)
@@ -91,6 +95,10 @@ class Wrapping:
             contract.invoke("echo_i128", 2**127)
         with self.assertRaisesRegex(InvocationError, "not a valid u128"):
             contract.invoke("echo_u128", -1)
+        with self.assertRaisesRegex(InvocationError, "i128 arithmetic overflow"):
+            contract.invoke("add_i128", 2**127 - 1, 1)
+        with self.assertRaisesRegex(InvocationError, "u128 arithmetic overflow"):
+            contract.invoke("subtract_u128", 0, 1)
 
     def test_executes_i128_cross_contract_result(self):
         token_source = '''

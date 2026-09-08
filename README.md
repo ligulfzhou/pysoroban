@@ -28,8 +28,8 @@ run it locally with `cd web && npm install && npm run dev`.
   `Bytes`, and `None` signatures
 - integer arithmetic for 32- and 64-bit values: `+`, `-`, `*`, plus `//`
   for `u32` and `u64`
-- pass-through, literals, comparison, storage, events, collections, and
-  cross-contract results for Soroban `i128` and `u128` values
+- checked `+` and `-`, pass-through, literals, comparison, storage, events,
+  collections, and cross-contract results for Soroban `i128` and `u128` values
 - comparisons, boolean expressions, local variables, and `if/else`
 - metered `for` loops using `range(stop)` or `range(start, stop)` with `i32`
   bounds, lowered to native Wasm loops
@@ -234,8 +234,9 @@ traps at runtime as it does for the underlying Soroban host call.
 `i128` and `u128` are Soroban `Val`-backed wide integers rather than native
 Wasm integer locals. They can cross the contract ABI, be constructed from
 checked literals, compared, stored, emitted, carried in collections, and
-returned from cross-contract calls. Arithmetic on them is deliberately
-rejected until checked overflow and rounding semantics are implemented.
+returned from cross-contract calls. Addition and subtraction trap on overflow;
+multiplication and division remain rejected until their widening and rounding
+semantics are implemented.
 
 Homogeneous vectors use normal Python type and expression syntax:
 

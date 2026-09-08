@@ -187,7 +187,8 @@ calls are recorded in `deployments/testnet.json`.
 - Signed floor division is not supported; `//` currently has explicit unsigned
   `u32` and `u64` semantics only.
 - `i128` and `u128` support ABI pass-through, checked literals, comparisons,
-  storage, events, collections, and cross-contract results, but not arithmetic.
+  checked addition/subtraction, storage, events, collections, and
+  cross-contract results. Multiplication and division are not yet supported.
 - Existing 32- and 64-bit arithmetic wraps at its integer width. Checked wide
   asset math remains a prerequisite for a tokenized AMM.
 - The compiler currently targets a single declared Stellar protocol version.

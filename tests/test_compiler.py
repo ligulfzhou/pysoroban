@@ -253,16 +253,19 @@ class Wide:
         self.assertIn(b"\x01i\x016", result.wasm)
         self.assertIn(b"\x01i\x013", result.wasm)
 
-    def test_rejects_wide_integer_arithmetic_until_semantics_are_defined(self):
+    def test_compiles_checked_wide_addition_and_rejects_multiplication(self):
         source = '''
 from pysoroban import contract, i128, public
 @contract
-class Bad:
+class Wide:
     @public
     def add(self, left: i128, right: i128) -> i128:
         return left + right
+    @public
+    def multiply(self, left: i128, right: i128) -> i128:
+        return left * right
 '''
-        with self.assertRaisesRegex(CompileError, "i128/u128 arithmetic is not supported yet"):
+        with self.assertRaisesRegex(CompileError, "supports only checked \\+ and -"):
             compile_source(source)
 
     def test_requires_explicit_typed_integer_literals(self):

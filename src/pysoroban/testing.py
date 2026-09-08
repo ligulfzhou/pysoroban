@@ -169,6 +169,12 @@ class ContractTest:
                 value = left // right
             else:
                 value = {"add": left + right, "sub": left - right, "mul": left * right}[expression.op]
+            if expression.type in {ValueType.I128, ValueType.U128}:
+                try:
+                    _validate_native(value, expression.type, "arithmetic result")
+                except InvocationError as exc:
+                    raise InvocationError(f"{expression.type.value} arithmetic overflow") from exc
+                return value
             return _wrap_integer(value, expression.type)
         if isinstance(expression, ir.Compare):
             left = self._expression(expression.left, variables)

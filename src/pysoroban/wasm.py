@@ -8,6 +8,8 @@ from .xdr import contract_spec, environment_metadata
 
 I32_TAG = 5
 U32_TAG = 4
+U128_SMALL_TAG = 10
+I128_SMALL_TAG = 11
 U64_SMALL_TAG = 6
 I64_SMALL_TAG = 7
 VOID_TAG = 2
@@ -118,6 +120,7 @@ class Locals:
     types: Dict[str, ValueType]
     local_types: List[int]
     scratch: int
+    wide_scratch: Tuple[int, ...]
 
 
 class FunctionEmitter:
@@ -141,7 +144,9 @@ class FunctionEmitter:
         local_types = [0x7E if types[item] in I64_TYPES or is_object_type(types[item]) else 0x7F for item in names]
         scratch = len(self.function.params) + len(local_types)
         local_types.append(0x7E)
-        return Locals(param_raw, native, types, local_types, scratch)
+        wide_scratch = tuple(scratch + offset for offset in range(1, 10))
+        local_types.extend([0x7E] * len(wide_scratch))
+        return Locals(param_raw, native, types, local_types, scratch, wide_scratch)
 
     def emit(self) -> bytes:
         code = bytearray()
@@ -269,6 +274,8 @@ class FunctionEmitter:
             if node.op == "not":
                 return self.expression(node.operand) + b"\x45"
         if isinstance(node, ir.Binary):
+            if node.type in WIDE_INTEGER_TYPES:
+                return self._wide_binary(node)
             i32_opcodes = {
                 "add": 0x6A,
                 "sub": 0x6B,
@@ -285,6 +292,8 @@ class FunctionEmitter:
             return self.expression(node.left) + self.expression(node.right) + bytes([opcodes[node.op]])
         if isinstance(node, ir.Compare):
             operand_type = node.left.type
+            if operand_type in WIDE_INTEGER_TYPES:
+                return self._wide_compare(node)
             if is_object_type(operand_type):
                 compared = self.expression(node.left) + self.expression(node.right) + b"\x10" + uleb(OBJ_CMP)
                 if node.op == "eq":
@@ -311,6 +320,99 @@ class FunctionEmitter:
         if isinstance(node, ir.HostCall):
             return self.call(node)
         raise AssertionError(type(node).__name__)
+
+    def _normalized_wide_values(self, left: ir.Expression, right: ir.Expression):
+        lhs_val, rhs_val, lhs_hi, lhs_lo, rhs_hi, rhs_lo, *_ = self.locals.wide_scratch
+        output = bytearray()
+        output += self.expression(left) + b"\x21" + uleb(lhs_val)
+        output += self.expression(right) + b"\x21" + uleb(rhs_val)
+        for value_local, hi_local, lo_local in (
+            (lhs_val, lhs_hi, lhs_lo),
+            (rhs_val, rhs_hi, rhs_lo),
+        ):
+            output += self._wide_part(value_local, left.type, high=True) + b"\x21" + uleb(hi_local)
+            output += self._wide_part(value_local, left.type, high=False) + b"\x21" + uleb(lo_local)
+        constructor = "6" if left.type is ValueType.I128 else "3"
+        for value_local, hi_local, lo_local in (
+            (lhs_val, lhs_hi, lhs_lo),
+            (rhs_val, rhs_hi, rhs_lo),
+        ):
+            output += b"\x20" + uleb(hi_local) + b"\x20" + uleb(lo_local)
+            output += b"\x10" + uleb(self.host_indices[("i", constructor)])
+            output += b"\x21" + uleb(value_local)
+        return output
+
+    def _wide_compare(self, node: ir.Compare) -> bytes:
+        lhs_val, rhs_val, *_ = self.locals.wide_scratch
+        output = self._normalized_wide_values(node.left, node.right)
+        output += b"\x20" + uleb(lhs_val) + b"\x20" + uleb(rhs_val)
+        output += b"\x10" + uleb(OBJ_CMP)
+        if node.op == "eq":
+            return bytes(output) + b"\x50"
+        if node.op == "ne":
+            return bytes(output) + b"\x50\x45"
+        order_opcodes = {"lt": 0x53, "gt": 0x55, "le": 0x57, "ge": 0x59}
+        return bytes(output) + b"\x42\x00" + bytes([order_opcodes[node.op]])
+
+    def _wide_part(self, value_local: int, value_type: ValueType, *, high: bool) -> bytes:
+        small_tag = I128_SMALL_TAG if value_type is ValueType.I128 else U128_SMALL_TAG
+        object_export = {
+            (ValueType.I128, False): "7",
+            (ValueType.I128, True): "8",
+            (ValueType.U128, False): "4",
+            (ValueType.U128, True): "5",
+        }[(value_type, high)]
+        if high:
+            small_value = (
+                b"\x20" + uleb(value_local) + b"\x42\x3f\x87"
+                if value_type is ValueType.I128 else b"\x42\x00"
+            )
+        else:
+            small_value = b"\x20" + uleb(value_local)
+            small_value += b"\x42\x08" + (b"\x87" if value_type is ValueType.I128 else b"\x88")
+        return b"".join([
+            b"\x20", uleb(value_local), b"\x42", sleb(0xFF), b"\x83",
+            b"\x42", sleb(small_tag), b"\x51",
+            b"\x04\x7e",
+            small_value,
+            b"\x05",
+            b"\x20", uleb(value_local), b"\x10", uleb(self.host_indices[("i", object_export)]),
+            b"\x0b",
+        ])
+
+    def _wide_binary(self, node: ir.Binary) -> bytes:
+        lhs_val, rhs_val, lhs_hi, lhs_lo, rhs_hi, rhs_lo, result_hi, result_lo, result_val = self.locals.wide_scratch
+        output = self._normalized_wide_values(node.left, node.right)
+
+        if node.op == "add":
+            output += b"\x20" + uleb(lhs_lo) + b"\x20" + uleb(rhs_lo) + b"\x7c\x21" + uleb(result_lo)
+            output += b"\x20" + uleb(lhs_hi) + b"\x20" + uleb(rhs_hi) + b"\x7c"
+            output += b"\x20" + uleb(result_lo) + b"\x20" + uleb(lhs_lo) + b"\x54\xad\x7c"
+            output += b"\x21" + uleb(result_hi)
+        else:
+            output += b"\x20" + uleb(lhs_lo) + b"\x20" + uleb(rhs_lo) + b"\x7d\x21" + uleb(result_lo)
+            output += b"\x20" + uleb(lhs_hi) + b"\x20" + uleb(rhs_hi) + b"\x7d"
+            output += b"\x20" + uleb(lhs_lo) + b"\x20" + uleb(rhs_lo) + b"\x54\xad\x7d"
+            output += b"\x21" + uleb(result_hi)
+
+        constructor = "6" if node.type is ValueType.I128 else "3"
+        output += b"\x20" + uleb(result_hi) + b"\x20" + uleb(result_lo)
+        output += b"\x10" + uleb(self.host_indices[("i", constructor)]) + b"\x21" + uleb(result_val)
+
+        if node.type is ValueType.U128:
+            left, right = (result_val, lhs_val) if node.op == "add" else (lhs_val, rhs_val)
+            output += b"\x20" + uleb(left) + b"\x20" + uleb(right) + b"\x10" + uleb(OBJ_CMP)
+            output += b"\x42\x00\x53"
+        else:
+            sign = lambda local: b"\x20" + uleb(local) + b"\x42\x00\x53"
+            lhs_sign, rhs_sign, result_sign = sign(lhs_hi), sign(rhs_hi), sign(result_hi)
+            if node.op == "add":
+                output += lhs_sign + rhs_sign + b"\x46" + result_sign + lhs_sign + b"\x47\x71"
+            else:
+                output += lhs_sign + rhs_sign + b"\x47" + result_sign + lhs_sign + b"\x47\x71"
+        output += b"\x04\x40\x00\x0b"
+        output += b"\x20" + uleb(result_val)
+        return bytes(output)
 
     def call(self, node: ir.HostCall) -> bytes:
         if node.op == "require_auth":
@@ -451,6 +553,10 @@ class FunctionEmitter:
 def emit_module(contract: ir.Contract, protocol: int = 25) -> bytes:
     literals = LiteralPool(max(8, _max_linear_values(contract) * 8))
     optional_imports = []
+    def optional(host_import):
+        if host_import not in optional_imports and host_import not in HOST_IMPORTS:
+            optional_imports.append(host_import)
+
     if _uses_host_op(contract, "vec_get"):
         optional_imports.append(("v", "1", 2))
     if _uses_host_op(contract, "vec_len"):
@@ -462,11 +568,18 @@ def emit_module(contract: ir.Contract, protocol: int = 25) -> bytes:
     if _uses_host_op(contract, "map_has"):
         optional_imports.append(("m", "4", 2))
     if _uses_host_op(contract, "contract_call"):
-        optional_imports.append(CONTRACT_CALL_IMPORT)
+        optional(CONTRACT_CALL_IMPORT)
     if _uses_constant_type(contract, ValueType.U128):
-        optional_imports.append(("i", "3", 2))
+        optional(("i", "3", 2))
     if _uses_constant_type(contract, ValueType.I128):
-        optional_imports.append(("i", "6", 2))
+        optional(("i", "6", 2))
+    wide_operations = _wide_operation_types(contract)
+    if ValueType.U128 in wide_operations:
+        for host_import in (("i", "3", 2), ("i", "4", 1), ("i", "5", 1)):
+            optional(host_import)
+    if ValueType.I128 in wide_operations:
+        for host_import in (("i", "6", 2), ("i", "7", 1), ("i", "8", 1)):
+            optional(host_import)
     host_imports = HOST_IMPORTS + tuple(optional_imports)
     host_indices = {(module, field): index for index, (module, field, _) in enumerate(host_imports)}
     emitters = [FunctionEmitter(function, literals, host_indices) for function in contract.functions]
@@ -604,6 +717,42 @@ def _uses_constant_type(contract: ir.Contract, value_type: ValueType) -> bool:
         return False
 
     return any(statement(item) for function in contract.functions for item in function.body)
+
+
+def _wide_operation_types(contract: ir.Contract) -> set:
+    found = set()
+
+    def expression(node: ir.Expression) -> None:
+        if isinstance(node, ir.Binary) and node.type in WIDE_INTEGER_TYPES:
+            found.add(node.type)
+        if isinstance(node, ir.Compare) and node.left.type in WIDE_INTEGER_TYPES:
+            found.add(node.left.type)
+        if isinstance(node, ir.HostCall):
+            for arg in node.args:
+                expression(arg)
+        elif isinstance(node, ir.Unary):
+            expression(node.operand)
+        elif isinstance(node, (ir.Binary, ir.Compare)):
+            expression(node.left)
+            expression(node.right)
+
+    def statement(node: ir.Statement) -> None:
+        if isinstance(node, (ir.Return, ir.SetLocal, ir.Drop)):
+            expression(node.value)
+        elif isinstance(node, ir.If):
+            expression(node.test)
+            for child in node.body + node.otherwise:
+                statement(child)
+        elif isinstance(node, ir.ForRange):
+            expression(node.start)
+            expression(node.stop)
+            for child in node.body:
+                statement(child)
+
+    for function in contract.functions:
+        for item in function.body:
+            statement(item)
+    return found
 
 
 def _contract_metadata(contract: ir.Contract) -> bytes:

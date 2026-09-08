@@ -10,8 +10,9 @@ All notable changes to PySoroban are documented here.
   target returns `None`.
 - Add Soroban `i128` and `u128` ABI values, checked literals, comparisons,
   storage getters, typed events, collections, cross-contract results, artifact
-  inspection, and Typed IR/Wasm differential coverage. Arithmetic remains an
-  explicit future step.
+  inspection, and Typed IR/Wasm differential coverage.
+- Add checked `i128`/`u128` addition and subtraction with explicit Wasm traps
+  on overflow; multiplication, division, and `mul_div` remain future work.
 - Add a constant-product AMM accounting kernel with authorization, reserve
   storage, typed events, slippage checks, and invariant tests.
 - Document the AMM safety boundary and the compiler gates required before a

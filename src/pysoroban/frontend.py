@@ -329,8 +329,8 @@ class TypeChecker:
                 ValueType.I128, ValueType.U128,
             }:
                 fail(node, "arithmetic operands must have the same numeric type")
-            if left in {ValueType.I128, ValueType.U128}:
-                fail(node, "i128/u128 arithmetic is not supported yet")
+            if left in {ValueType.I128, ValueType.U128} and not isinstance(node.op, (ast.Add, ast.Sub)):
+                fail(node, "i128/u128 arithmetic currently supports only checked + and -")
             if isinstance(node.op, ast.FloorDiv):
                 if left not in {ValueType.U32, ValueType.U64}:
                     fail(node, "floor division is currently supported only for u32 and u64")

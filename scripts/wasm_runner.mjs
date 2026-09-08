@@ -139,10 +139,14 @@ class MiniSorobanHost {
       kind: "u128",
       value: (BigInt.asUintN(64, hi) << 64n) | BigInt.asUintN(64, lo),
     });
+    if (key === "i.4") return (value) => BigInt.asIntN(64, this.get(value).value);
+    if (key === "i.5") return (value) => BigInt.asIntN(64, this.get(value).value >> 64n);
     if (key === "i.6") return (hi, lo) => this.put({
       kind: "i128",
       value: BigInt.asIntN(128, (BigInt.asUintN(64, hi) << 64n) | BigInt.asUintN(64, lo)),
     });
+    if (key === "i.7") return (value) => BigInt.asIntN(64, this.get(value).value);
+    if (key === "i.8") return (value) => BigInt.asIntN(64, this.get(value).value >> 64n);
     if (key === "b.3") return (offset, length) => this.memoryObject("Bytes", offset, length);
     if (key === "b.i") return (offset, length) => this.memoryObject("String", offset, length);
     if (key === "b.j") return (offset, length) => this.memoryObject("Symbol", offset, length);
@@ -187,9 +191,16 @@ async function executeSuite(suite) {
     const fn = instance.exports[testCase.function];
     if (typeof fn !== "function") throw new Error(`missing export ${testCase.function}`);
     const args = testCase.args.map((value, index) => host.encode(value, testCase.params[index]));
-    const actual = host.decode(fn(...args), testCase.result);
-    const matched = JSON.stringify(actual) === JSON.stringify(testCase.expected);
-    results.push({ name: testCase.name, actual, expected: testCase.expected, matched });
+    try {
+      const actual = host.decode(fn(...args), testCase.result);
+      const matched = !testCase.expectedTrap
+        && JSON.stringify(actual) === JSON.stringify(testCase.expected);
+      results.push({ name: testCase.name, actual, expected: testCase.expected, matched });
+    } catch (error) {
+      const actual = String(error);
+      const matched = Boolean(testCase.expectedTrap && actual.includes(testCase.expectedTrap));
+      results.push({ name: testCase.name, actual, expected: testCase.expectedTrap, matched });
+    }
   }
   return results;
 }

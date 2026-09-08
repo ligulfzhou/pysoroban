@@ -85,11 +85,11 @@
       }
     },
     "wide_integers": {
-      "contract_id": "CDUG2OCSL6XAU6EBK7WNBB6NN22N7SI5A3FWL6473PIJNAGQDN27IHEK",
-      "wasm_hash": "d2007a63ccc3c4abcc9eeedd0a07bee714c98ab50e0a69a44caeee7bac0f9236",
-      "upload_transaction": "1f87433562a38c092015a4e661e24195f9036534299cec9ad3f6262290a39429",
-      "deploy_transaction": "b73557912d3ef18812b19c328934e1581b3731d67f8e4a10add8b02c45f92c05",
-      "record_transaction": "61478c93c3a51d7801bfb3b821e00397ea7f0909adfb855ef13199734a27b46f",
+      "contract_id": "CDXFPPNTYBFCIBQFE4E4YKNO5Q5K6RZ5T3RGOFRRW7XDXFFDJKVGNOK7",
+      "wasm_hash": "848f6b63589d0a18bc1e12bbce45c74decece672b6b35a5b861505aa49423ad8",
+      "upload_transaction": "13af749c1ca2d36c0cdf2afd15c74cfa13bd0f42cd9a0201e1ed12c7c7c47b13",
+      "deploy_transaction": "4a0bc413633f275cd880351cccf75469b52ce1efa7a7649d3630e676f80e5298",
+      "record_transaction": "c864dd581cadb9f57b7151e4d14564f497e220aa89384c6dc1b422fee2ae1f80",
       "verified_calls": {
         "minimum_i128()": "-170141183460469231731687303715884105728",
         "maximum_u128()": "340282366920938463463374607431768211455",
@@ -97,6 +97,9 @@
         "echo_u128(u128::MAX)": "340282366920938463463374607431768211455",
         "less_i128(i128::MIN, i128::MAX)": true,
         "less_u128(2**64, u128::MAX)": true,
+        "add_i128(5, -8)": "-3",
+        "add_u128(2**100, 2**99)": "1901475900342344102245054808064",
+        "subtract_u128(0, 1)": "trap: arithmetic underflow",
         "echo_i128s([i128::MIN, 0, i128::MAX])": [
           "-170141183460469231731687303715884105728",
           "0",
