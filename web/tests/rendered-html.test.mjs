@@ -24,7 +24,7 @@ test("renders the PySoroban live proof", async () => {
   assert.match(html, /Compile in browser/);
   assert.match(html, /Download \.wasm/);
   assert.match(html, /Test before testnet/);
-  assert.match(html, /63 \/ 63/);
+  assert.match(html, /66 \/ 66/);
   assert.match(html, /Run nested call/);
   assert.match(html, /Sum live vector/);
   assert.match(html, /Look up live map/);

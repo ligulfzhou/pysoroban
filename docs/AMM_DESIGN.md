@@ -39,7 +39,8 @@ The current implementation must not hold real assets because it does not yet
 have all of the primitives required for safe token accounting:
 
 - arithmetic is `u64` and wraps on overflow;
-- token `transfer` calls returning `None` are not yet supported;
+- `call_void` can represent a `None`-returning contract call, but the Stellar
+  token `transfer` amount is `i128`, which is not yet supported;
 - there is no checked `u128`/`i128` or `mul_div` primitive;
 - rejected operations return zero instead of raising a typed contract error;
 - liquidity deposits and withdrawals do not transfer or verify token balances;
@@ -61,8 +62,8 @@ These are explicit compiler-development gates, not deferred application polish.
 
 ### Gate 2 — contract composition and failure
 
-- Add statically typed cross-contract calls returning `None`, required for
-  Stellar token `transfer`.
+- Use the existing statically typed `call_void` path with the future `i128`
+  value type to model Stellar token `transfer` exactly.
 - Add typed contract errors or an explicit abort operation so invalid swaps
   revert rather than returning an ambiguous numeric sentinel.
 - Test authorization forwarding and atomic rollback on a real Soroban host.

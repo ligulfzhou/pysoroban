@@ -124,6 +124,19 @@ class Proxy:
         self.assertEqual(call.type, ValueType.U64)
         self.assertEqual([arg.type for arg in call.args], [ValueType.ADDRESS, ValueType.SYMBOL, ValueType.ADDRESS])
 
+    def test_lowers_void_cross_contract_call(self):
+        source = '''
+from pysoroban import Address, Symbol, contract, public, u64
+@contract
+class Caller:
+    @public
+    def notify(self, target: Address, value: u64) -> None:
+        target.call_void(Symbol("record"), value)
+'''
+        call = compile_source(source).ir.functions[0].body[0].value
+        self.assertEqual((call.op, call.type), ("contract_call", ValueType.VOID))
+        self.assertEqual([arg.type for arg in call.args], [ValueType.ADDRESS, ValueType.SYMBOL, ValueType.U64])
+
     def test_lowers_vec_access_to_typed_host_calls(self):
         source = '''
 from pysoroban import Vec, contract, i32, public

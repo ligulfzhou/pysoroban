@@ -38,6 +38,9 @@ class Address:
     def require_auth(self) -> None:
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
+    def call_void(self, function, *args) -> None:
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
     def call_i32(self, function, *args):
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 

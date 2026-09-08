@@ -21,6 +21,7 @@ TYPE_NAMES = {
 }
 
 CONTRACT_CALL_TYPES = {
+    "call_void": ValueType.VOID,
     "call_i32": ValueType.I32,
     "call_u32": ValueType.U32,
     "call_i64": ValueType.I64,

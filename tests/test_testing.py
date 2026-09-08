@@ -100,6 +100,30 @@ class Ratio:
         self.assertEqual(proxy.invoke("add_with", "math", 5, 7), 12)
         self.assertEqual(proxy.invoke("sum_with", "math", 10), 45)
 
+    def test_links_and_executes_void_cross_contract_calls(self):
+        recorder_source = '''
+from pysoroban import Symbol, contract, public, storage, u64
+@contract
+class Recorder:
+    @public
+    def record(self, value: u64) -> None:
+        storage.instance.set(Symbol("last"), value)
+'''
+        caller_source = '''
+from pysoroban import Address, Symbol, contract, public, u64
+@contract
+class Caller:
+    @public
+    def notify(self, target: Address, value: u64) -> None:
+        target.call_void(Symbol("record"), value)
+'''
+        recorder = ContractTest.from_source(recorder_source)
+        caller = ContractTest.from_source(caller_source)
+        caller.register_contract("recorder", recorder)
+
+        self.assertIsNone(caller.invoke("notify", "recorder", 42))
+        self.assertEqual(recorder.storage["last"], 42)
+
     def test_rejects_unknown_cross_contract_targets(self):
         proxy = ContractTest.from_file(ROOT / "examples/cross_contract.py")
         with self.assertRaisesRegex(InvocationError, "unregistered contract address"):

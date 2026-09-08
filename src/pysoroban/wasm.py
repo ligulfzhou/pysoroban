@@ -386,6 +386,10 @@ class FunctionEmitter:
         raise AssertionError(node.op)
 
     def _decode_call_result(self, value_type: ContractType) -> bytes:
+        if value_type is ValueType.VOID:
+            # Soroban host functions still return a Void Val. Leave it on the
+            # stack so the enclosing IR Drop consumes it like other Void calls.
+            return b""
         if value_type is ValueType.I32:
             return b"\x42\x20\x87\xa7"
         if value_type is ValueType.U32:

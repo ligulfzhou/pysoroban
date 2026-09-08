@@ -315,6 +315,19 @@ class Proxy:
         self.assertIn(b"\x01d\x01_", wasm)
         self.assertIn(b"add", wasm)
 
+    def test_compiles_void_cross_contract_call_as_statement(self):
+        source = '''
+from pysoroban import Address, Symbol, contract, public, u64
+@contract
+class TokenCaller:
+    @public
+    def transfer(self, token: Address, sender: Address, recipient: Address, amount: u64) -> None:
+        token.call_void(Symbol("transfer"), sender, recipient, amount)
+'''
+        result = compile_source(source)
+        self.assertIn(b"\x01d\x01_", result.wasm)
+        self.assertEqual(result.wasm[:8], b"\x00asm\x01\x00\x00\x00")
+
     def test_contract_call_host_import_is_added_only_when_used(self):
         self.assertNotIn(b"\x01d\x01_", compile_source(SOURCE).wasm)
 
@@ -377,6 +390,7 @@ class Bad:
     def test_rejects_invalid_cross_contract_calls(self):
         cases = [
             ('target.call_i32()', "requires a Symbol"),
+            ('target.call_void()', "requires a Symbol"),
             ('target.call_i32(value, value)', "function name must be a Symbol"),
             ('value.call_i32(Symbol("add"), value)', "only available on Address"),
         ]

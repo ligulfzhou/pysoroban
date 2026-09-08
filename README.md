@@ -40,8 +40,8 @@ run it locally with `cd web && npm install && npm run dev`.
 - typed instance storage (`get_i32`, `get_u32`, `get_i64`, `get_u64`,
   `get_bool`, `get_symbol`, `get_string`, `get_bytes`, `has`, `set`)
 - address authorization with `address.require_auth()`
-- typed cross-contract calls through `Address.call_i32`, `call_u64`,
-  `call_string`, and the other supported result types
+- typed cross-contract calls through `Address.call_void`, `call_i32`,
+  `call_u64`, `call_string`, and the other supported result types
 - Soroban-compatible typed event specifications with `@event`, dynamic
   `Topic[T]` fields, and `events.publish(MyEvent(...))`
 - backwards-compatible raw events with `events.publish(Symbol(...), data)`
@@ -221,8 +221,9 @@ def add_with(target: Address, left: i32, right: i32) -> i32:
     return target.call_i32(Symbol("add"), left, right)
 ```
 
-The available methods are `call_i32`, `call_u32`, `call_i64`, `call_u64`,
-`call_bool`, `call_address`, `call_symbol`, `call_string`, and `call_bytes`.
+The available methods are `call_void`, `call_i32`, `call_u32`, `call_i64`,
+`call_u64`, `call_bool`, `call_address`, `call_symbol`, `call_string`, and
+`call_bytes`.
 The target contract must expose a compatible function; an incompatible target
 traps at runtime as it does for the underlying Soroban host call.
 

@@ -88,8 +88,10 @@ The encoder writes a WebAssembly 1 binary containing:
 - exported contract functions and linear memory.
 
 Storage, authorization, events, collection access, and cross-contract calls
-are lowered to protocol host functions. The compiler does not reimplement
-ledger behavior inside the guest.
+are lowered to protocol host functions. Cross-contract results are statically
+selected by methods such as `call_u64` and `call_void`; the latter preserves
+Soroban's returned Void `Val` until the enclosing expression statement consumes
+it. The compiler does not reimplement ledger behavior inside the guest.
 
 ## End-to-end ownership of semantics
 

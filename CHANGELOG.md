@@ -6,6 +6,8 @@ All notable changes to PySoroban are documented here.
 
 - Add statically checked `u32` and `u64` floor division through the frontend,
   Typed IR, test environment, and direct Wasm backend.
+- Add `Address.call_void(...)` for statically typed cross-contract calls whose
+  target returns `None`.
 - Add a constant-product AMM accounting kernel with authorization, reserve
   storage, typed events, slippage checks, and invariant tests.
 - Document the AMM safety boundary and the compiler gates required before a
