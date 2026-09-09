@@ -16,10 +16,6 @@ export const metadata: Metadata = {
   title: "PySoroban — Python contracts for Stellar",
   description:
     "Compile statically typed Python directly to Soroban-compatible WebAssembly and verify live contracts on Stellar testnet.",
-  icons: {
-    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
-    shortcut: "/favicon.svg",
-  },
 };
 
 export default function RootLayout({
@@ -29,6 +25,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+        <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml" />
+        <link rel="icon" href="/favicon-32x32.png?v=2" type="image/png" sizes="32x32" />
+        <link rel="shortcut icon" href="/favicon.ico?v=2" />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         {children}
       </body>

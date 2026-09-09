@@ -17,7 +17,9 @@ test("renders the PySoroban live proof", async () => {
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /<title>PySoroban — Python contracts for Stellar<\/title>/i);
-  assert.match(html, /href="\/favicon\.svg"/);
+  assert.match(html, /href="\/favicon\.ico\?v=2"/);
+  assert.match(html, /href="\/favicon\.svg\?v=2"/);
+  assert.match(html, /href="\/favicon-32x32\.png\?v=2"/);
   assert.match(html, /src="\/logo-mark\.svg"/);
   assert.match(html, /Python contracts\./);
   assert.match(html, /Real Stellar Wasm\./);
