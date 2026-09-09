@@ -42,8 +42,8 @@ have all of the primitives required for safe token accounting:
 - `i128` can now cross the ABI and `call_void` can represent a
   `None`-returning contract call, but token composition has not yet been
   integrated and verified against the current Stellar token interface;
-- checked `u128`/`i128` addition and subtraction now exist, but multiplication,
-  division, and a checked `mul_div` primitive do not;
+- checked `u128`/`i128` addition and subtraction and widened
+  `u128.mul_div_floor` now exist, but general multiplication and division do not;
 - rejected operations return zero instead of raising a typed contract error;
 - liquidity deposits and withdrawals do not transfer or verify token balances;
 - the testing environment is not a full Soroban host and does not meter
@@ -56,11 +56,11 @@ These are explicit compiler-development gates, not deferred application polish.
 
 ### Gate 1 — asset-safe arithmetic
 
-- Complete checked `u128`/`i128` multiplication and division on top of the
-  checked addition/subtraction now present across the compiler and test environment.
+- Complete any remaining checked `u128`/`i128` operations required by the AMM
+  on top of checked addition/subtraction and widened `u128.mul_div_floor`.
 - Define multiplication, division, rounding, overflow, and division-by-zero
   semantics in the language specification.
-- Add a checked `mul_div` operation suitable for reserve and share math.
+- Apply `u128.mul_div_floor` to reserve and share math and document each rounding rule.
 
 ### Gate 2 — contract composition and failure
 

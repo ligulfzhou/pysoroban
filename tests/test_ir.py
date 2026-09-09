@@ -101,6 +101,19 @@ class Wide:
             ("contract_call", ValueType.I128),
         )
 
+    def test_lowers_u128_mul_div_floor_to_explicit_host_operation(self):
+        source = '''
+from pysoroban import contract, public, u128
+@contract
+class FixedPoint:
+    @public
+    def scale(self, left: u128, right: u128, denominator: u128) -> u128:
+        return u128.mul_div_floor(left, right, denominator)
+'''
+        call = compile_source(source).ir.functions[0].body[0].value
+        self.assertEqual((call.op, call.type), ("u128_mul_div_floor", ValueType.U128))
+        self.assertEqual([arg.type for arg in call.args], [ValueType.U128] * 3)
+
     def test_lowers_typed_event_to_prefix_dynamic_topics_and_data(self):
         source = '''
 from pysoroban import Address, Topic, contract, event, events, public, u64

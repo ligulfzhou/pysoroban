@@ -10,6 +10,7 @@ I32_TAG = 5
 U32_TAG = 4
 U128_SMALL_TAG = 10
 I128_SMALL_TAG = 11
+U256_SMALL_TAG = 12
 U64_SMALL_TAG = 6
 I64_SMALL_TAG = 7
 VOID_TAG = 2
@@ -120,7 +121,7 @@ class Locals:
     types: Dict[str, ValueType]
     local_types: List[int]
     scratch: int
-    wide_scratch: Tuple[int, ...]
+    wide_scratch: Tuple[Tuple[int, ...], ...]
 
 
 class FunctionEmitter:
@@ -130,6 +131,7 @@ class FunctionEmitter:
         self.function = function
         self.literals = literals
         self.host_indices = host_indices or {}
+        self.wide_scratch_depth = 0
         self.locals = self._allocate_locals()
 
     def _allocate_locals(self) -> Locals:
@@ -144,9 +146,21 @@ class FunctionEmitter:
         local_types = [0x7E if types[item] in I64_TYPES or is_object_type(types[item]) else 0x7F for item in names]
         scratch = len(self.function.params) + len(local_types)
         local_types.append(0x7E)
-        wide_scratch = tuple(scratch + offset for offset in range(1, 10))
-        local_types.extend([0x7E] * len(wide_scratch))
+        frame_count = max(1, _wide_expression_depth(self.function))
+        wide_scratch = tuple(
+            tuple(scratch + 1 + frame * 9 + offset for offset in range(9))
+            for frame in range(frame_count)
+        )
+        local_types.extend([0x7E] * (frame_count * 9))
         return Locals(param_raw, native, types, local_types, scratch, wide_scratch)
+
+    def _claim_wide_scratch(self) -> Tuple[int, ...]:
+        frame = self.locals.wide_scratch[self.wide_scratch_depth]
+        self.wide_scratch_depth += 1
+        return frame
+
+    def _release_wide_scratch(self) -> None:
+        self.wide_scratch_depth -= 1
 
     def emit(self) -> bytes:
         code = bytearray()
@@ -321,8 +335,10 @@ class FunctionEmitter:
             return self.call(node)
         raise AssertionError(type(node).__name__)
 
-    def _normalized_wide_values(self, left: ir.Expression, right: ir.Expression):
-        lhs_val, rhs_val, lhs_hi, lhs_lo, rhs_hi, rhs_lo, *_ = self.locals.wide_scratch
+    def _normalized_wide_values(
+        self, left: ir.Expression, right: ir.Expression, scratch: Tuple[int, ...]
+    ):
+        lhs_val, rhs_val, lhs_hi, lhs_lo, rhs_hi, rhs_lo, *_ = scratch
         output = bytearray()
         output += self.expression(left) + b"\x21" + uleb(lhs_val)
         output += self.expression(right) + b"\x21" + uleb(rhs_val)
@@ -343,16 +359,20 @@ class FunctionEmitter:
         return output
 
     def _wide_compare(self, node: ir.Compare) -> bytes:
-        lhs_val, rhs_val, *_ = self.locals.wide_scratch
-        output = self._normalized_wide_values(node.left, node.right)
-        output += b"\x20" + uleb(lhs_val) + b"\x20" + uleb(rhs_val)
-        output += b"\x10" + uleb(OBJ_CMP)
-        if node.op == "eq":
-            return bytes(output) + b"\x50"
-        if node.op == "ne":
-            return bytes(output) + b"\x50\x45"
-        order_opcodes = {"lt": 0x53, "gt": 0x55, "le": 0x57, "ge": 0x59}
-        return bytes(output) + b"\x42\x00" + bytes([order_opcodes[node.op]])
+        scratch = self._claim_wide_scratch()
+        try:
+            lhs_val, rhs_val, *_ = scratch
+            output = self._normalized_wide_values(node.left, node.right, scratch)
+            output += b"\x20" + uleb(lhs_val) + b"\x20" + uleb(rhs_val)
+            output += b"\x10" + uleb(OBJ_CMP)
+            if node.op == "eq":
+                return bytes(output) + b"\x50"
+            if node.op == "ne":
+                return bytes(output) + b"\x50\x45"
+            order_opcodes = {"lt": 0x53, "gt": 0x55, "le": 0x57, "ge": 0x59}
+            return bytes(output) + b"\x42\x00" + bytes([order_opcodes[node.op]])
+        finally:
+            self._release_wide_scratch()
 
     def _wide_part(self, value_local: int, value_type: ValueType, *, high: bool) -> bytes:
         small_tag = I128_SMALL_TAG if value_type is ValueType.I128 else U128_SMALL_TAG
@@ -381,8 +401,15 @@ class FunctionEmitter:
         ])
 
     def _wide_binary(self, node: ir.Binary) -> bytes:
-        lhs_val, rhs_val, lhs_hi, lhs_lo, rhs_hi, rhs_lo, result_hi, result_lo, result_val = self.locals.wide_scratch
-        output = self._normalized_wide_values(node.left, node.right)
+        scratch = self._claim_wide_scratch()
+        try:
+            return self._wide_binary_with_scratch(node, scratch)
+        finally:
+            self._release_wide_scratch()
+
+    def _wide_binary_with_scratch(self, node: ir.Binary, scratch: Tuple[int, ...]) -> bytes:
+        lhs_val, rhs_val, lhs_hi, lhs_lo, rhs_hi, rhs_lo, result_hi, result_lo, result_val = scratch
+        output = self._normalized_wide_values(node.left, node.right, scratch)
 
         if node.op == "add":
             output += b"\x20" + uleb(lhs_lo) + b"\x20" + uleb(rhs_lo) + b"\x7c\x21" + uleb(result_lo)
@@ -415,6 +442,8 @@ class FunctionEmitter:
         return bytes(output)
 
     def call(self, node: ir.HostCall) -> bytes:
+        if node.op == "u128_mul_div_floor":
+            return self._u128_mul_div_floor(node)
         if node.op == "require_auth":
             return self.expression(node.args[0]) + b"\x10" + uleb(REQUIRE_AUTH)
         if node.op.startswith("storage_"):
@@ -508,6 +537,59 @@ class FunctionEmitter:
             return raw + self._decode_call_result(node.type)
         raise AssertionError(node.op)
 
+    def _u256_part(self, value_local: int, part: int) -> bytes:
+        object_export = ("c", "d", "e", "f")[part]
+        small_value = (
+            b"\x20" + uleb(value_local) + b"\x42\x08\x88"
+            if part == 3 else b"\x42\x00"
+        )
+        return b"".join([
+            b"\x20", uleb(value_local), b"\x42", sleb(0xFF), b"\x83",
+            b"\x42", sleb(U256_SMALL_TAG), b"\x51",
+            b"\x04\x7e",
+            small_value,
+            b"\x05",
+            b"\x20", uleb(value_local), b"\x10", uleb(self.host_indices[("i", object_export)]),
+            b"\x0b",
+        ])
+
+    def _u128_mul_div_floor(self, node: ir.HostCall) -> bytes:
+        scratch = self._claim_wide_scratch()
+        try:
+            return self._u128_mul_div_floor_with_scratch(node, scratch)
+        finally:
+            self._release_wide_scratch()
+
+    def _u128_mul_div_floor_with_scratch(self, node: ir.HostCall, scratch: Tuple[int, ...]) -> bytes:
+        left, right, denominator = node.args
+        left_val, right_val, denominator_val, high, low, upper_hi, upper_lo, result_hi, result_lo = scratch
+        output = bytearray()
+        for expression, value_local in (
+            (left, left_val),
+            (right, right_val),
+            (denominator, denominator_val),
+        ):
+            output += self.expression(expression) + b"\x21" + uleb(value_local)
+            output += self._wide_part(value_local, ValueType.U128, high=True) + b"\x21" + uleb(high)
+            output += self._wide_part(value_local, ValueType.U128, high=False) + b"\x21" + uleb(low)
+            output += b"\x42\x00\x42\x00\x20" + uleb(high) + b"\x20" + uleb(low)
+            output += b"\x10" + uleb(self.host_indices[("i", "9")]) + b"\x21" + uleb(value_local)
+
+        output += b"\x20" + uleb(left_val) + b"\x20" + uleb(right_val)
+        output += b"\x10" + uleb(self.host_indices[("i", "p")])
+        output += b"\x20" + uleb(denominator_val)
+        output += b"\x10" + uleb(self.host_indices[("i", "q")]) + b"\x21" + uleb(left_val)
+
+        output += self._u256_part(left_val, 0) + b"\x21" + uleb(upper_hi)
+        output += self._u256_part(left_val, 1) + b"\x21" + uleb(upper_lo)
+        output += b"\x20" + uleb(upper_hi) + b"\x20" + uleb(upper_lo) + b"\x84\x50\x45"
+        output += b"\x04\x40\x00\x0b"
+        output += self._u256_part(left_val, 2) + b"\x21" + uleb(result_hi)
+        output += self._u256_part(left_val, 3) + b"\x21" + uleb(result_lo)
+        output += b"\x20" + uleb(result_hi) + b"\x20" + uleb(result_lo)
+        output += b"\x10" + uleb(self.host_indices[("i", "3")])
+        return bytes(output)
+
     def _decode_call_result(self, value_type: ContractType) -> bytes:
         if value_type is ValueType.VOID:
             # Soroban host functions still return a Void Val. Leave it on the
@@ -550,6 +632,41 @@ class FunctionEmitter:
         raise AssertionError(value_type)
 
 
+def _wide_expression_depth(function: ir.Function) -> int:
+    def expression(node: ir.Expression) -> int:
+        if isinstance(node, ir.HostCall):
+            child = max((expression(arg) for arg in node.args), default=0)
+            return child + (1 if node.op == "u128_mul_div_floor" else 0)
+        if isinstance(node, ir.Unary):
+            return expression(node.operand)
+        if isinstance(node, (ir.Binary, ir.Compare)):
+            child = max(expression(node.left), expression(node.right))
+            uses_frame = (
+                isinstance(node, ir.Binary) and node.type in WIDE_INTEGER_TYPES
+            ) or (
+                isinstance(node, ir.Compare) and node.left.type in WIDE_INTEGER_TYPES
+            )
+            return child + (1 if uses_frame else 0)
+        return 0
+
+    def statement(node: ir.Statement) -> int:
+        if isinstance(node, (ir.Return, ir.SetLocal, ir.Drop)):
+            return expression(node.value)
+        if isinstance(node, ir.If):
+            return max(
+                expression(node.test),
+                *(statement(child) for child in node.body + node.otherwise),
+            )
+        if isinstance(node, ir.ForRange):
+            return max(
+                expression(node.start), expression(node.stop),
+                *(statement(child) for child in node.body),
+            )
+        return 0
+
+    return max((statement(item) for item in function.body), default=0)
+
+
 def emit_module(contract: ir.Contract, protocol: int = 25) -> bytes:
     literals = LiteralPool(max(8, _max_linear_values(contract) * 8))
     optional_imports = []
@@ -579,6 +696,13 @@ def emit_module(contract: ir.Contract, protocol: int = 25) -> bytes:
             optional(host_import)
     if ValueType.I128 in wide_operations:
         for host_import in (("i", "6", 2), ("i", "7", 1), ("i", "8", 1)):
+            optional(host_import)
+    if _uses_host_op(contract, "u128_mul_div_floor"):
+        for host_import in (
+            ("i", "3", 2), ("i", "4", 1), ("i", "5", 1),
+            ("i", "9", 4), ("i", "c", 1), ("i", "d", 1),
+            ("i", "e", 1), ("i", "f", 1), ("i", "p", 2), ("i", "q", 2),
+        ):
             optional(host_import)
     host_imports = HOST_IMPORTS + tuple(optional_imports)
     host_indices = {(module, field): index for index, (module, field, _) in enumerate(host_imports)}

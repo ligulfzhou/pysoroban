@@ -188,7 +188,10 @@ calls are recorded in `deployments/testnet.json`.
   `u32` and `u64` semantics only.
 - `i128` and `u128` support ABI pass-through, checked literals, comparisons,
   checked addition/subtraction, storage, events, collections, and
-  cross-contract results. Multiplication and division are not yet supported.
+  cross-contract results. `u128.mul_div_floor()` widens both operands into
+  `u256`, multiplies and divides through checked protocol host functions, and
+  traps unless the quotient narrows to `u128`. General multiplication and
+  division are not yet supported.
 - Existing 32- and 64-bit arithmetic wraps at its integer width. Checked wide
   asset math remains a prerequisite for a tokenized AMM.
 - The compiler currently targets a single declared Stellar protocol version.

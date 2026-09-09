@@ -35,6 +35,10 @@ class i128:
 class u128:
     """Unsigned 128-bit Soroban contract value."""
 
+    @staticmethod
+    def mul_div_floor(left, right, denominator):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
 
 class boolean:
     """Soroban boolean contract value."""

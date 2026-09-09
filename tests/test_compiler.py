@@ -268,6 +268,43 @@ class Wide:
         with self.assertRaisesRegex(CompileError, "supports only checked \\+ and -"):
             compile_source(source)
 
+    def test_compiles_u128_mul_div_floor_with_u256_host_arithmetic(self):
+        source = '''
+from pysoroban import contract, public, u128
+@contract
+class FixedPoint:
+    @public
+    def scale(self, left: u128, right: u128, denominator: u128) -> u128:
+        return u128.mul_div_floor(left, right, denominator)
+'''
+        wasm = compile_source(source).wasm
+        for host_import in (b"\x01i\x019", b"\x01i\x01p", b"\x01i\x01q"):
+            self.assertIn(host_import, wasm)
+
+    def test_rejects_invalid_u128_mul_div_floor_calls(self):
+        sources = [
+            '''
+from pysoroban import contract, public, u128
+@contract
+class Bad:
+    @public
+    def value(self, left: u128, right: u128) -> u128:
+        return u128.mul_div_floor(left, right)
+''',
+            '''
+from pysoroban import contract, i32, public, u128
+@contract
+class Bad:
+    @public
+    def value(self, left: u128, right: i32, denominator: u128) -> u128:
+        return u128.mul_div_floor(left, right, denominator)
+''',
+        ]
+        for source in sources:
+            with self.subTest(source=source):
+                with self.assertRaises(CompileError):
+                    compile_source(source)
+
     def test_requires_explicit_typed_integer_literals(self):
         source = '''
 from pysoroban import contract, public, u64

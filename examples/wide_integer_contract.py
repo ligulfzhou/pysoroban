@@ -50,6 +50,14 @@ class WideIntegers:
         return left - right
 
     @public
+    def mul_div_floor(self, left: u128, right: u128, denominator: u128) -> u128:
+        return u128.mul_div_floor(left, right, denominator)
+
+    @public
+    def composed_scale(self, left: u128, bonus: u128, right: u128, denominator: u128) -> u128:
+        return u128.mul_div_floor(left + bonus, right, denominator)
+
+    @public
     def echo_i128s(self, values: Vec[i128]) -> Vec[i128]:
         return values
 

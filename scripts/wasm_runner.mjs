@@ -147,6 +147,26 @@ class MiniSorobanHost {
     });
     if (key === "i.7") return (value) => BigInt.asIntN(64, this.get(value).value);
     if (key === "i.8") return (value) => BigInt.asIntN(64, this.get(value).value >> 64n);
+    if (key === "i.9") return (hiHi, hiLo, loHi, loLo) => this.put({
+      kind: "u256",
+      value: (BigInt.asUintN(64, hiHi) << 192n)
+        | (BigInt.asUintN(64, hiLo) << 128n)
+        | (BigInt.asUintN(64, loHi) << 64n)
+        | BigInt.asUintN(64, loLo),
+    });
+    if (["i.c", "i.d", "i.e", "i.f"].includes(key)) return (value) => {
+      const shifts = { "i.c": 192n, "i.d": 128n, "i.e": 64n, "i.f": 0n };
+      return BigInt.asIntN(64, this.get(value).value >> shifts[key]);
+    };
+    if (key === "i.p") return (left, right) => this.put({
+      kind: "u256",
+      value: this.get(left).value * this.get(right).value,
+    });
+    if (key === "i.q") return (left, right) => {
+      const denominator = this.get(right).value;
+      if (denominator === 0n) throw new WebAssembly.RuntimeError("unreachable: division by zero");
+      return this.put({ kind: "u256", value: this.get(left).value / denominator });
+    };
     if (key === "b.3") return (offset, length) => this.memoryObject("Bytes", offset, length);
     if (key === "b.i") return (offset, length) => this.memoryObject("String", offset, length);
     if (key === "b.j") return (offset, length) => this.memoryObject("Symbol", offset, length);

@@ -189,10 +189,18 @@ stellar contract invoke --id "$WIDE_ID" --source alice --network testnet \
 stellar contract invoke --id "$WIDE_ID" --source alice --network testnet \
   --send no -- echo_i128s \
   --values '["-170141183460469231731687303715884105728","0","170141183460469231731687303715884105727"]'
+
+stellar contract invoke --id "$WIDE_ID" --source alice --network testnet \
+  --send no -- mul_div_floor \
+  --left 1329227995784915872903807060280344576 \
+  --right 1329227995784915872903807060280344576 \
+  --denominator 83076749736557242056487941267521536
 ```
 
 Expected results are the exact `i128` minimum, the exact `u128` maximum, and
-the same three-element vector. The recorded deployment also verifies signed
+the same three-element vector. The final call returns `2^124`, demonstrating a
+`u256` intermediate product that would overflow `u128`. The recorded deployment
+also verifies floor rounding, division-by-zero and narrowing traps, signed
 comparison, a `Map[Symbol, u128]` lookup, authorized instance storage, and an
 `AmountRecorded` event carrying `i128` data.
 
@@ -217,5 +225,7 @@ comparison, a `Map[Symbol, u128]` lookup, authorized instance storage, and an
   round-trip through the network.
 - full-range `i128` and `u128` values, ordering, collections, storage, and
   typed event data round-trip through the network.
+- widened `u128.mul_div_floor` executes against the protocol's checked `u256`
+  arithmetic and traps on division by zero or a quotient too large for `u128`.
 
 It does not constitute a security audit or production-readiness claim.

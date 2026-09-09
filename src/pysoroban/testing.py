@@ -225,6 +225,14 @@ class ContractTest:
             result = target.invoke(function, *args)
             _validate_native(result, call.type, "cross-contract return value")
             return result
+        if call.op == "u128_mul_div_floor":
+            left, right, denominator = values
+            if denominator == 0:
+                raise InvocationError("u128.mul_div_floor division by zero")
+            result = left * right // denominator
+            if result > 2**128 - 1:
+                raise InvocationError("u128.mul_div_floor result overflow")
+            return result
         if call.op == "vec_len":
             return len(values[0])
         if call.op == "vec_get":

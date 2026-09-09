@@ -85,11 +85,11 @@
       }
     },
     "wide_integers": {
-      "contract_id": "CDXFPPNTYBFCIBQFE4E4YKNO5Q5K6RZ5T3RGOFRRW7XDXFFDJKVGNOK7",
-      "wasm_hash": "848f6b63589d0a18bc1e12bbce45c74decece672b6b35a5b861505aa49423ad8",
-      "upload_transaction": "13af749c1ca2d36c0cdf2afd15c74cfa13bd0f42cd9a0201e1ed12c7c7c47b13",
-      "deploy_transaction": "4a0bc413633f275cd880351cccf75469b52ce1efa7a7649d3630e676f80e5298",
-      "record_transaction": "c864dd581cadb9f57b7151e4d14564f497e220aa89384c6dc1b422fee2ae1f80",
+      "contract_id": "CDZ3AXYALQMIRSEHYFNI6TNNN5DJTF62AKQ3ZOEPJLQPETJN2JO24OW5",
+      "wasm_hash": "23b68120596540110facef4969e6830c838b94bf9429c12e034a4a0a3bd05759",
+      "upload_transaction": "2f18b35a4b434cc41b569a0f5d3e96709b9414e90fcc7a5344f7a519ec9875e1",
+      "deploy_transaction": "10cffdcacdcc147a7e0253910d61445bdd08206c6c4cd261d7357e7abf07e13e",
+      "record_transaction": "ff011077b88c1de55cdaad3ff9998804259b7bc0c74967828c3e1ad30ffb63dc",
       "verified_calls": {
         "minimum_i128()": "-170141183460469231731687303715884105728",
         "maximum_u128()": "340282366920938463463374607431768211455",
@@ -100,6 +100,12 @@
         "add_i128(5, -8)": "-3",
         "add_u128(2**100, 2**99)": "1901475900342344102245054808064",
         "subtract_u128(0, 1)": "trap: arithmetic underflow",
+        "mul_div_floor(2**120, 2**120, 2**116)": "21267647932558653966460912964485513216",
+        "mul_div_floor(10, 7, 6)": "11",
+        "mul_div_floor(8 + 2, 7, 6)": "11",
+        "mul_div_floor(u128::MAX, u128::MAX, u128::MAX)": "340282366920938463463374607431768211455",
+        "mul_div_floor(1, 1, 0)": "trap: division by zero",
+        "mul_div_floor(u128::MAX, 2, 1)": "trap: result overflow",
         "echo_i128s([i128::MIN, 0, i128::MAX])": [
           "-170141183460469231731687303715884105728",
           "0",

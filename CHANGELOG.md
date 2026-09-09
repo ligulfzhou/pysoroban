@@ -12,7 +12,9 @@ All notable changes to PySoroban are documented here.
   storage getters, typed events, collections, cross-contract results, artifact
   inspection, and Typed IR/Wasm differential coverage.
 - Add checked `i128`/`u128` addition and subtraction with explicit Wasm traps
-  on overflow; multiplication, division, and `mul_div` remain future work.
+  on overflow.
+- Add `u128.mul_div_floor()` using checked Protocol 25 `u256` multiplication
+  and division, floor rounding, and overflow-checked narrowing to `u128`.
 - Add a constant-product AMM accounting kernel with authorization, reserve
   storage, typed events, slippage checks, and invariant tests.
 - Document the AMM safety boundary and the compiler gates required before a

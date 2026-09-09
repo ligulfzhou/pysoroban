@@ -166,6 +166,12 @@ class FunctionLowerer:
                 (ir.Local(path[0], self.types[path[0]]), self.expression(node.args[0])),
                 ValueType.BOOL,
             )
+        if path == ["u128", "mul_div_floor"]:
+            return ir.HostCall(
+                "u128_mul_div_floor",
+                tuple(self.expression(value) for value in node.args),
+                ValueType.U128,
+            )
         if len(path) == 1 and path[0] in ANNOTATIONS:
             value = _integer_literal(node.args[0]) if path[0] in {
                 "i32", "u32", "i64", "u64", "i128", "u128"

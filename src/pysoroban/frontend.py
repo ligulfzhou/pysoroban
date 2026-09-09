@@ -382,6 +382,14 @@ class TypeChecker:
             if actual != map_type.key:
                 fail(node.args[0], f"Map key expects {map_type.key.value}, got {actual.value}")
             return ValueType.BOOL
+        if path == ["u128", "mul_div_floor"]:
+            if len(node.args) != 3:
+                fail(node, "u128.mul_div_floor() takes left, right, and denominator")
+            for argument in node.args:
+                actual = self.check_expr(argument)
+                if actual is not ValueType.U128:
+                    fail(argument, f"u128.mul_div_floor() expects u128 arguments, got {actual.value}")
+            return ValueType.U128
         if len(path) == 1 and path[0] in {"i32", "u32", "i64", "u64", "i128", "u128"}:
             value = _integer_literal(node.args[0]) if len(node.args) == 1 else None
             if value is None:
