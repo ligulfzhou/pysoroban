@@ -11,8 +11,8 @@ embed a Python runtime in the contract.
 > Status: compiler MVP. The current release is intended for language and
 > toolchain validation, not production funds.
 
-The Math, authorized Counter, and typed-event examples have been deployed and
-invoked on Stellar testnet. See
+Eight Python-generated reference contracts, including the checked `u128` AMM
+accounting kernel, have been deployed and invoked on Stellar testnet. See
 [the reproducible testnet verification](https://github.com/ligulfzhou/pysoroban/blob/main/docs/TESTNET.md).
 
 The [PySoroban Live Proof](https://pysoroban.xyz)
@@ -61,7 +61,8 @@ User-defined contract types and mutable collection operations are planned next.
 
 `examples/amm_kernel_contract.py` is the first composed DeFi workload. It
 implements constant-product quoting, authorized reserve accounting, slippage
-checks, and typed events. It is deliberately not tokenized yet; see the
+checks, checked `u128` arithmetic, and typed events. It is deliberately not
+tokenized yet; see the
 [AMM reference design](https://github.com/ligulfzhou/pysoroban/blob/main/docs/AMM_DESIGN.md)
 for the safety boundary and the gates to a testnet AMM.
 

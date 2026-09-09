@@ -146,6 +146,15 @@ SUITES = (
             ("u128-map", "lookup_u128", ({"maximum": 2**128 - 1}, "maximum")),
         ),
     ),
+    (
+        "amm-u128-quotes",
+        ROOT / "examples" / "amm_kernel_contract.py",
+        (
+            ("amm-small-quote", "quote", (100, 1_000, 1_000)),
+            ("amm-zero-quote", "quote", (0, 1_000, 1_000)),
+            ("amm-wide-quote", "quote", (2**80, 2**100, 2**100)),
+        ),
+    ),
 )
 
 

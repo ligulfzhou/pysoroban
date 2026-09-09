@@ -2,7 +2,7 @@ import unittest
 from pathlib import Path
 
 from pysoroban import compile_file
-from pysoroban.testing import AuthorizationError, ContractTest, Event
+from pysoroban.testing import AuthorizationError, ContractTest, Event, InvocationError
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +23,15 @@ class AmmKernelTests(unittest.TestCase):
         amm = ContractTest.from_file(AMM)
         self.assertEqual(amm.invoke("quote", 100, 1_000, 1_000), 90)
         self.assertEqual(amm.invoke("quote", 0, 1_000, 1_000), 0)
+
+    def test_quotes_with_a_product_larger_than_u128(self):
+        amm = ContractTest.from_file(AMM)
+        amount_in = 2**80
+        reserve_in = 2**100
+        reserve_out = 2**100
+        expected = (amount_in * 997 * reserve_out) // (reserve_in * 1000 + amount_in * 997)
+        self.assertGreater(amount_in * 997 * reserve_out, 2**128)
+        self.assertEqual(amm.invoke("quote", amount_in, reserve_in, reserve_out), expected)
 
     def test_initializes_once_with_authorization(self):
         amm = ContractTest.from_file(AMM)
@@ -47,6 +56,32 @@ class AmmKernelTests(unittest.TestCase):
         self.assertEqual(amm.last_events, (Event(("swapped", "trader"), 90),))
         self.assertEqual((amm.invoke("reserve_a"), amm.invoke("reserve_b")), (1_100, 910))
         self.assertGreaterEqual(1_100 * 910, 1_000 * 1_000)
+
+    def test_large_swap_preserves_constant_product(self):
+        amm = ContractTest.from_file(AMM)
+        reserve = 2**100
+        amount_in = 2**80
+        amm.invoke("initialize", "provider", reserve, reserve, auth={"provider"})
+        expected = (amount_in * 997 * reserve) // (reserve * 1000 + amount_in * 997)
+
+        amount_out = amm.invoke("swap_a_for_b", "trader", amount_in, expected, auth={"trader"})
+        updated_a = reserve + amount_in
+        updated_b = reserve - amount_out
+        self.assertEqual(amount_out, expected)
+        self.assertEqual((amm.invoke("reserve_a"), amm.invoke("reserve_b")), (updated_a, updated_b))
+        self.assertGreaterEqual(updated_a * updated_b, reserve * reserve)
+
+    def test_arithmetic_trap_leaves_reserves_unchanged(self):
+        amm = ContractTest.from_file(AMM)
+        reserve = 1_000
+        amm.invoke("initialize", "provider", reserve, reserve, auth={"provider"})
+        before = dict(amm.storage)
+
+        with self.assertRaisesRegex(InvocationError, "result overflow"):
+            amm.invoke("swap_a_for_b", "trader", 2**128 - 1, 0, auth={"trader"})
+
+        self.assertEqual(dict(amm.storage), before)
+        self.assertEqual(amm.last_events, ())
 
 
 if __name__ == "__main__":

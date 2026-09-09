@@ -9,7 +9,7 @@ exists to turn a realistic DeFi workload into concrete compiler requirements.
 The kernel already compiles directly from PySoroban source to Soroban Wasm and
 exercises:
 
-- unsigned fixed-fee arithmetic and integer division;
+- checked `u128` reserve arithmetic and widened fixed-fee calculation;
 - address authorization;
 - persistent reserve and share accounting;
 - typed initialization and swap events;
@@ -29,6 +29,11 @@ amount_out = (amount_in_with_fee * reserve_b)
              // (reserve_a * 1000 + amount_in_with_fee)
 ```
 
+The implementation represents reserves and amounts as `u128`. Each product and
+division is emitted through `u128.mul_div_floor`, which widens the intermediate
+product to `u256`, rounds the quotient down, and traps if it cannot narrow back
+to `u128`. Reserve additions and subtractions are checked separately.
+
 The swap is rejected by returning zero when it is uninitialized, has zero
 input, produces zero output, misses `minimum_out`, or would exhaust reserve B.
 Only an accepted quote changes the stored reserves and publishes `Swapped`.
@@ -38,12 +43,10 @@ Only an accepted quote changes the stored reserves and publishes `Swapped`.
 The current implementation must not hold real assets because it does not yet
 have all of the primitives required for safe token accounting:
 
-- arithmetic is `u64` and wraps on overflow;
+- token balances are not yet connected to the accounting state;
 - `i128` can now cross the ABI and `call_void` can represent a
   `None`-returning contract call, but token composition has not yet been
   integrated and verified against the current Stellar token interface;
-- checked `u128`/`i128` addition and subtraction and widened
-  `u128.mul_div_floor` now exist, but general multiplication and division do not;
 - rejected operations return zero instead of raising a typed contract error;
 - liquidity deposits and withdrawals do not transfer or verify token balances;
 - the testing environment is not a full Soroban host and does not meter
@@ -54,13 +57,14 @@ These are explicit compiler-development gates, not deferred application polish.
 
 ## Path to a tokenized testnet AMM
 
-### Gate 1 — asset-safe arithmetic
+### Gate 1 — asset-safe arithmetic (kernel complete)
 
-- Complete any remaining checked `u128`/`i128` operations required by the AMM
-  on top of checked addition/subtraction and widened `u128.mul_div_floor`.
-- Define multiplication, division, rounding, overflow, and division-by-zero
-  semantics in the language specification.
-- Apply `u128.mul_div_floor` to reserve and share math and document each rounding rule.
+- The kernel uses checked `u128` addition/subtraction and widened
+  `u128.mul_div_floor` for all current reserve and quote calculations.
+- Floor rounding, overflow, narrowing, and division-by-zero behavior are
+  explicit and covered by IR/Wasm differential and testnet tests.
+- Remaining arithmetic work belongs to future liquidity-share formulas rather
+  than the current swap kernel.
 
 ### Gate 2 — contract composition and failure
 

@@ -33,11 +33,12 @@ Do not select End-User Application if a developer-tool option is available.
 
 ### Current Traction
 
-PySoroban has a working open-source v0.9 compiler and public live demo. Seven
+PySoroban has a working open-source v0.9 compiler and public live demo. Eight
 contracts generated directly from Python have been uploaded, deployed, and
 invoked successfully on Stellar testnet, covering arithmetic, authorization,
-instance storage, typed events, cross-contract calls, vectors, and maps. The
-compiler has 75 automated tests plus 55 Typed IR/Wasm differential cases, with
+instance storage, typed events, cross-contract calls, vectors, maps, wide
+integers, and a checked `u128` AMM accounting kernel. The compiler has 78
+automated tests plus 58 Typed IR/Wasm differential cases, with
 CI on Python 3.9 and 3.13. The public `pysoroban-compiler 0.9.0a1` alpha is
 installable from PyPI. The browser demo installs the real compiler wheel,
 builds downloadable Wasm locally, links deployment transactions, and performs
@@ -162,7 +163,7 @@ release criteria are all built around Soroban.
 An open-source compiler MVP is already live and independently verifiable:
 
 - Python source compiles directly to deterministic Soroban Wasm.
-- Seven reference contracts have been accepted and invoked on Stellar testnet.
+- Eight reference contracts have been accepted and invoked on Stellar testnet.
 - The compiler supports typed integers and host objects, control flow, bounded
   loops, storage, authorization, events, cross-contract calls, vectors, and
   maps.
@@ -170,8 +171,9 @@ An open-source compiler MVP is already live and independently verifiable:
   tests running on Python 3.9 and 3.13 in CI.
 - A non-tokenized constant-product accounting kernel compiles today and tests
   fee math, reserve updates, authorization, events, and minimum-output checks;
-  `i128`/`u128` value transport is implemented and testnet-verified; token
-  custody and asset-safe wide arithmetic remain future work.
+  `i128`/`u128` value transport and checked `u128` AMM quote arithmetic are
+  testnet-verified; token custody, typed failures, and the liquidity lifecycle
+  remain future work.
 - A public Cloudflare demo loads the actual Python compiler wheel in the browser,
   lets visitors edit and compile contracts, and performs read-only calls against
   deployed testnet contracts.
@@ -245,9 +247,9 @@ The project duration is approximately five months. Audit fees are excluded.
 
 Deliverables:
 
-- Add checked `i128`/`u128` asset arithmetic and the fixed-point primitives
-  required by Soroban DeFi contracts, with explicit overflow, division, and
-  rounding semantics.
+- Complete and specify the remaining wide-integer and fixed-point operations
+  required by the liquidity lifecycle, with property tests, fuzz cases, and
+  explicit overflow, division, and rounding semantics.
 - Implement statically typed user-defined contract structs and enums across
   parsing, type checking, Typed IR, contract XDR, Wasm lowering, and tests.
 - Add safe mutable operations for `Vec[T]` and `Map[K, V]`, with explicit

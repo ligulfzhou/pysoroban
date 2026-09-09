@@ -15,6 +15,8 @@ All notable changes to PySoroban are documented here.
   on overflow.
 - Add `u128.mul_div_floor()` using checked Protocol 25 `u256` multiplication
   and division, floor rounding, and overflow-checked narrowing to `u128`.
+- Migrate the constant-product AMM accounting kernel from wrapping `u64` to
+  checked `u128`, add large-reserve invariant coverage, and verify it on testnet.
 - Add a constant-product AMM accounting kernel with authorization, reserve
   storage, typed events, slippage checks, and invariant tests.
 - Document the AMM safety boundary and the compiler gates required before a

@@ -18,8 +18,11 @@ pysoroban verify examples/typed_events_contract.py \
 pysoroban verify examples/cross_contract.py \
   --wasm dist/cross-contract-testnet.wasm
 pysoroban verify examples/vector_contract.py --wasm dist/vector-testnet.wasm
+pysoroban verify examples/map_contract.py --wasm dist/map-testnet.wasm
 pysoroban verify examples/wide_integer_contract.py \
   --wasm dist/wide-integer-testnet.wasm
+pysoroban verify examples/amm_kernel_contract.py \
+  --wasm dist/amm-kernel-testnet.wasm
 ```
 
 ## Prerequisites
@@ -204,6 +207,42 @@ also verifies floor rounding, division-by-zero and narrowing traps, signed
 comparison, a `Map[Symbol, u128]` lookup, authorized instance storage, and an
 `AmountRecorded` event carrying `i128` data.
 
+## Build and deploy the checked AMM accounting kernel
+
+```bash
+pysoroban build examples/amm_kernel_contract.py \
+  -o dist/amm-kernel-testnet.wasm
+
+AMM_ID=$(stellar contract deploy \
+  --wasm dist/amm-kernel-testnet.wasm \
+  --source alice \
+  --network testnet)
+
+OWNER=$(stellar keys address alice)
+
+stellar contract invoke --id "$AMM_ID" --source alice --network testnet \
+  -- initialize --owner "$OWNER" \
+  --reserve_a 1267650600228229401496703205376 \
+  --reserve_b 1267650600228229401496703205376
+
+stellar contract invoke --id "$AMM_ID" --source alice --network testnet \
+  --send no -- quote \
+  --amount_in 1208925819614629174706176 \
+  --reserve_in 1267650600228229401496703205376 \
+  --reserve_out 1267650600228229401496703205376
+
+stellar contract invoke --id "$AMM_ID" --source alice --network testnet \
+  -- swap_a_for_b --trader "$OWNER" \
+  --amount_in 1208925819614629174706176 \
+  --minimum_out 1205297896142523059078906
+```
+
+The quote returns `1205297896142523059078906`. The successful swap updates both
+checked `u128` reserves and emits `Swapped`; its widened multiplication exceeds
+`u128` but is evaluated through the protocol's `u256` host operations. This
+contract is deliberately an accounting kernel: `amount_in` is a test input and
+no token contract transfer occurs.
+
 ## What this proves
 
 - contract environment and interface metadata are accepted by the network;
@@ -227,5 +266,7 @@ comparison, a `Map[Symbol, u128]` lookup, authorized instance storage, and an
   typed event data round-trip through the network.
 - widened `u128.mul_div_floor` executes against the protocol's checked `u256`
   arithmetic and traps on division by zero or a quotient too large for `u128`.
+- the AMM accounting kernel performs a large checked quote and reserve update,
+  preserves its constant-product invariant, and publishes a typed swap event.
 
 It does not constitute a security audit or production-readiness claim.

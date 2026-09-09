@@ -118,9 +118,11 @@ makes a source-language feature reviewable from syntax to artifact.
 
 Small examples isolate individual compiler features; larger reference
 workloads test whether those features compose. The first such workload is the
-[constant-product AMM accounting kernel](AMM_DESIGN.md). It combines unsigned
-fee arithmetic, authorization, storage, events, and slippage checks while
-explicitly stopping short of token custody.
+[constant-product AMM accounting kernel](AMM_DESIGN.md). It combines checked
+`u128` reserve arithmetic, `u256`-widened fee calculation, authorization,
+storage, events, and slippage checks while explicitly stopping short of token
+custody. The generated kernel is deployed and exercised on testnet; this is an
+accounting proof, not a tokenized exchange.
 
 A workload only advances to testnet when all required semantics exist in the
 frontend, Typed IR, Wasm backend, test environment, and validation suite. This
@@ -192,8 +194,9 @@ calls are recorded in `deployments/testnet.json`.
   `u256`, multiplies and divides through checked protocol host functions, and
   traps unless the quotient narrows to `u128`. General multiplication and
   division are not yet supported.
-- Existing 32- and 64-bit arithmetic wraps at its integer width. Checked wide
-  asset math remains a prerequisite for a tokenized AMM.
+- Existing 32- and 64-bit arithmetic wraps at its integer width. Asset
+  accounting should use checked `u128` operations; additional checked formulas
+  are still required for the liquidity lifecycle of a tokenized AMM.
 - The compiler currently targets a single declared Stellar protocol version.
 - The project has not completed an independent security audit.
 

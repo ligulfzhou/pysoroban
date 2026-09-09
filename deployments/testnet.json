@@ -122,6 +122,25 @@
         ],
         "data": {"i128": "-1267650600228229401496703205376"}
       }
+    },
+    "amm_u128_kernel": {
+      "contract_id": "CBA5MSOHQY46V5LHSZBKJPB3YHUA5HX4AMQPAWF7OVC4JBECMU6GS4TB",
+      "wasm_hash": "362159586bac5064dd31c3a112240511f1d8c3d36987deed153680d267adb932",
+      "upload_transaction": "1267177b81273e649ddebf4127466255810d784f818e1e2d6956ec6132d317b1",
+      "deploy_transaction": "0702bdaa9d2aea2b4979c3afe8a58934d9f8782596d706802069adf82045736d",
+      "initialize_transaction": "703a53a381bdbef9518a45637d3ca4f14f5c8d971a305dbdd040b0c401dcb3fc",
+      "swap_transaction": "59ddf7debdf4866bbc86d4bfedc2925e6efcc74eb6ddab061c3555a3cccebd29",
+      "verified_calls": {
+        "quote(2**80, 2**100, 2**100)": "1205297896142523059078906",
+        "initialize(owner, 2**100, 2**100)": "1267650600228229401496703205376",
+        "swap_a_for_b(owner, 2**80, quote)": "1205297896142523059078906",
+        "reserve_a() after swap": "1267651809154049016125877911552",
+        "reserve_b() after swap": "1267649394930333258973644126470"
+      },
+      "verified_events": [
+        {"name": "PoolInitialized", "data": {"u128": "1267650600228229401496703205376"}},
+        {"name": "Swapped", "data": {"u128": "1205297896142523059078906"}}
+      ]
     }
   }
 }
