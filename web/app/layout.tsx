@@ -16,6 +16,10 @@ export const metadata: Metadata = {
   title: "PySoroban — Python contracts for Stellar",
   description:
     "Compile statically typed Python directly to Soroban-compatible WebAssembly and verify live contracts on Stellar testnet.",
+  icons: {
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+    shortcut: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

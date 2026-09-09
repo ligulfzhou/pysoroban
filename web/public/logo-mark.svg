@@ -1,4 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title description">
+  <title id="title">PySoroban</title>
+  <desc id="description">A green P crossed by a blue compiler orbit</desc>
   <rect width="64" height="64" rx="15" fill="#07111f"/>
   <path d="M20 47V17h14c8.3 0 13 4.5 13 11.2S42.3 39.5 34 39.5H20" fill="none" stroke="#c8ff43" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M11 43c10.5 9.2 31.9 9.9 42-3.4" fill="none" stroke="#6e8dff" stroke-width="4.5" stroke-linecap="round"/>

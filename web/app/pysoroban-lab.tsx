@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo, useState } from "react";
 
 const PYODIDE_URL =
@@ -513,7 +514,15 @@ export function PySorobanLab() {
     <main>
       <header className="site-header">
         <a className="brand" href="#top" aria-label="PySoroban home">
-          <span className="brand-mark">Py</span>
+          <Image
+            className="brand-mark"
+            src="/logo-mark.svg"
+            alt=""
+            width={34}
+            height={34}
+            priority
+            unoptimized
+          />
           <span>PySoroban</span>
         </a>
         <nav aria-label="Main navigation">
@@ -918,7 +927,10 @@ assert contract.last_events == (Event(("updated", "alice"), result),)`}</code></
       </section>
 
       <footer>
-        <div className="brand footer-brand"><span className="brand-mark">Py</span><span>PySoroban</span></div>
+        <div className="brand footer-brand">
+          <Image className="brand-mark" src="/logo-mark.svg" alt="" width={34} height={34} unoptimized />
+          <span>PySoroban</span>
+        </div>
         <p>Python-native smart contracts for Stellar.</p>
         <span>Experimental compiler · Not for production funds</span>
       </footer>
