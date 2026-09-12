@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 async function render() {
@@ -36,4 +37,13 @@ test("renders the PySoroban live proof", async () => {
   assert.match(html, /Swipe to explore/);
   assert.match(html, /Call the contracts yourself\./);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
+});
+
+test("keeps anchored content below the sticky header", async () => {
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(css, /--site-header-height:\s*72px/);
+  assert.match(
+    css,
+    /\.install-card,\s*\.section\[id\]\s*\{\s*scroll-margin-top:\s*calc\(var\(--site-header-height\) \+ 20px\)/,
+  );
 });
