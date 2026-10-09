@@ -5,7 +5,7 @@ support. The compiler reads the source as an AST; contracts are never executed
 by the Python runtime.
 """
 
-__version__ = "0.9.0a1"
+__version__ = "0.9.0a2"
 
 from .compiler import CompilationResult, check_file, check_source, compile_file, compile_source
 from .abi import contract_abi

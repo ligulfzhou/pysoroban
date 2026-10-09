@@ -39,7 +39,7 @@ invoked successfully on Stellar testnet, covering arithmetic, authorization,
 instance storage, typed events, cross-contract calls, vectors, maps, wide
 integers, and a checked `u128` AMM accounting kernel. The compiler has 78
 automated tests plus 58 Typed IR/Wasm differential cases, with
-CI on Python 3.9 and 3.13. The public `pysoroban-compiler 0.9.0a1` alpha is
+CI on Python 3.9 and 3.13. The public `pysoroban-compiler 0.9.0a2` alpha is
 installable from PyPI. The browser demo installs the real compiler wheel,
 builds downloadable Wasm locally, links deployment transactions, and performs
 read-only calls against the testnet contracts.

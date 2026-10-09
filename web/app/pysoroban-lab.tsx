@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 const PYODIDE_URL =
   "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.mjs";
 const COMPILER_WHEEL =
-  "/compiler/pysoroban_compiler-0.9.0a1-py3-none-any.whl";
+  "/compiler/pysoroban_compiler-0.9.0a2-py3-none-any.whl";
 const RPC_URL = "https://soroban-testnet.stellar.org";
 const SOURCE_ACCOUNT =
   "GBTZVQRXWUTOBJZU5VEZZVNOQIEP7TIHORJFG26FVAHJGCUPDC22BULU";
@@ -568,7 +568,7 @@ export function PySorobanLab() {
           <div className="install-card" id="install">
             <div className="install-release">
               <span>PyPI alpha</span>
-              <strong>0.9.0a1</strong>
+              <strong>0.9.0a2</strong>
             </div>
             <code>pip install --pre pysoroban-compiler</code>
             <a

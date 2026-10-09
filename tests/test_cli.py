@@ -41,7 +41,7 @@ class CliTests(unittest.TestCase):
             main(["--version"])
 
         self.assertEqual(raised.exception.code, 0)
-        self.assertEqual(stdout.getvalue().strip(), "pysoroban 0.9.0a1")
+        self.assertEqual(stdout.getvalue().strip(), "pysoroban 0.9.0a2")
 
     def test_check_reports_contract_without_writing_wasm(self):
         with tempfile.TemporaryDirectory() as directory:

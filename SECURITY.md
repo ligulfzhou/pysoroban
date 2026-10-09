@@ -2,7 +2,7 @@
 
 ## Release status
 
-PySoroban is experimental compiler infrastructure. The `0.9.0a1` release has
+PySoroban is experimental compiler infrastructure. The `0.9.0a2` release has
 not completed an independent security audit and must not be used to control
 production funds.
 
