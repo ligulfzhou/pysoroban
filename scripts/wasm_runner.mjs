@@ -158,6 +158,25 @@ class MiniSorobanHost {
       const shifts = { "i.c": 192n, "i.d": 128n, "i.e": 64n, "i.f": 0n };
       return BigInt.asIntN(64, this.get(value).value >> shifts[key]);
     };
+    if (key === "i.g") return (hiHi, hiLo, loHi, loLo) => this.put({
+      kind: "i256",
+      value: BigInt.asIntN(
+        256,
+        (BigInt.asIntN(64, hiHi) << 192n)
+          | (BigInt.asUintN(64, hiLo) << 128n)
+          | (BigInt.asUintN(64, loHi) << 64n)
+          | BigInt.asUintN(64, loLo),
+      ),
+    });
+    if (key === "i.x") return (left, right) => this.put({
+      kind: "i256",
+      value: this.get(left).value * this.get(right).value,
+    });
+    if (["i.j", "i.k", "i.l", "i.m"].includes(key)) return (value) => {
+      const shifts = { "i.j": 192n, "i.k": 128n, "i.l": 64n, "i.m": 0n };
+      const bits = this.get(value).value >> shifts[key];
+      return key === "i.j" ? BigInt.asIntN(64, bits) : BigInt.asIntN(64, BigInt.asUintN(64, bits));
+    };
     if (key === "i.p") return (left, right) => this.put({
       kind: "u256",
       value: this.get(left).value * this.get(right).value,

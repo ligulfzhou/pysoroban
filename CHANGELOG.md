@@ -2,6 +2,25 @@
 
 All notable changes to PySoroban are documented here.
 
+## 0.11.0a1 — 2026-10-21
+
+- Check `u128` multiplication and floor division through a `u256`
+  intermediate. A product that does not fit in `u128`, or a zero divisor,
+  traps. Check `i128` multiplication the same way through `i256`. `i128`
+  floor division stays rejected because the host divide truncates.
+- Add `ledger.sequence`, `timestamp`, `version`, and `network_id`, plus
+  `env.current_contract_address()`.
+- Add `crypto.sha256`, `keccak256`, and `ed25519_verify`, `log(String)`,
+  `prng.bytes` and `prng.u64`, and `String` / `Bytes` conversions, slicing,
+  and append.
+- Add `address.require_auth_for(...)`.
+- Add `deploy.upload`, `deploy.contract`, `deploy.with_constructor`,
+  `deploy.upgrade`, and `deploy.asset`.
+- Add `examples/token_contract.py`, a contract-owned SEP-41 style token with
+  checked `u128` balances. It is not the Stellar Asset Contract.
+- The test host records these calls without reproducing the real curve, PRNG,
+  TTL expiry, or contract-address derivation. See `docs/LANGUAGE.md`.
+
 ## 0.10.0a1 — 2026-10-21
 
 - Add `@struct` and `@enum`, written into `contractspecv0` as Soroban UDT

@@ -28,8 +28,9 @@ run it locally with `cd web && npm install && npm run dev`.
   `Bytes`, and `None` signatures
 - integer arithmetic for 32- and 64-bit values: `+`, `-`, `*`, plus `//`
   for `u32` and `u64`
-- checked `+` and `-`, pass-through, literals, comparison, storage, events,
-  collections, and cross-contract results for Soroban `i128` and `u128` values
+- checked `+`, `-`, and `*` for `i128` and `u128`, plus checked `u128` floor
+  division; pass-through, literals, comparison, storage, events, collections,
+  and cross-contract results for those wide values
 - `u128.mul_div_floor(left, right, denominator)` with a widened `u256`
   intermediate, explicit floor rounding, and checked narrowing
 - comparisons, boolean expressions, local variables, and `if/else`
@@ -64,10 +65,18 @@ run it locally with `cd web && npm install && npm run dev`.
   `Map.remove`, as statements that update a local
 - `storage.persistent` and `storage.temporary`, `get(key, Type)`,
   `get_address`, `remove`, and TTL extension
+- ledger sequence, timestamp, version, and network id, plus the current
+  contract address
+- `crypto.sha256`, `keccak256`, and `ed25519_verify`, `log`, `prng.bytes`,
+  and `prng.u64`
+- `String` / `Bytes` conversion and slicing, and `Bytes.append`
+- `deploy.upload`, `deploy.contract`, `deploy.with_constructor`,
+  `deploy.upgrade`, and `deploy.asset`
+- `examples/token_contract.py`, a contract-owned SEP-41 style token
 
-Ledger context, strings and bytes operations, cryptography, wide
-multiplication, the token interface, and deploy or upgrade are still in
-progress.
+`i128` floor division, nested collections, custom-account authorization, and
+the Stellar Asset Contract XDR builder are still absent. The Python test host
+does not reproduce ed25519, the host PRNG, TTL expiry, or deployed addresses.
 
 `examples/amm_kernel_contract.py` is the first composed DeFi workload. It
 implements constant-product quoting, authorized reserve accounting, slippage
@@ -273,9 +282,10 @@ traps at runtime as it does for the underlying Soroban host call.
 `i128` and `u128` are Soroban `Val`-backed wide integers rather than native
 Wasm integer locals. They can cross the contract ABI, be constructed from
 checked literals, compared, stored, emitted, carried in collections, and
-returned from cross-contract calls. Addition and subtraction trap on overflow.
-`u128.mul_div_floor()` safely computes a widened product followed by floor
-division; general multiplication and division remain rejected.
+returned from cross-contract calls. Addition, subtraction, and multiplication
+trap on overflow. `u128` floor division traps on a zero divisor. `i128` floor
+division is rejected. `u128.mul_div_floor()` computes a widened product
+followed by floor division.
 
 Homogeneous vectors use normal Python type and expression syntax:
 
@@ -289,12 +299,13 @@ def sum(self, values: Vec[i32]) -> i32:
     return total
 ```
 
-The current vector element types are all existing scalar and object types.
-Nested vectors, slicing, and mutation are intentionally deferred.
+The current vector element types are scalars, `@struct`, and `@enum`.
+Nested vectors are rejected. `push`, `set`, `insert`, `remove`, and `pop`
+update the local.
 
-Homogeneous maps use two type parameters. The first release supports scalar
-keys and values, read-only indexing, membership, length, and pass-through
-results:
+Homogeneous maps use two type parameters. Keys and values may be scalars,
+enums, or structs. Indexing, membership, length, and `set` / `remove` are
+supported:
 
 ```python
 from pysoroban import Map, Symbol, i32
@@ -305,7 +316,7 @@ def score(self, scores: Map[Symbol, i32], player: Symbol) -> i32:
     return 0
 ```
 
-Nested collections and map mutation are intentionally deferred.
+Nested collections are rejected. `Map.set` and `Map.remove` update the local.
 
 ## Architecture
 

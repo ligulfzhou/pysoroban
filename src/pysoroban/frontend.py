@@ -573,11 +573,13 @@ class TypeChecker:
                 ValueType.I128, ValueType.U128,
             }:
                 fail(node, "arithmetic operands must have the same numeric type", "E0509")
-            if left in {ValueType.I128, ValueType.U128} and not isinstance(node.op, (ast.Add, ast.Sub)):
-                fail(node, "i128/u128 arithmetic currently supports only checked + and -", "E0510")
+            if left is ValueType.I128 and isinstance(node.op, ast.FloorDiv):
+                fail(node, "i128 division is not supported; use checked u128 // or u128.mul_div_floor", "E0511")
+            if left in {ValueType.I128, ValueType.U128} and not isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.FloorDiv)):
+                fail(node, "i128/u128 arithmetic supports checked +, -, *, and unsigned //", "E0510")
             if isinstance(node.op, ast.FloorDiv):
-                if left not in {ValueType.U32, ValueType.U64}:
-                    fail(node, "floor division is currently supported only for u32 and u64", "E0511")
+                if left not in {ValueType.U32, ValueType.U64, ValueType.U128}:
+                    fail(node, "floor division is supported for u32, u64, and checked u128", "E0511")
                 return left
             if not isinstance(node.op, (ast.Add, ast.Sub, ast.Mult)):
                 fail(node, "supported arithmetic operators are +, -, *, and unsigned //", "E0512")
@@ -632,6 +634,9 @@ class TypeChecker:
         if node.keywords:
             fail(node, "keyword arguments are not supported", "E0601")
         path = _attribute_path(node.func)
+        service = self._check_service(node, path)
+        if service is not None:
+            return service
         if path == ["fail"]:
             if len(node.args) != 1:
                 fail(node, "fail() takes one @error case", "E0709")
@@ -639,10 +644,14 @@ class TypeChecker:
             return ValueType.VOID
         if path == ["len"]:
             if len(node.args) != 1 or not isinstance(node.args[0], ast.Name):
-                fail(node, "len() requires one Vec or Map variable", "E0602")
+                fail(node, "len() requires one Vec, Map, String, or Bytes variable", "E0602")
             value_type = self.variables.get(node.args[0].id)
-            if not is_vec_type(value_type) and not isinstance(value_type, MapType):
-                fail(node.args[0], "len() is only supported for Vec and Map values", "E0603")
+            if (
+                not is_vec_type(value_type)
+                and not isinstance(value_type, MapType)
+                and value_type not in {ValueType.STRING, ValueType.BYTES}
+            ):
+                fail(node.args[0], "len() is only supported for Vec, Map, String, and Bytes values", "E0603")
             return ValueType.I32
         if len(path) == 2 and path[1] == "has":
             owner = path[0]
@@ -841,6 +850,8 @@ class TypeChecker:
         _name, value_type, method = receiver
         if is_vec_type(value_type) and method in {"push", "set", "insert", "remove"}:
             return True
+        if value_type is ValueType.BYTES and method == "append":
+            return True
         return isinstance(value_type, MapType) and method in {"set", "remove"}
 
     def _check_pop(self, node: ast.Call):
@@ -873,6 +884,13 @@ class TypeChecker:
                 if len(node.args) != 1 or self.check_expr(node.args[0]) is not ValueType.I32:
                     fail(node, "Vec.remove() takes one i32 index", "E0644")
                 return
+        if value_type is ValueType.BYTES and method == "append":
+            if len(node.args) != 1:
+                fail(node, "Bytes.append() takes one Bytes value", "E0644")
+            actual = self.check_expr(node.args[0])
+            if actual is not ValueType.BYTES:
+                fail(node.args[0], f"Bytes.append() expects Bytes, got {actual.value}", "E0644")
+            return
         if isinstance(value_type, MapType):
             if method == "set":
                 if len(node.args) != 2:
@@ -892,6 +910,81 @@ class TypeChecker:
                     fail(node.args[0], f"Map key expects {value_type.key.value}, got {key.value}", "E0644")
                 return
         fail(node, "unsupported collection update", "E0644")
+
+    def _check_service(self, node: ast.Call, path):
+        if path == ["ledger", "sequence"] and not node.args:
+            return ValueType.U32
+        if path == ["ledger", "timestamp"] and not node.args:
+            return ValueType.U64
+        if path == ["ledger", "version"] and not node.args:
+            return ValueType.U32
+        if path == ["ledger", "network_id"] and not node.args:
+            return ValueType.BYTES
+        if path == ["env", "current_contract_address"] and not node.args:
+            return ValueType.ADDRESS
+        if path == ["crypto", "sha256"] or path == ["crypto", "keccak256"]:
+            if len(node.args) != 1 or self.check_expr(node.args[0]) is not ValueType.BYTES:
+                fail(node, f"{path[1]}() takes one Bytes value", "E0651")
+            return ValueType.BYTES
+        if path == ["crypto", "ed25519_verify"]:
+            if len(node.args) != 3 or any(self.check_expr(arg) is not ValueType.BYTES for arg in node.args):
+                fail(node, "ed25519_verify() takes a public key, message, and signature", "E0651")
+            return ValueType.VOID
+        if path == ["log"]:
+            if len(node.args) != 1 or self.check_expr(node.args[0]) is not ValueType.STRING:
+                fail(node, "log() takes one String value", "E0653")
+            return ValueType.VOID
+        if path == ["prng", "bytes"]:
+            if len(node.args) != 1 or self.check_expr(node.args[0]) is not ValueType.U32:
+                fail(node, "prng.bytes() takes one u32 length", "E0654")
+            return ValueType.BYTES
+        if path == ["prng", "u64"]:
+            if len(node.args) != 2 or any(self.check_expr(arg) is not ValueType.U64 for arg in node.args):
+                fail(node, "prng.u64() takes an inclusive u64 range", "E0654")
+            return ValueType.U64
+        if path == ["deploy", "contract"]:
+            if len(node.args) != 2 or any(self.check_expr(arg) is not ValueType.BYTES for arg in node.args):
+                fail(node, "deploy.contract() takes a Wasm hash and a salt", "E0652")
+            return ValueType.ADDRESS
+        if path == ["deploy", "with_constructor"]:
+            if len(node.args) < 2 or any(self.check_expr(arg) is not ValueType.BYTES for arg in node.args[:2]):
+                fail(node, "deploy.with_constructor() takes a Wasm hash, a salt, and constructor arguments", "E0652")
+            for argument in node.args[2:]:
+                if self.check_expr(argument) is ValueType.VOID:
+                    fail(argument, "constructor arguments cannot be None", "E0652")
+            return ValueType.ADDRESS
+        if path == ["deploy", "upload"]:
+            if len(node.args) != 1 or self.check_expr(node.args[0]) is not ValueType.BYTES:
+                fail(node, "deploy.upload() takes one Bytes Wasm payload", "E0652")
+            return ValueType.BYTES
+        if path == ["deploy", "upgrade"]:
+            if len(node.args) != 1 or self.check_expr(node.args[0]) is not ValueType.BYTES:
+                fail(node, "deploy.upgrade() takes one Wasm hash", "E0652")
+            return ValueType.VOID
+        if path == ["deploy", "asset"]:
+            if len(node.args) != 1 or self.check_expr(node.args[0]) is not ValueType.BYTES:
+                fail(node, "deploy.asset() takes one serialized Stellar asset", "E0652")
+            return ValueType.ADDRESS
+        if len(path) == 2 and path[1] == "require_auth_for":
+            if path[0] not in self.variables or self.variables[path[0]] is not ValueType.ADDRESS:
+                fail(node, "require_auth_for() is only available on Address values", "E0614")
+            if not node.args:
+                fail(node, "require_auth_for() takes the authorized arguments", "E0655")
+            for argument in node.args:
+                if self.check_expr(argument) is ValueType.VOID:
+                    fail(argument, "authorization arguments cannot be None", "E0655")
+            return ValueType.VOID
+        if len(path) == 2 and path[1] in {"to_bytes", "to_string", "slice"}:
+            owner = self.variables.get(path[0])
+            if path[1] == "to_bytes" and owner is ValueType.STRING and not node.args:
+                return ValueType.BYTES
+            if path[1] == "to_string" and owner is ValueType.BYTES and not node.args:
+                return ValueType.STRING
+            if path[1] == "slice" and owner is ValueType.BYTES:
+                if len(node.args) != 2 or any(self.check_expr(arg) is not ValueType.U32 for arg in node.args):
+                    fail(node, "Bytes.slice() takes u32 start and end positions", "E0656")
+                return ValueType.BYTES
+        return None
 
     def _check_error_case(self, node: ast.expr):
         path = _attribute_path(node)
