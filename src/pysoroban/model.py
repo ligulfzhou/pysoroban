@@ -28,6 +28,7 @@ class ValueType(str, Enum):
     VEC_SYMBOL = "Vec[Symbol]"
     VEC_STRING = "Vec[String]"
     VEC_BYTES = "Vec[Bytes]"
+    VAL = "Val"
     VOID = "void"
 
 
@@ -122,7 +123,58 @@ class BytesNType:
         return f"BytesN[{self.size}]"
 
 
-ContractType = Union[ValueType, MapType, StructType, EnumType, VecType, BytesNType]
+@dataclass(frozen=True)
+class OptionType:
+    inner: "ContractType"
+
+    @property
+    def value(self) -> str:
+        return f"Option[{self.inner.value}]"
+
+
+@dataclass(frozen=True)
+class ResultType:
+    ok: "ContractType"
+    err: "ContractType"
+
+    @property
+    def value(self) -> str:
+        return f"Result[{self.ok.value}, {self.err.value}]"
+
+
+@dataclass(frozen=True)
+class TupleType:
+    elements: Tuple["ContractType", ...]
+
+    @property
+    def value(self) -> str:
+        return "Tuple[" + ", ".join(item.value for item in self.elements) + "]"
+
+
+@dataclass(frozen=True)
+class UnionCase:
+    name: str
+    types: Tuple["ContractType", ...]
+    doc: str = ""
+
+
+@dataclass(frozen=True)
+class UnionType:
+    """A data-carrying enum stored as a symbol or a vec of symbol plus payload."""
+
+    name: str
+    cases: Tuple[UnionCase, ...]
+    doc: str = ""
+
+    @property
+    def value(self) -> str:
+        return self.name
+
+
+ContractType = Union[
+    ValueType, MapType, StructType, EnumType, VecType, BytesNType,
+    OptionType, ResultType, TupleType, UnionType,
+]
 
 
 def is_vec_type(value_type: ContractType) -> bool:
@@ -161,7 +213,7 @@ def is_bytes_type(value_type: ContractType) -> bool:
 
 def is_object_type(value_type: ContractType) -> bool:
     return (
-        isinstance(value_type, (MapType, StructType, VecType, BytesNType))
+        isinstance(value_type, (MapType, StructType, VecType, BytesNType, OptionType, ResultType, TupleType, UnionType))
         or value_type in {
             ValueType.ADDRESS,
             ValueType.BYTES,
@@ -170,6 +222,7 @@ def is_object_type(value_type: ContractType) -> bool:
             ValueType.SYMBOL,
             ValueType.U128,
             ValueType.U256,
+            ValueType.VAL,
         }
         | set(VEC_ELEMENT_TYPES)
     )
@@ -230,4 +283,5 @@ class Contract:
     errors: Tuple[ErrorEnum, ...] = ()
     structs: Tuple[StructType, ...] = ()
     enums: Tuple[EnumType, ...] = ()
+    unions: Tuple[UnionType, ...] = ()
     source_name: Optional[str] = None

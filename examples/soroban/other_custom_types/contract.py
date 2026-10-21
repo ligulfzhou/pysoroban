@@ -1,10 +1,15 @@
 from pysoroban import (
     Address,
     Bytes,
+    BytesN,
     Map,
+    Option,
+    Result,
     String,
     Symbol,
     Topic,
+    Tuple,
+    Val,
     Vec,
     boolean,
     contract,
@@ -16,12 +21,14 @@ from pysoroban import (
     public,
     storage,
     struct,
+    union,
     i32,
     i64,
     i128,
     u32,
     u64,
     u128,
+    u256,
 )
 
 
@@ -57,12 +64,59 @@ class AuthEvent:
     world: Symbol
 
 
+@struct
+class AssetBalance:
+    """One-payload stand-in for a two-field enum variant."""
+
+    token: Address
+    amount: i128
+
+
+@struct
+class TupleStruct:
+    value: Test
+    simple: SimpleEnum
+
+
+@union
+class ComplexEnum:
+    Struct: Test
+    Tuple: TupleStruct
+    Enum: SimpleEnum
+    Asset: AssetBalance
+    Void: None
+
+
+@union
+class ComplexEnum2:
+    Stellar: Address
+    Other: Symbol
+
+
+@union
+class ComplexEnum3:
+    Some: Tuple[Address, i128]
+    Empty: None
+
+
+@struct
+class ComplexStruct:
+    admin: Address
+    a64: u64
+    assets_vec: Vec[ComplexEnum2]
+    base_asset: ComplexEnum2
+    a32: u32
+    b32: u32
+    c32: u32
+    complex_enum3: ComplexEnum3
+
+
 @contract
 class CustomTypesContract:
     """Echo functions for the types PySoroban can pass across the ABI.
 
-    Not ported from the upstream file: Val, Result, Option, tuples, U256, I256,
-    BytesN, data-carrying enums, and tuple structs. See examples/soroban/README.md.
+    `i256` is not a contract type. A two-field enum variant is a struct payload.
+    The `None` variant is named `Empty` because `None` is not a Python name.
     """
 
     @public
@@ -167,4 +221,43 @@ class CustomTypesContract:
 
     @public
     def string_(self, value: String) -> String:
+        return value
+
+    @public
+    def bytes_n(self, value: BytesN[9]) -> BytesN[9]:
+        return value
+
+    @public
+    def tuple(self, pair: Tuple[Symbol, u32]) -> Tuple[Symbol, u32]:
+        return pair
+
+    @public
+    def option(self, value: Option[u32]) -> Option[u32]:
+        return value
+
+    @public
+    def odd(self, value: u32) -> Result[u32, u32]:
+        half: u32 = value // u32(2)
+        if half * u32(2) == value:
+            return Result[u32, u32].err(Error.NUMBER_MUST_BE_ODD)
+        return Result[u32, u32].ok(value)
+
+    @public
+    def u256_(self, value: u256) -> u256:
+        return value
+
+    @public
+    def val_(self, value: Val) -> Val:
+        return value
+
+    @public
+    def complex(self, value: ComplexEnum) -> ComplexEnum:
+        return value
+
+    @public
+    def tuple_strukt(self, value: TupleStruct) -> TupleStruct:
+        return value
+
+    @public
+    def complex_struct(self, value: ComplexStruct) -> ComplexStruct:
         return value

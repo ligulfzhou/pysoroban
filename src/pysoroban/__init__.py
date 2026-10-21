@@ -5,7 +5,7 @@ support. The compiler reads the source as an AST; contracts are never executed
 by the Python runtime.
 """
 
-__version__ = "0.15.0a1"
+__version__ = "0.16.0a1"
 
 from .compiler import CompilationResult, check_file, check_source, compile_file, compile_source
 from .abi import contract_abi
@@ -49,6 +49,10 @@ class u128:
     @staticmethod
     def mul_div_floor(left, right, denominator):
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+
+class Val:
+    """An untyped Soroban value."""
 
 
 class boolean:
@@ -317,6 +321,44 @@ def enum(cls):
     return cls
 
 
+def union(cls):
+    return cls
+
+
+class Option:
+    """An optional value. `Option.none()` needs an `Option[T]` annotation."""
+
+    @staticmethod
+    def none():
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    @staticmethod
+    def some(value):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+
+class Result:
+    """A success or a u32 error code, written Result[T, u32].ok / .err."""
+
+    def __class_getitem__(cls, item):
+        return cls
+
+    @staticmethod
+    def ok(value):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    @staticmethod
+    def err(error_case):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+
+class Tuple:
+    """A fixed heterogeneous vector, written Tuple[A, B](a, b)."""
+
+    def __class_getitem__(cls, item):
+        return cls
+
+
 def event(cls):
     return cls
 
@@ -344,6 +386,10 @@ __all__ = [
     "Topic",
     "Vec",
     "Map",
+    "Option",
+    "Result",
+    "Tuple",
+    "Val",
     "boolean",
     "check_file",
     "check_source",
@@ -374,6 +420,7 @@ __all__ = [
     "u32",
     "u64",
     "u128",
+    "union",
     "u256",
     "validate_wasm",
     "validate_wasm_file",

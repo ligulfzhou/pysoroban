@@ -63,6 +63,7 @@ SPEC_TYPE_NAMES = {
     16: "String",
     17: "Symbol",
     19: "Address",
+    0: "Val",
 }
 
 
@@ -189,6 +190,13 @@ def _read_spec_type(reader: _XdrReader) -> str:
         return "Vec[{}]".format(_read_spec_type(reader))
     if kind == 1004:
         return "Map[{}, {}]".format(_read_spec_type(reader), _read_spec_type(reader))
+    if kind == 1000:
+        return "Option[{}]".format(_read_spec_type(reader))
+    if kind == 1001:
+        return "Result[{}, {}]".format(_read_spec_type(reader), _read_spec_type(reader))
+    if kind == 1005:
+        count = reader.u32()
+        return "Tuple[" + ", ".join(_read_spec_type(reader) for _ in range(count)) + "]"
     if kind == 1006:
         return "BytesN[{}]".format(reader.u32())
     if kind == 2000:
@@ -252,6 +260,21 @@ def _contract_spec(data: bytes):
                 case_name = reader.string()
                 cases.append({"doc": case_doc, "name": case_name, "value": reader.u32()})
             errors.append({"name": name, "doc": doc, "cases": cases})
+            continue
+        if entry_kind == 2:
+            doc = reader.string()
+            reader.string()
+            name = reader.string()
+            for _ in range(reader.u32()):
+                case_kind = reader.u32()
+                reader.string()
+                reader.string()
+                if case_kind == 1:
+                    for _type_index in range(reader.u32()):
+                        _read_spec_type(reader)
+                elif case_kind != 0:
+                    raise ArtifactError(f"unsupported union case {case_kind}")
+            enums.append({"name": name, "doc": doc, "cases": []})
             continue
         if entry_kind == 1:
             doc = reader.string()

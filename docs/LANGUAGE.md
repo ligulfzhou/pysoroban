@@ -22,13 +22,13 @@ when the parser has a node. Codes are grouped as follows:
 | --- | --- |
 | `E0001`–`E0002` | Python syntax, or not exactly one `@contract` class |
 | `E0101`–`E0110` | Function shape and return checking |
-| `E0201`–`E0207` | Type annotations |
+| `E0201`–`E0211` | Type annotations |
 | `E0301`–`E0309` | Events |
 | `E0401`–`E0412` | Statements |
-| `E0501`–`E0517` | Expressions |
-| `E0601`–`E0633` | Calls, storage, and cross-contract invocations |
+| `E0501`–`E0518` | Expressions |
+| `E0601`–`E0663` | Calls, storage, and cross-contract invocations |
 | `E0701`–`E0715` | `@error` and `fail` |
-| `E0801`–`E0818` | `@struct` and `@enum` |
+| `E0801`–`E0825` | `@struct`, `@enum`, and `@union` |
 | `E0641`–`E0648` | storage tiers, `get(key, Type)`, and collection updates |
 | `E9001`–`E9003` | Internal lowering failure after a frontend bug |
 
@@ -37,16 +37,34 @@ when the parser has a node. Codes are grouped as follows:
 Supported value types are `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `u256`,
 `boolean`, `Address`, `Symbol`, `String`, `Bytes`, and `None` (`void`).
 `Vec[T]` is homogeneous. The element may be one of those scalars, `BytesN[N]`,
-or a user-defined `@struct` or `@enum`. `BytesN[N]` is a byte string of length
-`N` (1 through 64). `Map[K, V]` accepts scalar, enum, and struct keys and
-values. Nested collections are rejected. `Bytes` and `BytesN` support ordering
-comparisons. `to_xdr(value)` returns the Soroban ScVal XDR bytes.
+another `Vec` or `Map`, `Option`, `Result`, `Tuple`, or a user-defined
+`@struct`, `@enum`, or `@union`. `BytesN[N]` is a byte string of length `N`
+(1 through 64). `Map[K, V]` accepts scalar, enum, and struct keys. Values may
+be nested collections. Map keys may not be collections. `Bytes` and `BytesN`
+support ordering comparisons. `to_xdr(value)` returns the Soroban ScVal XDR
+bytes.
 `u256.to_be_bytes()` and `u256.from_be_bytes(data)` convert the raw 32-byte
 integer. `address.to_strkey()` asks the host for the `G...` or `C...` form.
 
-A `@struct` is a
-named record stored as a Soroban map from field symbol to value. An `@enum`
-is a named `u32` discriminant. Directly recursive struct fields are rejected.
+A `@struct` is a named record stored as a Soroban map from field symbol to
+value. An `@enum` is a named `u32` discriminant. A `@union` is a data-carrying
+enum. A case written `name: None` is only the case symbol. A case written
+`name: T` is a vector of that symbol and one payload. A payload may itself be
+a `Tuple`. A variant with several fields is a `@struct` payload. Directly
+recursive struct fields and union cases are rejected.
+
+`Option[T]` is `Option.none()` or `Option.some(value)`. `Option.none()` needs
+an `Option[T]` annotation. `Option[None]` is rejected. `value.is_some()` is
+`boolean`. `value.unwrap()` traps when the option is empty.
+
+`Result[T, u32]` is `Result[T, u32].ok(value)` or
+`Result[T, u32].err(Error.CASE)`. The error side is the case's `u32` code.
+`value.is_ok()`, `value.unwrap()`, and `value.unwrap_err()` follow the same
+rule: unwrapping the wrong side traps. `T` may be `None`.
+
+`Tuple[A, B](a, b)` is a fixed vector of 1 to 12 values. `pair[0]` requires
+an in-range integer literal. `Val` is an untyped Soroban value and is passed
+through unchanged.
 
 A bare integer literal is `i32` and must lie in `[-2^31, 2^31)`. `True` and
 `False` are `boolean`. Wider integers and host objects are constructed from
@@ -133,9 +151,19 @@ contract instance and code. The test environment records those requests on
 `ttl_extensions` and does not simulate ledger expiry.
 
 Cross-contract calls are `call_void`, `call_i32`, `call_u32`, `call_i64`,
-`call_u64`, `call_i128`, `call_u128`, `call_bool`, `call_address`,
+`call_u64`, `call_i128`, `call_u128`, `call_u256`, `call_bool`, `call_address`,
 `call_symbol`, `call_string`, and `call_bytes`. The first argument is a
 `Symbol` function name. There is no `call_vec` or `call_map`.
+
+`try_void`, `try_i32`, `try_u32`, `try_i64`, `try_u64`, `try_i128`,
+`try_u128`, `try_u256`, `try_bool`, `try_address`, `try_symbol`, `try_string`,
+and `try_bytes` have the same arguments and return `Result[T, u32]`. A callee
+`fail` becomes the error code. The test host rolls that callee back and
+continues the caller. Other failures, including a missing authorization, still
+propagate. On the network the host returns the success value or an error
+`Val`; `unwrap_err` reads that error code. The test host stores
+`("ok", value)` or `("err", code)` instead, so these values are not part of
+the differential suite.
 
 `len(values)` returns `i32` for `Vec`, `Map`, `String`, and `Bytes`. The host
 length is a `u32`; values above `2^31 - 1` are not representable as that
@@ -182,8 +210,9 @@ The test environment is not the Soroban host. It records TTL extensions
 without expiring entries. `ed25519_verify` succeeds only after
 `ContractTest.allow_signature(key, message, signature)`. `prng` is a local
 xorshift, not the host PRNG. Deployed addresses are synthetic, while
-`deploy.upload` returns a real SHA-256 digest. `authorize_as_curr_contract`
-and custom-account auth entries are not modeled.
+`deploy.upload` returns a real SHA-256 digest. `try_*` catches `fail` in the
+callee and rolls that callee back. `authorize_as_curr_contract` and
+custom-account auth entries are not modeled.
 
 Typed events use `@event`, exactly one data field, and `Topic[T]` fields
 before that data field. `events.publish` also accepts a raw `Symbol` topic
@@ -221,8 +250,9 @@ discards the invocation's ledger writes. The Python test environment does the
 same for every `InvocationError` raised by the root call, including
 `ContractError`, `AuthorizationError`, `StorageMissingError`, overflow, and
 division by zero. Events published during that call are discarded. Linked
-contracts invoked as part of the call are restored too. `fail` is not a value
-and cannot be caught; the language has no `try`.
+contracts invoked as part of the call are restored too. `fail` is not a value.
+A direct caller cannot catch it. `try_*` on another contract turns that
+contract's `fail` into a `Result` error.
 
 Returning `0` or `u128(0)` is a successful result. It does not roll anything
 back. Use `fail` when a call must not commit. View functions may still return

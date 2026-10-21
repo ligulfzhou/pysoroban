@@ -1,4 +1,4 @@
-from pysoroban import Address, Symbol, Vec, boolean, contract, public, struct, u128
+from pysoroban import Address, Result, Symbol, Vec, boolean, contract, error, public, struct, u128, u32
 
 
 @struct
@@ -8,13 +8,18 @@ class SwapSpec:
     min_recv: u128
 
 
+@error
+class BatchError:
+    SKIPPED = 1
+
+
 @contract
 class AtomicMultiSwapContract:
     """Match two lists of swap specs and invoke the atomic swap contract.
 
-    Upstream uses try_swap so one failed pair does not abort the batch. There
-    is no try_call, so a trapped swap aborts every match in this invocation.
-    break is not available, so a matched counterparty is marked and skipped.
+    try_void keeps a contract error from aborting the rest of the batch.
+    An authorization failure still propagates. break is not available, so a
+    matched counterparty is marked and skipped.
     """
 
     @public
@@ -34,6 +39,7 @@ class AtomicMultiSwapContract:
         acc_b: SwapSpec = swaps_b[0]
         used: Vec[boolean] = Vec()
         matched: boolean = False
+        caught: Result[None, u32] = Result[None, u32].err(BatchError.SKIPPED)
         for index_b in range(len(swaps_b)):
             used.push(False)
         for index_a in range(len(swaps_a)):
@@ -45,7 +51,7 @@ class AtomicMultiSwapContract:
                         acc_b = swaps_b[index_b]
                         if acc_a.amount >= acc_b.min_recv:
                             if acc_a.min_recv <= acc_b.amount:
-                                swap_contract.call_void(
+                                caught = swap_contract.try_void(
                                     Symbol("swap"),
                                     acc_a.address,
                                     acc_b.address,
@@ -56,5 +62,6 @@ class AtomicMultiSwapContract:
                                     acc_b.amount,
                                     acc_b.min_recv,
                                 )
-                                used.set(index_b, True)
-                                matched = True
+                                if caught.is_ok():
+                                    used.set(index_b, True)
+                                    matched = True
