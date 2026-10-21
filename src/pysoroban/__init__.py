@@ -5,7 +5,7 @@ support. The compiler reads the source as an AST; contracts are never executed
 by the Python runtime.
 """
 
-__version__ = "0.16.0a1"
+__version__ = "0.17.0a1"
 
 from .compiler import CompilationResult, check_file, check_source, compile_file, compile_source
 from .abi import contract_abi
@@ -258,6 +258,11 @@ class _Env:
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
 
+class _Auth:
+    def as_current_contract(self, contract, fn_name, argument):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+
 class _Crypto:
     def sha256(self, value):
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
@@ -296,6 +301,7 @@ class _Deploy:
 
 ledger = _Ledger()
 env = _Env()
+auth = _Auth()
 crypto = _Crypto()
 prng = _Prng()
 deploy = _Deploy()
@@ -379,6 +385,7 @@ __all__ = [
     "ArtifactError",
     "CompilationResult",
     "Address",
+    "auth",
     "Bytes",
     "BytesN",
     "String",

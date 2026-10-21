@@ -26,7 +26,7 @@ when the parser has a node. Codes are grouped as follows:
 | `E0301`–`E0309` | Events |
 | `E0401`–`E0412` | Statements |
 | `E0501`–`E0518` | Expressions |
-| `E0601`–`E0663` | Calls, storage, and cross-contract invocations |
+| `E0601`–`E0665` | Calls, storage, and cross-contract invocations |
 | `E0701`–`E0715` | `@error` and `fail` |
 | `E0801`–`E0825` | `@struct`, `@enum`, and `@union` |
 | `E0641`–`E0648` | storage tiers, `get(key, Type)`, and collection updates |
@@ -193,10 +193,23 @@ one `String`. `prng.bytes(length)` takes a `u32` and returns `Bytes`.
 
 `address.require_auth()` traps unless that address authorized the invocation.
 `address.require_auth_for(*args)` does the same and passes the authorized
-argument vector to the host. The test environment checks only that the address
-is in the call's `auth` list. A cross-contract call keeps that list and also
-authorizes the calling contract's address, which is how a contract spends its
-own token balance. It still does not model Soroban auth entries.
+argument vector to the host. The test environment accepts an address in the
+call's `auth` list. A direct cross-contract call also authorizes the calling
+contract, which is how a contract spends its own token balance. That caller is
+not authorized for a further nested call. `ContractTest.authorize_account`
+stores a payload, a signature, and contexts. `require_auth` for that address
+then runs the registered contract's `__check_auth`. The test host does not
+derive `Context` from the call stack.
+
+`auth.as_current_contract(contract, fn_name, argument)` authorizes one deeper
+`require_auth` of the current contract for that function and argument. Wasm
+builds one `InvokerContractAuthEntry::Contract` value: a vector of the symbol
+`Contract` and a map with `context` (`contract`, `fn_name`, `args`) and an
+empty `sub_invocations` vector. It calls host `a.3`.
+
+`i128.from_val(value)` and the same method on the other integer types and
+`Address` read a `Val`. In Wasm the bits stay a `Val` for object types and are
+decoded for 32-bit and 64-bit integers. `Vec[Val]` is allowed.
 
 `deploy.upload(wasm)` returns the `Bytes` hash of a Wasm payload.
 `deploy.contract(wasm_hash, salt)` and
@@ -211,8 +224,9 @@ without expiring entries. `ed25519_verify` succeeds only after
 `ContractTest.allow_signature(key, message, signature)`. `prng` is a local
 xorshift, not the host PRNG. Deployed addresses are synthetic, while
 `deploy.upload` returns a real SHA-256 digest. `try_*` catches `fail` in the
-callee and rolls that callee back. `authorize_as_curr_contract` and
-custom-account auth entries are not modeled.
+callee and rolls that callee back. `ed25519_verify` succeeds only after
+`ContractTest.allow_signature`. The host does not build create-contract
+`Context` variants or auth trees deeper than one subcall.
 
 Typed events use `@event`, exactly one data field, and `Topic[T]` fields
 before that data field. `events.publish` also accepts a raw `Symbol` topic

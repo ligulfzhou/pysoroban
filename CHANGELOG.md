@@ -2,6 +2,16 @@
 
 All notable changes to PySoroban are documented here.
 
+## 0.17.0a1 — 2026-10-21
+
+- Run `__check_auth` from `require_auth` when a test calls `authorize_account`.
+  A direct cross-contract caller is authorized only for that call.
+- Add `auth.as_current_contract` for one deeper invocation, `Vec[Val]`, and
+  `from_val` on integers and `Address`. `ed25519_verify` accepts `BytesN`.
+- Port `simple_account`, `multisig_1_of_n_account`, `account`, and
+  `deep_contract_auth`. `modular_account` stays out: delegated signers are
+  protocol 27.
+
 ## 0.16.0a1 — 2026-10-21
 
 - Add `Option`, `Result[T, u32]`, `Tuple`, `Val`, and `@union`. A union case

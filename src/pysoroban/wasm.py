@@ -492,6 +492,10 @@ class FunctionEmitter:
         return bytes(output)
 
     def call(self, node: ir.HostCall) -> bytes:
+        if node.op == "from_val":
+            return self.expression(node.args[0]) + self._decode_call_result(node.type)
+        if node.op == "authorize_as_current":
+            return self._authorize(node)
         if node.op in {
             "option_none", "option_some", "option_is_some", "option_unwrap",
             "result_ok", "result_err", "result_is_ok", "result_unwrap", "result_unwrap_err",
@@ -820,6 +824,55 @@ class FunctionEmitter:
             b"\x04\x40\x00\x0b",
             b"\x20", scratch,
         ])
+
+    def _authorize(self, node: ir.HostCall) -> bytes:
+        """Build one InvokerContractAuthEntry::Contract and call a.3.
+
+        The entry is a vec of the symbol ``Contract`` and a map with
+        ``context`` (contract, fn_name, args) and an empty ``sub_invocations``
+        vec. Deeper trees are not emitted.
+        """
+        contract, fn, arg = node.args
+        slots = self._claim_wide_scratch()
+        contract_l, fn_l, arg_l, obj_l = (uleb(slot) for slot in slots[:4])
+
+        def symbol(text: str) -> bytes:
+            return self.expression(ir.Constant(text, ValueType.SYMBOL))
+
+        def put(field: str, value: bytes) -> bytes:
+            return symbol(field) + value + b"\x10" + uleb(self.host_indices[("m", "0")])
+
+        try:
+            output = bytearray()
+            output += self.expression(contract) + self.encode_val(contract.type) + b"\x21" + contract_l
+            output += self.expression(fn) + self.encode_val(fn.type) + b"\x21" + fn_l
+            output += self.expression(arg) + self.encode_val(arg.type) + b"\x21" + arg_l
+            output += b"\x10" + uleb(self.host_indices[("m", "_")])
+            output += put("contract", b"\x20" + contract_l)
+            output += put("fn_name", b"\x20" + fn_l)
+            output += put("args", b"".join([
+                b"\x41", sleb(0, 32), b"\x20", arg_l, b"\x37\x03\x00",
+                self._u32_val(0), self._u32_val(1),
+                b"\x10", uleb(VEC_FROM_MEMORY),
+            ]))
+            output += b"\x21" + obj_l
+            output += b"\x10" + uleb(self.host_indices[("m", "_")])
+            output += put("context", b"\x20" + obj_l)
+            output += put("sub_invocations", b"\x10" + uleb(self.host_indices[("v", "_")]))
+            output += b"\x21" + obj_l
+            entry = b"".join([
+                b"\x41", sleb(0, 32), symbol("Contract"), b"\x37\x03\x00",
+                b"\x41", sleb(8, 32), b"\x20", obj_l, b"\x37\x03\x00",
+                self._u32_val(0), self._u32_val(2),
+                b"\x10", uleb(VEC_FROM_MEMORY),
+            ])
+            output += b"\x41" + sleb(0, 32) + entry + b"\x37\x03\x00"
+            output += self._u32_val(0) + self._u32_val(1)
+            output += b"\x10" + uleb(VEC_FROM_MEMORY)
+            output += b"\x10" + uleb(self.host_indices[("a", "3")])
+            return bytes(output)
+        finally:
+            self._release_wide_scratch()
 
     def _sum(self, node: ir.HostCall) -> bytes:
         if node.op == "option_none":
@@ -1288,6 +1341,8 @@ def _max_linear_values(contract: ir.Contract) -> int:
                 maximum = max(maximum, len(node.args) - 1)
             elif node.op in {"contract_call", "try_call"}:
                 maximum = max(maximum, len(node.args) - 2)
+            elif node.op == "authorize_as_current":
+                maximum = max(maximum, 2)
             elif node.op == "require_auth_for":
                 maximum = max(maximum, len(node.args) - 1)
             elif node.op == "deploy_constructor":
@@ -1427,6 +1482,7 @@ def _service_imports(contract: ir.Contract):
         "upgrade": ("l", "6", 1),
         "deploy_asset": ("l", "4", 1),
         "require_auth_for": ("a", "_", 2),
+        "authorize_as_current": ("a", "3", 1),
         "deploy": ("l", "3", 3),
         "deploy_constructor": ("l", "e", 4),
     }
@@ -1476,6 +1532,10 @@ def _service_imports(contract: ir.Contract):
     for op in needed:
         if op in found:
             add(needed[op])
+    if "authorize_as_current" in found:
+        add(("m", "_", 0))
+        add(("m", "0", 3))
+        add(("v", "_", 0))
     if dynamic_log:
         add(("b", "k", 1))
         add(("b", "g", 4))
