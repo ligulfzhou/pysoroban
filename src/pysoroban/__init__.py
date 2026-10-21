@@ -5,7 +5,7 @@ support. The compiler reads the source as an AST; contracts are never executed
 by the Python runtime.
 """
 
-__version__ = "0.13.0a1"
+__version__ = "0.14.0a1"
 
 from .compiler import CompilationResult, check_file, check_source, compile_file, compile_source
 from .abi import contract_abi
@@ -30,6 +30,10 @@ class u64:
 
 class i128:
     """Signed 128-bit Soroban contract value."""
+
+
+class u256:
+    """Unsigned 256-bit Soroban contract value."""
 
 
 class u128:
@@ -72,6 +76,9 @@ class Address:
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
     def call_u128(self, function, *args):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def call_u256(self, function, *args):
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
     def call_bool(self, function, *args):
@@ -158,6 +165,9 @@ class _InstanceStorage:
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
     def get_u128(self, key):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def get_u256(self, key):
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
     def get_symbol(self, key):
@@ -338,6 +348,7 @@ __all__ = [
     "u32",
     "u64",
     "u128",
+    "u256",
     "validate_wasm",
     "validate_wasm_file",
 ]

@@ -34,7 +34,7 @@ when the parser has a node. Codes are grouped as follows:
 
 ## Types and literals
 
-Supported value types are `i32`, `u32`, `i64`, `u64`, `i128`, `u128`,
+Supported value types are `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `u256`,
 `boolean`, `Address`, `Symbol`, `String`, `Bytes`, and `None` (`void`).
 `Vec[T]` is homogeneous. The element may be one of those scalars or a
 user-defined `@struct` or `@enum`. `Map[K, V]` accepts scalar, enum, and
@@ -52,7 +52,7 @@ bytes and use only `[A-Za-z0-9_]`.
 
 Arithmetic requires both operands to have the same numeric type. `and` / `or`
 are allowed only on `boolean`. Comparisons require the same type. Ordering
-(`<`, `>`, `<=`, `>=`) is allowed only for the six integer types. Other types
+(`<`, `>`, `<=`, `>=`) is allowed only for the integer types. Other types
 support `==` and `!=` only. Chained comparisons are rejected.
 
 `and` and `or` evaluate both operands. They are Wasm `i32.and` / `i32.or`,
@@ -66,6 +66,7 @@ not short-circuiting Python operators.
 | `u64` | wrap modulo `2^64` | unsigned floor division | trap | wrap |
 | `i128` | checked `+`, `-`, and `*` | checked floor division | trap | trap |
 | `u128` | checked `+`, `-`, and `*` | checked unsigned floor division | trap | trap |
+| `u256` | checked `+`, `-`, and `*` | checked unsigned floor division | trap | trap |
 
 Unary minus is defined for `i32` and `i64` and uses the same wrapping
 subtraction from zero. It is rejected for unsigned types and for `i128`.
@@ -86,6 +87,13 @@ bit 127. `i128` floor division sign-extends into `i256` and divides with
 quotient is inexact and the operand signs differ, the compiler subtracts one
 with `i.w`, matching Python `//`. The quotient is then narrowed like `i128`
 multiplication, so `i128` minimum divided by `-1` traps.
+
+`u256(...)`, like the other integer constructors, accepts an integer literal or a
+constant expression built from literals with `+`, `-`, `*`, and `**`.
+`u256` values are host objects. Addition, subtraction, multiplication, and
+floor division call the protocol checked `u256` operations (`i.n`, `i.o`,
+`i.p`, `i.q`). Overflow and division by zero trap inside the host. Literals
+use `u256(...)` and `obj_from_u256_pieces`.
 
 `u128.mul_div_floor(left, right, denominator)` computes
 `floor((left * right) / denominator)` with a `u256` intermediate using the

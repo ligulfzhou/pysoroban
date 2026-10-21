@@ -266,7 +266,7 @@ class ContractTest:
                 value = left // right
             else:
                 value = {"add": left + right, "sub": left - right, "mul": left * right}[expression.op]
-            if expression.type in {ValueType.I128, ValueType.U128}:
+            if expression.type in {ValueType.I128, ValueType.U128, ValueType.U256}:
                 try:
                     _validate_native(value, expression.type, "arithmetic result")
                 except InvocationError as exc:
@@ -615,6 +615,7 @@ def _wrap_integer(value: int, value_type: ValueType) -> int:
         ValueType.U64: 64,
         ValueType.I128: 128,
         ValueType.U128: 128,
+        ValueType.U256: 256,
     }[value_type]
     value %= 2**bits
     if value_type in {ValueType.I32, ValueType.I64, ValueType.I128} and value >= 2 ** (bits - 1):
@@ -629,7 +630,7 @@ def _validate_native(value: NativeValue, value_type: ValueType, label: str) -> N
         valid = isinstance(value, bool)
     elif value_type in {
         ValueType.I32, ValueType.U32, ValueType.I64, ValueType.U64,
-        ValueType.I128, ValueType.U128,
+        ValueType.I128, ValueType.U128, ValueType.U256,
     }:
         valid = isinstance(value, int) and not isinstance(value, bool)
         if valid:
@@ -640,6 +641,7 @@ def _validate_native(value: NativeValue, value_type: ValueType, label: str) -> N
                 ValueType.U64: (0, 2**64 - 1),
                 ValueType.I128: (-(2**127), 2**127 - 1),
                 ValueType.U128: (0, 2**128 - 1),
+                ValueType.U256: (0, 2**256 - 1),
             }
             lower, upper = bounds[value_type]
             valid = lower <= value <= upper

@@ -13,6 +13,7 @@ SPEC_TYPES = {
     ValueType.I64: 7,
     ValueType.U128: 10,
     ValueType.I128: 11,
+    ValueType.U256: 12,
     ValueType.BYTES: 14,
     ValueType.STRING: 16,
     ValueType.SYMBOL: 17,

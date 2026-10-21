@@ -149,7 +149,7 @@ SUITES = (
     (
         "wide-mul-div",
         """
-from pysoroban import contract, i128, public, u128
+from pysoroban import boolean, contract, i128, public, u128, u256
 
 @contract
 class WideMul:
@@ -184,6 +184,50 @@ class WideMul:
             ("i128-div-min", "divide_i128", (-(2**127), 1)),
             ("i128-div-zero", "divide_i128", (1, 0), "unreachable"),
             ("i128-div-overflow", "divide_i128", (-(2**127), -1), "unreachable"),
+        ),
+    ),
+    (
+        "u256",
+        """
+from pysoroban import boolean, contract, public, u256
+
+@contract
+class Wide256:
+    @public
+    def add(self, left: u256, right: u256) -> u256:
+        return left + right
+
+    @public
+    def sub(self, left: u256, right: u256) -> u256:
+        return left - right
+
+    @public
+    def mul(self, left: u256, right: u256) -> u256:
+        return left * right
+
+    @public
+    def div(self, left: u256, right: u256) -> u256:
+        return left // right
+
+    @public
+    def less(self, left: u256, right: u256) -> boolean:
+        return left < right
+
+    @public
+    def maximum(self) -> u256:
+        return u256(2 ** 256 - 1)
+""",
+        (
+            ("u256-add", "add", (2**200, 2**200)),
+            ("u256-sub", "sub", (2**256 - 1, 1)),
+            ("u256-mul", "mul", (2**100, 2**100)),
+            ("u256-div", "div", (2**256 - 1, 3)),
+            ("u256-less", "less", (1, 2**255)),
+            ("u256-max", "maximum", ()),
+            ("u256-add-overflow", "add", (2**256 - 1, 1), "unreachable"),
+            ("u256-sub-underflow", "sub", (0, 1), "unreachable"),
+            ("u256-mul-overflow", "mul", (2**200, 2**200), "unreachable"),
+            ("u256-div-zero", "div", (1, 0), "unreachable"),
         ),
     ),
     (

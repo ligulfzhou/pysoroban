@@ -60,7 +60,7 @@ parsed as data, validated, lowered into typed operations, and encoded.
 
 ## Type and value model
 
-Supported scalar types are `i32`, `u32`, `i64`, `u64`, `i128`, `u128`,
+Supported scalar types are `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `u256`,
 `boolean`, `Address`, `Symbol`, `String`, and `Bytes`. Homogeneous `Vec[T]` and scalar
 `Map[K, V]` types are also represented in the contract model and Soroban XDR
 specification.
