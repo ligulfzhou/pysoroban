@@ -4,13 +4,42 @@ PySoroban-generated Wasm has been uploaded, deployed, and invoked on Stellar
 testnet protocol 25. The verification used `stellar-cli 25.2.0` and did not use
 generated Rust or a Rust contract build.
 
-The September 2026 deployment IDs and transaction hashes are recorded in
-`deployments/testnet.json`. That record is historical. The sources it was
-built from are no longer under `examples/`. They are
-`tests/fixtures/compiler_suite/`. Current contracts to copy are the
-soroban-examples ports in `examples/<name>/contract.py`. Testnet contracts
-and ledger entries may eventually expire, so the commands below are the
-durable verification procedure for that historical suite.
+The deployment IDs and transaction hashes are recorded in
+`deployments/testnet.json`. The web demo reads the six featured IDs from
+`web/app/testnet-manifest.ts`, which `scripts/testnet_e2e.py` rewrites.
+Compiler-suite sources are `tests/fixtures/compiler_suite/`. The error enum
+and deep auth contracts are `examples/errors/contract.py` and
+`examples/deep_contract_auth/`. Other contracts to copy are the
+soroban-examples ports under `examples/`. Testnet contracts and ledger
+entries may eventually expire, so the commands below are the durable
+verification procedure.
+
+## Automated run
+
+`scripts/testnet_e2e.py` builds the compiler-suite fixtures plus the checked
+AMM kernel, `examples/errors`, and `examples/deep_contract_auth`. It uploads
+and deploys them with Stellar CLI, invokes them, and rewrites the two records
+above.
+
+```bash
+python scripts/testnet_e2e.py --identity alice
+python scripts/testnet_e2e.py --fund
+```
+
+`--fund` asks the CLI to create a friendbot-funded throwaway identity when the
+name is new. The secret remains in the CLI config directory. GitHub Actions
+workflow `.github/workflows/testnet.yml` runs the same script on
+`workflow_dispatch` only. It is not a required CI check.
+
+Auth checks submit the transaction. A `--send no` simulation records
+`require_auth` and will succeed even when the authorizer never signed.
+`call_b` on contract A must be accepted on chain. Calling contract C's
+`authorized_fn_c` directly must be rejected, because that authorizer is
+contract A. `contract info interface` must show `LIMIT_REACHED = 1` and the
+kernel's `KernelError` cases. A sixth `increment` traps as
+`Error(Contract, #1)`, which is that case. Host arithmetic traps, such as
+`subtract_u128(0, 1)`, stay `UnreachableCodeReached` rather than a contract
+error.
 
 All recorded Wasm hashes can be reproduced locally before contacting testnet:
 
@@ -232,7 +261,7 @@ AMM_ID=$(stellar contract deploy \
 OWNER=$(stellar keys address alice)
 
 stellar contract invoke --id "$AMM_ID" --source alice --network testnet \
-  -- initialize --owner "$OWNER" \
+  -- initialize --provider "$OWNER" \
   --reserve_a 1267650600228229401496703205376 \
   --reserve_b 1267650600228229401496703205376
 
@@ -285,5 +314,6 @@ Contracts added after those deployments, including `examples/token/` and the
 other ports under `examples/`, are covered by `ContractTest` and the IR/Wasm
 differential suite. Invoking them on a network uses the same CLI flow; see
 [INVOKE.md](INVOKE.md) for the stellar-sdk equivalent. That document does not
-add a second RPC stack. The September 2026 IDs were not redeployed from the
-ports.
+add a second RPC stack. The scripted IDs redeploy the compiler-suite fixtures
+plus `examples/errors` and `examples/deep_contract_auth`. They are not a
+redeploy of the other ports.
