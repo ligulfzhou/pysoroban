@@ -5,7 +5,7 @@ support. The compiler reads the source as an AST; contracts are never executed
 by the Python runtime.
 """
 
-__version__ = "0.9.0a2"
+__version__ = "0.10.0a1"
 
 from .compiler import CompilationResult, check_file, check_source, compile_file, compile_source
 from .abi import contract_abi
@@ -154,15 +154,29 @@ class _InstanceStorage:
     def get_bytes(self, key):
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
+    def get_address(self, key):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def get(self, key, value_type):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
     def has(self, key):
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
     def set(self, key, value) -> None:
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
+    def remove(self, key) -> None:
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def extend_ttl(self, *args) -> None:
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
 
 class _Storage:
     instance = _InstanceStorage()
+    persistent = _InstanceStorage()
+    temporary = _InstanceStorage()
 
 
 storage = _Storage()
@@ -181,6 +195,14 @@ def contract(cls):
 
 
 def error(cls):
+    return cls
+
+
+def struct(cls):
+    return cls
+
+
+def enum(cls):
     return cls
 
 
@@ -213,8 +235,10 @@ __all__ = [
     "compile_source",
     "contract",
     "contract_abi",
+    "enum",
     "error",
     "event",
+    "struct",
     "fail",
     "events",
     "i32",

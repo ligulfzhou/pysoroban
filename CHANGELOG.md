@@ -2,8 +2,16 @@
 
 All notable changes to PySoroban are documented here.
 
-## Unreleased
+## 0.10.0a1 — 2026-10-21
 
+- Add `@struct` and `@enum`, written into `contractspecv0` as Soroban UDT
+  struct and enum entries. Structs are maps of field symbols. Enums are
+  `u32` values.
+- Add `storage.persistent` and `storage.temporary`, `get(key, Type)`,
+  `get_address`, `remove`, and TTL extension. Instance storage keeps its
+  previous Wasm for contracts that do not use the new methods.
+- Add statement updates for `Vec` (`push`, `set`, `insert`, `remove`, `pop`)
+  and `Map` (`set`, `remove`), plus empty `Vec()` and `Map()` constructors.
 - Specify the current language, including integer wrapping and checked
   overflow, in `docs/LANGUAGE.md`.
 - Give `CompileError` stable `E####` codes alongside line and column.

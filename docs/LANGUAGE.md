@@ -28,14 +28,19 @@ when the parser has a node. Codes are grouped as follows:
 | `E0501`–`E0517` | Expressions |
 | `E0601`–`E0633` | Calls, storage, and cross-contract invocations |
 | `E0701`–`E0715` | `@error` and `fail` |
+| `E0801`–`E0818` | `@struct` and `@enum` |
+| `E0641`–`E0648` | storage tiers, `get(key, Type)`, and collection updates |
 | `E9001`–`E9003` | Internal lowering failure after a frontend bug |
 
 ## Types and literals
 
 Supported value types are `i32`, `u32`, `i64`, `u64`, `i128`, `u128`,
 `boolean`, `Address`, `Symbol`, `String`, `Bytes`, and `None` (`void`).
-`Vec[T]` is homogeneous over those types. `Map[K, V]` requires scalar keys
-and scalar values. Nested collections are rejected.
+`Vec[T]` is homogeneous. The element may be one of those scalars or a
+user-defined `@struct` or `@enum`. `Map[K, V]` accepts scalar, enum, and
+struct keys and values. Nested collections are rejected. A `@struct` is a
+named record stored as a Soroban map from field symbol to value. An `@enum`
+is a named `u32` discriminant. Directly recursive struct fields are rejected.
 
 A bare integer literal is `i32` and must lie in `[-2^31, 2^31)`. `True` and
 `False` are `boolean`. Wider integers and host objects are constructed from
@@ -92,11 +97,17 @@ loop variable is `i32`. Variables assigned in the body must already exist.
 
 ## Storage, authorization, calls, and events
 
-Only `storage.instance` exists. `set` accepts any non-void value. Typed
-getters exist for `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `boolean`,
-`Symbol`, `String`, and `Bytes`. A missing key traps in the host; the test
-environment raises `StorageMissingError`. There is no `get_address`,
-`get_vec`, or `get_map`.
+`storage.instance`, `storage.persistent`, and `storage.temporary` all
+support `set`, `has`, `remove`, and the typed getters `get_i32`, `get_u32`,
+`get_i64`, `get_u64`, `get_i128`, `get_u128`, `get_bool`, `get_symbol`,
+`get_string`, `get_bytes`, and `get_address`. `get(key, Type)` reads any
+supported type, including `Vec`, `Map`, `@struct`, and `@enum`. A missing
+key traps in the host; the test environment raises `StorageMissingError`.
+`storage.persistent.extend_ttl(key, threshold, extend_to)` and the same
+method on `storage.temporary` call `extend_contract_data_ttl`.
+`storage.instance.extend_ttl(threshold, extend_to)` extends the current
+contract instance and code. The test environment records those requests on
+`ttl_extensions` and does not simulate ledger expiry.
 
 `address.require_auth()` traps unless that address authorized the invocation.
 The test environment grants authorization only for the current call.
@@ -107,8 +118,14 @@ Cross-contract calls are `call_void`, `call_i32`, `call_u32`, `call_i64`,
 `Symbol` function name. There is no `call_vec` or `call_map`.
 
 `Vec` supports `len` and `values[index]` with an `i32` index. `Map` supports
-`len`, `has`, and indexing. Both are read-only. Slicing and mutation are
-rejected.
+`len`, `has`, and indexing. Slicing is rejected. Empty collections are
+`values: Vec[T] = Vec()` and `mapping: Map[K, V] = Map()`. Updates are
+statements that replace the local: `values.push(item)`,
+`values.set(index, item)`, `values.insert(index, item)`,
+`values.remove(index)`, `mapping.set(key, value)`, and `mapping.remove(key)`.
+`item = values.pop()` removes the last element and binds it. These methods
+are not expressions. The host operations return a new collection; the
+compiler writes that handle back to the local.
 
 Typed events use `@event`, exactly one data field, and `Topic[T]` fields
 before that data field. `events.publish` also accepts a raw `Symbol` topic

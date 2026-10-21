@@ -5,8 +5,27 @@ from typing import Dict, List, Tuple
 
 from . import ir
 from .errors import fail
-from .frontend import CONTRACT_CALL_TYPES, _attribute_path, _integer_literal, _is_fail_call, function_body
-from .model import Contract, ErrorEnum, Event, Function, MapType, Parameter, ValueType, VEC_ELEMENT_TYPES
+from .frontend import (
+    CONTRACT_CALL_TYPES,
+    _annotation,
+    _attribute_path,
+    _integer_literal,
+    _is_fail_call,
+    function_body,
+)
+from .model import (
+    Contract,
+    EnumType,
+    ErrorEnum,
+    Event,
+    Function,
+    MapType,
+    Parameter,
+    StructType,
+    ValueType,
+    is_vec_type,
+    vec_element,
+)
 
 
 ANNOTATIONS = {
@@ -45,21 +64,33 @@ def lower_contract(contract: Contract) -> ir.Contract:
     return ir.Contract(
         name=contract.name,
         functions=tuple(
-            FunctionLowerer(function, contract.events, contract.errors).lower()
+            FunctionLowerer(function, contract.events, contract.errors, contract.structs, contract.enums).lower()
             for function in contract.functions
         ),
         events=contract.events,
         errors=contract.errors,
+        structs=contract.structs,
+        enums=contract.enums,
         source_name=contract.source_name,
     )
 
 
 class FunctionLowerer:
-    def __init__(self, function: Function, events: Tuple[Event, ...] = (), errors: Tuple[ErrorEnum, ...] = ()):
+    def __init__(
+        self,
+        function: Function,
+        events: Tuple[Event, ...] = (),
+        errors: Tuple[ErrorEnum, ...] = (),
+        structs: Tuple[StructType, ...] = (),
+        enums: Tuple[EnumType, ...] = (),
+    ):
         self.function = function
         self.events = {event.name: event for event in events}
         self.errors = {error.name: error for error in errors}
-        self.types: Dict[str, ValueType] = {param.name: param.type for param in function.params}
+        self.structs = {item.name: item for item in structs}
+        self.enums = {item.name: item for item in enums}
+        self.user_types = {**self.structs, **self.enums}
+        self.types: Dict[str, object] = {param.name: param.type for param in function.params}
         self.local_order: List[str] = []
         self.range_counter = 0
 
@@ -80,10 +111,15 @@ class FunctionLowerer:
             value = ir.Constant(None, ValueType.VOID) if node.value is None else self.expression(node.value)
             return ir.Return(value)
         if isinstance(node, ast.AnnAssign):
-            value_type = ANNOTATIONS[node.annotation.id]
+            value_type = _annotation(node.annotation, self.user_types)
             self._declare(node.target.id, value_type)
-            return ir.SetLocal(node.target.id, self.expression(node.value))
+            if self._is_pop(node.value):
+                return ir.PopBack(node.value.func.value.id, node.target.id)
+            return ir.SetLocal(node.target.id, self._assigned_value(node.value, value_type))
         if isinstance(node, ast.Assign):
+            if self._is_pop(node.value):
+                self._declare(node.targets[0].id, vec_element(self.types[node.value.func.value.id]))
+                return ir.PopBack(node.value.func.value.id, node.targets[0].id)
             value = self.expression(node.value)
             self._declare(node.targets[0].id, value.type)
             return ir.SetLocal(node.targets[0].id, value)
@@ -114,6 +150,8 @@ class FunctionLowerer:
         if isinstance(node, ast.Expr):
             if _is_fail_call(node.value):
                 return self._fail(node.value)
+            if self._is_mutation(node.value):
+                return self._mutation(node.value)
             return ir.Drop(self.expression(node.value))
         if isinstance(node, ast.Pass):
             # A no-op is represented as an empty conditional-free statement list.
@@ -135,7 +173,19 @@ class FunctionLowerer:
             collection = ir.Local(node.value.id, self.types[node.value.id])
             if isinstance(collection.type, MapType):
                 return ir.HostCall("map_get", (collection, self.expression(node.slice)), collection.type.value_type)
-            return ir.HostCall("vec_get", (collection, self.expression(node.slice)), VEC_ELEMENT_TYPES[collection.type])
+            return ir.HostCall("vec_get", (collection, self.expression(node.slice)), vec_element(collection.type))
+        if isinstance(node, ast.Attribute):
+            if isinstance(node.value, ast.Name) and node.value.id in self.enums:
+                enum = self.enums[node.value.id]
+                case = next(item for item in enum.cases if item.name == node.attr)
+                return ir.Constant(case.value, enum)
+            owner = self.expression(node.value)
+            field = next(item for item in owner.type.fields if item.name == node.attr)
+            return ir.HostCall(
+                "struct_field",
+                (owner, ir.Constant(field.name, ValueType.SYMBOL)),
+                field.type,
+            )
         if isinstance(node, ast.UnaryOp):
             operand = self.expression(node.operand)
             if isinstance(node.op, ast.USub):
@@ -167,6 +217,13 @@ class FunctionLowerer:
             collection = ir.Local(value.id, self.types[value.id])
             op = "map_len" if isinstance(collection.type, MapType) else "vec_len"
             return ir.HostCall(op, (collection,), ValueType.I32)
+        if len(path) == 1 and path[0] in self.structs:
+            struct = self.structs[path[0]]
+            return ir.HostCall(
+                "struct_new",
+                tuple(self.expression(value) for value in node.args),
+                struct,
+            )
         if len(path) == 2 and path[1] == "has":
             return ir.HostCall(
                 "map_has",
@@ -191,25 +248,8 @@ class FunctionLowerer:
                 self.expression(value) for value in node.args
             )
             return ir.HostCall("contract_call", args, CONTRACT_CALL_TYPES[path[1]])
-        if path[:2] == ["storage", "instance"]:
-            method = path[2]
-            args = tuple(self.expression(value) for value in node.args)
-            operations = {
-                "set": ("storage_set", ValueType.VOID),
-                "has": ("storage_has", ValueType.BOOL),
-                "get_i32": ("storage_get_i32", ValueType.I32),
-                "get_u32": ("storage_get_u32", ValueType.U32),
-                "get_i64": ("storage_get_i64", ValueType.I64),
-                "get_u64": ("storage_get_u64", ValueType.U64),
-                "get_i128": ("storage_get_i128", ValueType.I128),
-                "get_u128": ("storage_get_u128", ValueType.U128),
-                "get_bool": ("storage_get_bool", ValueType.BOOL),
-                "get_symbol": ("storage_get_symbol", ValueType.SYMBOL),
-                "get_string": ("storage_get_string", ValueType.STRING),
-                "get_bytes": ("storage_get_bytes", ValueType.BYTES),
-            }
-            op, result = operations[method]
-            return ir.HostCall(op, args, result)
+        if path[:1] == ["storage"] and len(path) == 3:
+            return self._storage(node, path[1], path[2])
         if path == ["events", "publish"]:
             if len(node.args) == 1 and isinstance(node.args[0], ast.Call):
                 constructor = node.args[0]
@@ -225,6 +265,103 @@ class FunctionLowerer:
                 return ir.HostCall("event_publish", tuple(topics + [data]), ValueType.VOID)
             return ir.HostCall("event_publish", tuple(self.expression(value) for value in node.args), ValueType.VOID)
         fail(node, "cannot lower unsupported call", "E9003")
+
+    def _assigned_value(self, node: ast.expr, declared) -> ir.Expression:
+        if (
+            isinstance(node, ast.Call)
+            and not node.args
+            and _attribute_path(node.func) in (["Vec"], ["Map"])
+        ):
+            op = "vec_new" if _attribute_path(node.func) == ["Vec"] else "map_new"
+            return ir.HostCall(op, (), declared)
+        return self.expression(node)
+
+    def _is_pop(self, node: ast.expr) -> bool:
+        return (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.attr == "pop"
+            and not node.args
+            and is_vec_type(self.types.get(node.func.value.id))
+        )
+
+    def _is_mutation(self, node: ast.expr) -> bool:
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+            return False
+        if not isinstance(node.func.value, ast.Name):
+            return False
+        value_type = self.types.get(node.func.value.id)
+        if is_vec_type(value_type) and node.func.attr in {"push", "set", "insert", "remove"}:
+            return True
+        return isinstance(value_type, MapType) and node.func.attr in {"set", "remove"}
+
+    def _mutation(self, node: ast.Call) -> ir.SetLocal:
+        name = node.func.value.id
+        value_type = self.types[name]
+        local = ir.Local(name, value_type)
+        method = node.func.attr
+        args = tuple(self.expression(value) for value in node.args)
+        if is_vec_type(value_type):
+            op = {"push": "vec_push", "set": "vec_put", "insert": "vec_insert", "remove": "vec_del"}[method]
+        else:
+            op = "map_put" if method == "set" else "map_del"
+        return ir.SetLocal(name, ir.HostCall(op, (local,) + args, value_type))
+
+    def _storage(self, node: ast.Call, tier: str, method: str) -> ir.HostCall:
+        legacy = {
+            "set": ("storage_set", ValueType.VOID),
+            "has": ("storage_has", ValueType.BOOL),
+            "get_i32": ("storage_get_i32", ValueType.I32),
+            "get_u32": ("storage_get_u32", ValueType.U32),
+            "get_i64": ("storage_get_i64", ValueType.I64),
+            "get_u64": ("storage_get_u64", ValueType.U64),
+            "get_i128": ("storage_get_i128", ValueType.I128),
+            "get_u128": ("storage_get_u128", ValueType.U128),
+            "get_bool": ("storage_get_bool", ValueType.BOOL),
+            "get_symbol": ("storage_get_symbol", ValueType.SYMBOL),
+            "get_string": ("storage_get_string", ValueType.STRING),
+            "get_bytes": ("storage_get_bytes", ValueType.BYTES),
+        }
+        prefix = {"instance": "storage", "persistent": "pstorage", "temporary": "tstorage"}[tier]
+        if tier == "instance" and method in legacy:
+            op, result = legacy[method]
+            return ir.HostCall(op, tuple(self.expression(value) for value in node.args), result)
+        if method == "extend_ttl" and tier == "instance":
+            return ir.HostCall(
+                "extend_instance",
+                tuple(self.expression(value) for value in node.args),
+                ValueType.VOID,
+            )
+        if method == "extend_ttl":
+            return ir.HostCall(
+                f"{prefix}_extend",
+                tuple(self.expression(value) for value in node.args),
+                ValueType.VOID,
+            )
+        if method == "set":
+            return ir.HostCall(f"{prefix}_set", tuple(self.expression(value) for value in node.args), ValueType.VOID)
+        if method == "has":
+            return ir.HostCall(f"{prefix}_has", (self.expression(node.args[0]),), ValueType.BOOL)
+        if method == "remove":
+            return ir.HostCall(f"{prefix}_del", (self.expression(node.args[0]),), ValueType.VOID)
+        getters = {
+            "get_i32": ValueType.I32,
+            "get_u32": ValueType.U32,
+            "get_i64": ValueType.I64,
+            "get_u64": ValueType.U64,
+            "get_i128": ValueType.I128,
+            "get_u128": ValueType.U128,
+            "get_bool": ValueType.BOOL,
+            "get_symbol": ValueType.SYMBOL,
+            "get_string": ValueType.STRING,
+            "get_bytes": ValueType.BYTES,
+            "get_address": ValueType.ADDRESS,
+        }
+        if method == "get":
+            result = _annotation(node.args[1], self.user_types)
+            return ir.HostCall(f"{prefix}_get", (self.expression(node.args[0]),), result)
+        return ir.HostCall(f"{prefix}_get", (self.expression(node.args[0]),), getters[method])
 
     def _fail(self, node: ast.Call) -> ir.Fail:
         error_name, case_name = _attribute_path(node.args[0])

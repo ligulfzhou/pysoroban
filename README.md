@@ -59,7 +59,15 @@ run it locally with `cd web && npm install && npm run dev`.
 - automated differential tests comparing Typed IR execution with generated
   Wasm for arithmetic, branches, loops, integer boundaries, and vectors
 
-User-defined contract types and mutable collection operations are planned next.
+- `@struct` records and `@enum` integer discriminants in the contract spec
+- `Vec.push`, `set`, `insert`, `remove`, and `pop`, plus `Map.set` and
+  `Map.remove`, as statements that update a local
+- `storage.persistent` and `storage.temporary`, `get(key, Type)`,
+  `get_address`, `remove`, and TTL extension
+
+Ledger context, strings and bytes operations, cryptography, wide
+multiplication, the token interface, and deploy or upgrade are still in
+progress.
 
 `examples/amm_kernel_contract.py` is the first composed DeFi workload. It
 implements constant-product quoting, authorized reserve accounting, slippage
