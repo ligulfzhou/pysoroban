@@ -188,13 +188,15 @@ calls are recorded in `deployments/testnet.json`.
   reassign the local through the host's functional collection interface.
 - `@struct` and `@enum` are supported. Structs are Soroban maps of field
   symbols. Enums are `u32` discriminants. Recursive struct fields are rejected.
-- Signed floor division is not supported. `//` is defined for `u32`, `u64`,
-  and checked `u128`. `i128` division stays rejected because the host divide
-  truncates toward zero.
+- `//` is defined for `u32`, `u64`, checked `u128`, and checked `i128`.
+  `i32` and `i64` floor division stay rejected. Host `i256` division truncates
+  toward zero; the compiler adjusts an inexact mixed-sign quotient by one so
+  `i128 //` matches Python floor division, and traps when the result is not
+  an `i128` (`i128` minimum divided by `-1`).
 - `i128` and `u128` support ABI pass-through, checked literals, comparisons,
-  checked addition, subtraction, and multiplication, storage, events,
-  collections, and cross-contract results. `u128` also has checked floor
-  division. `u128.mul_div_floor()` widens both operands into `u256` and traps
+  checked addition, subtraction, multiplication, and floor division, storage,
+  events, collections, and cross-contract results.
+  `u128.mul_div_floor()` widens both operands into `u256` and traps
   unless the quotient narrows to `u128`. Exact integer rules are in
   [LANGUAGE.md](LANGUAGE.md).
 - Ledger context, hashing, ed25519 verification, PRNG, logging, byte and

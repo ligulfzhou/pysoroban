@@ -164,6 +164,10 @@ class WideMul:
     @public
     def multiply_i128(self, left: i128, right: i128) -> i128:
         return left * right
+
+    @public
+    def divide_i128(self, left: i128, right: i128) -> i128:
+        return left // right
 """,
         (
             ("u128-mul", "multiply_u128", (2**100, 2**20)),
@@ -173,6 +177,13 @@ class WideMul:
             ("i128-mul", "multiply_i128", (-(2**60), 2**40)),
             ("i128-mul-negative", "multiply_i128", (-(2**50), -(2**20))),
             ("i128-mul-overflow", "multiply_i128", (2**127 - 1, 2), "unreachable"),
+            ("i128-div-exact", "divide_i128", (-(2**80), -(2**20))),
+            ("i128-div-floor-neg-pos", "divide_i128", (-7, 3)),
+            ("i128-div-floor-pos-neg", "divide_i128", (7, -3)),
+            ("i128-div-floor-neg-neg", "divide_i128", (-7, -3)),
+            ("i128-div-min", "divide_i128", (-(2**127), 1)),
+            ("i128-div-zero", "divide_i128", (1, 0), "unreachable"),
+            ("i128-div-overflow", "divide_i128", (-(2**127), -1), "unreachable"),
         ),
     ),
     (
