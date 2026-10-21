@@ -134,7 +134,7 @@ def _annotation(node: Optional[ast.expr], user_types=None, *, allow_void: bool =
         element = _annotation(node.slice, user_types)
         if element in VEC_TYPES_BY_ELEMENT:
             result = VEC_TYPES_BY_ELEMENT[element]
-        elif is_vec_type(element) or isinstance(element, (StructType, EnumType, MapType, BytesNType, OptionType, ResultType, TupleType, UnionType)):
+        elif element is ValueType.VAL or is_vec_type(element) or isinstance(element, (StructType, EnumType, MapType, BytesNType, OptionType, ResultType, TupleType, UnionType)):
             result = VecType(element)
         else:
             fail(node, "unsupported Vec element type", "E0202")
@@ -287,7 +287,7 @@ def _parse_user_types(module: ast.Module):
             element = _user_field_type(node.slice)
             if element in VEC_TYPES_BY_ELEMENT:
                 return VEC_TYPES_BY_ELEMENT[element]
-            if is_vec_type(element) or isinstance(element, (StructType, EnumType, MapType, BytesNType, OptionType, ResultType, TupleType, UnionType)):
+            if element is ValueType.VAL or is_vec_type(element) or isinstance(element, (StructType, EnumType, MapType, BytesNType, OptionType, ResultType, TupleType, UnionType)):
                 return VecType(element)
             fail(node, "unsupported Vec element type", "E0202")
         if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "Map":
@@ -1098,9 +1098,25 @@ class TypeChecker:
                 fail(node, f"{path[1]}() takes one Bytes value", "E0651")
             return ValueType.BYTES
         if path == ["crypto", "ed25519_verify"]:
-            if len(node.args) != 3 or any(self.check_expr(arg) is not ValueType.BYTES for arg in node.args):
+            if len(node.args) != 3 or any(not is_bytes_type(self.check_expr(arg)) for arg in node.args):
                 fail(node, "ed25519_verify() takes a public key, message, and signature", "E0651")
             return ValueType.VOID
+        if path == ["auth", "as_current_contract"]:
+            if len(node.args) != 3:
+                fail(node, "auth.as_current_contract() takes a contract, a function symbol, and one argument", "E0664")
+            if self.check_expr(node.args[0]) is not ValueType.ADDRESS:
+                fail(node.args[0], "auth.as_current_contract() expects an Address", "E0664")
+            if self.check_expr(node.args[1]) is not ValueType.SYMBOL:
+                fail(node.args[1], "auth.as_current_contract() expects a Symbol", "E0664")
+            if self.check_expr(node.args[2]) is ValueType.VOID:
+                fail(node.args[2], "auth.as_current_contract() argument cannot be None", "E0664")
+            return ValueType.VOID
+        if len(path) == 2 and path[1] == "from_val" and path[0] in {
+            "i32", "u32", "i64", "u64", "i128", "u128", "u256", "Address",
+        }:
+            if len(node.args) != 1 or self.check_expr(node.args[0]) is not ValueType.VAL:
+                fail(node, f"{path[0]}.from_val() takes one Val", "E0665")
+            return TYPE_NAMES[path[0]]
         if path == ["log"]:
             if len(node.args) != 1 or self.check_expr(node.args[0]) is not ValueType.STRING:
                 fail(node, "log() takes one String value", "E0653")

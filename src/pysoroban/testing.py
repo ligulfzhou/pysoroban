@@ -95,6 +95,11 @@ class ContractTest:
         self._events = []
         self._last_events = []
         self._authorized = set()
+        self._user_auth = set()
+        self._pending_accounts = {}
+        self._auth_state = None
+        self._current_fn = None
+        self._current_args = ()
         self._contracts = {}
         self._transaction = None
 
@@ -145,6 +150,12 @@ class ContractTest:
             raise InvocationError("contract address must be a string")
         self._contracts[address] = contract
 
+    def authorize_account(self, address: str, payload: bytes, signature: NativeValue, contexts=()) -> None:
+        """Pass payload, signature, and contexts to a later ``__check_auth``."""
+        if not isinstance(address, str) or not isinstance(payload, bytes):
+            raise InvocationError("account authorization needs an address and a byte payload")
+        self._pending_accounts[address] = (payload, signature, tuple(contexts))
+
     def invoke(self, name: str, *args: NativeValue, auth: Iterable[str] = (), **kwargs: NativeValue) -> NativeValue:
         return self._invoke(name, args, kwargs, auth, None)
 
@@ -155,6 +166,7 @@ class ContractTest:
         kwargs: Dict[str, NativeValue],
         auth: Iterable[str],
         transaction: Optional[List[tuple]],
+        user_auth: Optional[Iterable[str]] = None,
     ) -> NativeValue:
         function = next((item for item in self.contract.functions if item.name == name), None)
         if function is None:
@@ -181,7 +193,20 @@ class ContractTest:
         root = transaction is None
         if root:
             transaction = []
+            self._auth_state = {
+                "accounts": dict(self._pending_accounts),
+                "contracts": dict(self._contracts),
+                "pending_subauth": [],
+                "active_subauth": [],
+                "checking": None,
+            }
+            user_auth = set(auth)
+        elif user_auth is None:
+            user_auth = set(auth)
+        self._user_auth = set(user_auth)
         self._authorized = set(auth)
+        self._current_fn = name
+        self._current_args = values
         self._last_events = []
         self._transaction = transaction
         # Snapshot after clearing this call's event window so a failure restores
@@ -214,6 +239,76 @@ class ContractTest:
             raise
         finally:
             self._authorized = set()
+
+    def _invoke_authorized(self, target: "ContractTest", function: str, args: Tuple[NativeValue, ...]) -> NativeValue:
+        """Call `target`. The immediate caller is authorized; earlier contracts are not."""
+        granted = set(self._user_auth)
+        granted.add(self.contract_address)
+        state = self._auth_state
+        added = []
+        if state is not None:
+            added = list(state["pending_subauth"])
+            state["pending_subauth"] = []
+            if added:
+                state["active_subauth"].extend(added)
+        target._auth_state = state
+        try:
+            return target._invoke(function, args, {}, granted, self._transaction, self._user_auth)
+        finally:
+            if added and state is not None:
+                del state["active_subauth"][-len(added):]
+
+    def _require_auth(self, address: str) -> None:
+        state = self._auth_state
+        if state is not None and address in state["accounts"] and state["checking"] != address:
+            target = self._contracts.get(address) or state["contracts"].get(address)
+            if target is None and address == self.contract_address:
+                target = self
+            checker = None
+            if target is not None:
+                checker = next((item for item in target.contract.functions if item.name == "__check_auth"), None)
+            if checker is not None:
+                payload, signature, contexts = state["accounts"][address]
+                state["checking"] = address
+                target._auth_state = state
+                # __check_auth can run on the contract that is already executing.
+                reentrant = target is self
+                if reentrant:
+                    saved = (
+                        target._authorized, target._user_auth, target._current_fn,
+                        target._current_args, list(target._last_events),
+                    )
+                try:
+                    target._invoke(
+                        "__check_auth",
+                        (payload, signature, contexts),
+                        {},
+                        set(),
+                        self._transaction,
+                        set(),
+                    )
+                except InvocationError as exc:
+                    raise AuthorizationError(f"__check_auth rejected {address!r}") from exc
+                finally:
+                    state["checking"] = None
+                    if reentrant:
+                        (
+                            target._authorized, target._user_auth, target._current_fn,
+                            target._current_args, target._last_events,
+                        ) = saved
+                return
+        if address in self._authorized:
+            return
+        if state is not None:
+            for authorizer, contract, fn, arg in state["active_subauth"]:
+                if (
+                    authorizer == address
+                    and contract == self.contract_address
+                    and fn == self._current_fn
+                    and arg in self._current_args
+                ):
+                    return
+        raise AuthorizationError(f"missing authorization for {address!r}")
 
     def _statements(self, statements: Tuple[ir.Statement, ...], variables) -> None:
         for statement in statements:
@@ -297,8 +392,17 @@ class ContractTest:
     def _host_call(self, call: ir.HostCall, variables) -> NativeValue:
         values = tuple(self._expression(arg, variables) for arg in call.args)
         if call.op == "require_auth":
-            if values[0] not in self._authorized:
-                raise AuthorizationError(f"missing authorization for {values[0]!r}")
+            self._require_auth(values[0])
+            return None
+        if call.op == "from_val":
+            _validate_native(values[0], call.type, "from_val")
+            return values[0]
+        if call.op == "authorize_as_current":
+            state = self._auth_state
+            if state is None:
+                raise InvocationError("auth.as_current_contract() is only valid during an invocation")
+            contract, fn, arg = values
+            state["pending_subauth"].append((self.contract_address, contract, fn, arg))
             return None
         if call.op == "storage_set":
             self._storage[_storage_key(values[0])] = (values[1], call.args[1].type)
@@ -380,14 +484,12 @@ class ContractTest:
             target = self._contracts.get(address)
             if target is None:
                 raise InvocationError(f"unregistered contract address {address!r}")
-            granted = set(self._authorized)
-            granted.add(self.contract_address)
             # A caught failure rolls the callee back and leaves the caller.
             # Frames belong to the shared transaction, so only the suffix
             # appended by this attempt is restored.
             mark = len(self._transaction)
             try:
-                result = target._invoke(function, tuple(args), {}, granted, self._transaction)
+                result = self._invoke_authorized(target, function, tuple(args))
             except ContractError as exc:
                 _restore_transaction(self._transaction[mark:])
                 del self._transaction[mark:]
@@ -398,11 +500,7 @@ class ContractTest:
             target = self._contracts.get(address)
             if target is None:
                 raise InvocationError(f"unregistered contract address {address!r}")
-            # Direct calls are authorized for the caller. The flat auth set is
-            # also inherited: this host has no Soroban auth-entry tree.
-            granted = set(self._authorized)
-            granted.add(self.contract_address)
-            result = target._invoke(function, tuple(args), {}, granted, self._transaction)
+            result = self._invoke_authorized(target, function, tuple(args))
             _validate_native(result, call.type, "cross-contract return value")
             return result
         if call.op == "u128_mul_div_floor":
@@ -545,8 +643,7 @@ class ContractTest:
                 raise InvocationError("prng.u64() range is empty")
             return low + (_next_prng(self) % (high - low + 1))
         if call.op == "require_auth_for":
-            if values[0] not in self._authorized:
-                raise AuthorizationError(f"missing authorization for {values[0]!r}")
+            self._require_auth(values[0])
             return None
         if call.op in {"deploy", "deploy_constructor"}:
             address = "C" + hashlib.sha256(repr(values).encode("utf-8")).hexdigest()[:16]

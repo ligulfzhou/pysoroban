@@ -499,7 +499,10 @@ class FunctionLowerer:
             ("deploy", "upload"): ("upload_wasm", ValueType.BYTES),
             ("deploy", "upgrade"): ("upgrade", ValueType.VOID),
             ("deploy", "asset"): ("deploy_asset", ValueType.ADDRESS),
+            ("auth", "as_current_contract"): ("authorize_as_current", ValueType.VOID),
         }
+        if len(path) == 2 and path[1] == "from_val" and path[0] in ANNOTATIONS:
+            return ir.HostCall("from_val", (self.expression(node.args[0]),), ANNOTATIONS[path[0]])
         if tuple(path) in operations:
             op, result = operations[tuple(path)]
             args = tuple(self.expression(value) for value in node.args)

@@ -1,3 +1,6 @@
 # modular_account
 
-The account contract evaluates a signer policy over the host auth context. That context type is not a Soroban `Val` the compiler can store or pass.
+`__check_auth` and `Context` exist. This example authenticates by forwarding
+to delegated signers through `get_delegated_signers` and `delegate_account_auth`.
+Those host functions are protocol 27. This compiler targets protocol 25, so
+the example is not ported.
