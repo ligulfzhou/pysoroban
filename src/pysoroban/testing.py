@@ -2,14 +2,17 @@
 
 This module is intentionally an IR simulator, not a replacement for Soroban's
 Wasm host. It gives contract authors fast unit tests for language semantics,
-authorization requirements, instance storage, and emitted events. Testnet or a
-native Soroban host remains the source of truth for integration testing.
+authorization requirements, instance storage, and emitted events. A failed
+invocation restores storage and events, including linked contracts from that
+call. Testnet or a native Soroban host remains the source of truth for
+integration testing.
 """
 
+import copy
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
-from typing import Dict, Iterable, Mapping, Optional, Tuple, Union
+from typing import Dict, Iterable, List, Mapping, Optional, Tuple, Union
 
 from . import ir
 from .compiler import CompilationResult, compile_source
@@ -29,6 +32,16 @@ class AuthorizationError(InvocationError):
 
 class StorageMissingError(InvocationError):
     """Raised when a typed storage get references a missing key."""
+
+
+class ContractError(InvocationError):
+    """Raised when a contract aborts with fail(). Storage and events roll back."""
+
+    def __init__(self, code: int, error: str, case: str):
+        self.code = code
+        self.error = error
+        self.case = case
+        super().__init__(f"contract error {error}.{case} ({code})")
 
 
 @dataclass(frozen=True)
@@ -53,6 +66,7 @@ class ContractTest:
         self._last_events = []
         self._authorized = set()
         self._contracts = {}
+        self._transaction = None
 
     @classmethod
     def from_source(cls, source: str, source_name: Optional[str] = None) -> "ContractTest":
@@ -86,6 +100,16 @@ class ContractTest:
         self._contracts[address] = contract
 
     def invoke(self, name: str, *args: NativeValue, auth: Iterable[str] = (), **kwargs: NativeValue) -> NativeValue:
+        return self._invoke(name, args, kwargs, auth, None)
+
+    def _invoke(
+        self,
+        name: str,
+        args: Tuple[NativeValue, ...],
+        kwargs: Dict[str, NativeValue],
+        auth: Iterable[str],
+        transaction: Optional[List[tuple]],
+    ) -> NativeValue:
         function = next((item for item in self.contract.functions if item.name == name), None)
         if function is None:
             raise InvocationError(f"unknown contract function {name!r}")
@@ -108,18 +132,35 @@ class ContractTest:
             _validate_native(value, param.type, param.name)
 
         variables = dict(zip((param.name for param in function.params), values))
+        root = transaction is None
+        if root:
+            transaction = []
         self._authorized = set(auth)
         self._last_events = []
+        self._transaction = transaction
+        # Snapshot after clearing this call's event window so a failure restores
+        # prior ledger state and drops events published by the aborted call.
+        transaction.append((
+            self,
+            copy.deepcopy(self._storage),
+            list(self._events),
+            list(self._last_events),
+        ))
         try:
-            self._statements(function.body, variables)
-        except _ReturnSignal as returned:
-            _validate_native(returned.value, function.result, "return value")
-            return returned.value
+            try:
+                self._statements(function.body, variables)
+            except _ReturnSignal as returned:
+                _validate_native(returned.value, function.result, "return value")
+                return returned.value
+            if function.result is ValueType.VOID:
+                return None
+            raise InvocationError(f"{name}() completed without returning a value")
+        except InvocationError:
+            if root:
+                _restore_transaction(transaction)
+            raise
         finally:
             self._authorized = set()
-        if function.result is ValueType.VOID:
-            return None
-        raise InvocationError(f"{name}() completed without returning a value")
 
     def _statements(self, statements: Tuple[ir.Statement, ...], variables) -> None:
         for statement in statements:
@@ -143,6 +184,8 @@ class ContractTest:
             if isinstance(statement, ir.Drop):
                 self._expression(statement.value, variables)
                 continue
+            if isinstance(statement, ir.Fail):
+                raise ContractError(statement.code, statement.error, statement.case)
             raise AssertionError(type(statement).__name__)
 
     def _expression(self, expression: ir.Expression, variables) -> NativeValue:
@@ -222,7 +265,7 @@ class ContractTest:
             target = self._contracts.get(address)
             if target is None:
                 raise InvocationError(f"unregistered contract address {address!r}")
-            result = target.invoke(function, *args)
+            result = target._invoke(function, tuple(args), {}, (), self._transaction)
             _validate_native(result, call.type, "cross-contract return value")
             return result
         if call.op == "u128_mul_div_floor":
@@ -250,6 +293,13 @@ class ContractTest:
                 raise InvocationError(f"Map key {key!r} was not found")
             return map_value[key]
         raise AssertionError(call.op)
+
+
+def _restore_transaction(transaction: List[tuple]) -> None:
+    for contract, storage, events, last_events in reversed(transaction):
+        contract._storage = storage
+        contract._events = events
+        contract._last_events = last_events
 
 
 def _wrap_integer(value: int, value_type: ValueType) -> int:

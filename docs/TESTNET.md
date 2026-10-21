@@ -209,6 +209,13 @@ comparison, a `Map[Symbol, u128]` lookup, authorized instance storage, and an
 
 ## Build and deploy the checked AMM accounting kernel
 
+The deployment recorded in `deployments/testnet.json` was produced before
+rejected operations trapped. Current `examples/amm_kernel_contract.py` aborts
+with `KernelError` instead of returning zero, so `pysoroban verify` against
+`dist/amm-kernel-testnet.wasm` from that record will report a mismatch until
+the kernel is deployed again. The commands below are the procedure for the
+current source. A zero `quote` input now traps rather than returning zero.
+
 ```bash
 pysoroban build examples/amm_kernel_contract.py \
   -o dist/amm-kernel-testnet.wasm

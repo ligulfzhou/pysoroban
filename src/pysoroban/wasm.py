@@ -14,6 +14,7 @@ U256_SMALL_TAG = 12
 U64_SMALL_TAG = 6
 I64_SMALL_TAG = 7
 VOID_TAG = 2
+ERROR_TAG = 3
 INSTANCE_STORAGE = 2
 
 # Names and indices are the protocol-25 env.json interface. Every imported
@@ -244,6 +245,17 @@ class FunctionEmitter:
             if isinstance(node.value, ir.Constant) and node.value.type is ValueType.VOID:
                 return b""
             return self.expression(node.value) + b"\x1a"  # drop Void Val
+        if isinstance(node, ir.Fail):
+            # Error Val: major = contract code, minor = ScErrorType::Contract (0), tag = 3.
+            # fail_with_error traps; unreachable keeps the Wasm type checker satisfied.
+            error_val = (node.code << 32) | ERROR_TAG
+            if error_val >= 2**63:
+                error_val -= 2**64
+            return (
+                b"\x42" + sleb(error_val)
+                + b"\x10" + uleb(self.host_indices[("x", "5")])
+                + b"\x1a\x00"
+            )
         raise AssertionError(type(node).__name__)
 
     def expression(self, node: ir.Expression) -> bytes:
@@ -697,6 +709,8 @@ def emit_module(contract: ir.Contract, protocol: int = 25) -> bytes:
     if ValueType.I128 in wide_operations:
         for host_import in (("i", "6", 2), ("i", "7", 1), ("i", "8", 1)):
             optional(host_import)
+    if _contains_fail(contract):
+        optional(("x", "5", 1))  # fail_with_error
     if _uses_host_op(contract, "u128_mul_div_floor"):
         for host_import in (
             ("i", "3", 2), ("i", "4", 1), ("i", "5", 1),
@@ -794,6 +808,19 @@ def _max_linear_values(contract: ir.Contract) -> int:
         for item in function.body:
             statement(item)
     return maximum
+
+
+def _contains_fail(contract: ir.Contract) -> bool:
+    def statement(node: ir.Statement) -> bool:
+        if isinstance(node, ir.Fail):
+            return True
+        if isinstance(node, ir.If):
+            return any(statement(child) for child in node.body + node.otherwise)
+        if isinstance(node, ir.ForRange):
+            return any(statement(child) for child in node.body)
+        return False
+
+    return any(statement(item) for function in contract.functions for item in function.body)
 
 
 def _uses_host_op(contract: ir.Contract, op: str) -> bool:

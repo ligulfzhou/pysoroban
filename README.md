@@ -53,6 +53,8 @@ run it locally with `cd web && npm install && npm run dev`.
 - backwards-compatible raw events with `events.publish(Symbol(...), data)`
 - a deterministic Python test environment for calls, per-invocation auth,
   instance storage, events, and Wasm-style integer wrapping
+- `@error` enums and `fail(Error.CASE)`, which trap through Soroban's
+  `fail_with_error` so the invocation's storage and events are not committed
 - deterministic builds with no compiler dependencies
 - automated differential tests comparing Typed IR execution with generated
   Wasm for arithmetic, branches, loops, integer boundaries, and vectors
@@ -206,6 +208,10 @@ events.publish(Updated(owner, value))
 The compiler records `updated` as the static prefix topic, `owner` as a dynamic
 topic, and `value` as single-value event data in `contractspecv0`.
 
+Integer wrapping, checked wide arithmetic, and contract errors are specified in
+[the language specification](docs/LANGUAGE.md). That document is the behavior
+contract for the current compiler: unchanged sources keep their Wasm bytes.
+
 ## Language boundary
 
 PySoroban intentionally rejects dynamic Python features such as arbitrary
@@ -217,6 +223,28 @@ The initial loop implementation supports `range(stop)` and
 `range(start, stop)` with an implicit step of `+1`. Variables assigned in a
 loop body must be declared before the loop; `break`, `continue`, and `for/else`
 are not supported yet.
+
+Rejected work aborts with `fail` instead of a sentinel return. `fail` is a
+statement, and it ends the path for the return checker:
+
+```python
+from pysoroban import contract, error, fail, public, u128
+
+@error
+class SwapError:
+    SLIPPAGE = 1
+
+@contract
+class Pool:
+    @public
+    def swap(self, amount_out: u128, minimum_out: u128) -> u128:
+        if amount_out < minimum_out:
+            fail(SwapError.SLIPPAGE)
+        return amount_out
+```
+
+A zero return remains a normal numeric result. Use it for an absent view, as
+`Counter.value` does, and use `fail` when the call must not commit.
 
 Cross-contract calls use an explicit result type so they remain statically
 checked without generated Rust clients:

@@ -71,4 +71,14 @@ def contract_spec(contract: Contract) -> bytes:
             entries += spec_type(field.type)
             entries += u32(1 if field.topic else 0)
         entries += u32(0)  # SC_SPEC_EVENT_DATA_FORMAT_SINGLE_VALUE
+    for error in getattr(contract, "errors", ()):
+        entries += u32(4)  # SC_SPEC_ENTRY_UDT_ERROR_ENUM_V0
+        entries += xdr_string(error.doc)
+        entries += xdr_string("")  # library
+        entries += xdr_string(error.name)
+        entries += u32(len(error.cases))
+        for case in error.cases:
+            entries += xdr_string(case.doc)
+            entries += xdr_string(case.name)
+            entries += u32(case.value)
     return bytes(entries)

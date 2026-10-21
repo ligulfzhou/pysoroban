@@ -188,6 +188,9 @@ class MiniSorobanHost {
       };
     }
     if (key === "x.1") return () => VOID_TAG;
+    if (key === "x.5") return (error) => {
+      throw new WebAssembly.RuntimeError(`unreachable: contract error ${error}`);
+    };
     return () => {
       throw new Error(`differential host function ${key} is not implemented`);
     };

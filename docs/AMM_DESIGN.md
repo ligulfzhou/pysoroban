@@ -34,9 +34,13 @@ division is emitted through `u128.mul_div_floor`, which widens the intermediate
 product to `u256`, rounds the quotient down, and traps if it cannot narrow back
 to `u128`. Reserve additions and subtractions are checked separately.
 
-The swap is rejected by returning zero when it is uninitialized, has zero
-input, produces zero output, misses `minimum_out`, or would exhaust reserve B.
-Only an accepted quote changes the stored reserves and publishes `Swapped`.
+`initialize` and `swap_a_for_b` abort with `KernelError` when the pool is
+already initialized, reserves are zero, the pool is missing, the input or
+output is zero, `minimum_out` is missed, or the swap would exhaust reserve B.
+`quote` aborts the same way for a zero input or a zero reserve. Those calls
+trap, so instance storage and events from the aborted invocation are not
+committed. `reserve_a`, `reserve_b`, and `total_shares` still return zero when
+the key is absent; that is an empty view, not a rejected transaction.
 
 ## Safety boundary
 
@@ -47,7 +51,8 @@ have all of the primitives required for safe token accounting:
 - `i128` can now cross the ABI and `call_void` can represent a
   `None`-returning contract call, but token composition has not yet been
   integrated and verified against the current Stellar token interface;
-- rejected operations return zero instead of raising a typed contract error;
+- rejected swaps and quotes now trap with `KernelError` instead of returning
+  zero; token transfers and authorization forwarding are still absent;
 - liquidity deposits and withdrawals do not transfer or verify token balances;
 - the testing environment is not a full Soroban host and does not meter
   resources or model authorization trees; and
@@ -68,10 +73,10 @@ These are explicit compiler-development gates, not deferred application polish.
 
 ### Gate 2 — contract composition and failure
 
+- Invalid quotes, initialization, and swaps now trap with `KernelError`. The
+  test environment rolls the invocation back. Token composition is still open.
 - Use the existing statically typed `call_void` and `i128` paths to model the
   current Stellar token interface exactly.
-- Add typed contract errors or an explicit abort operation so invalid swaps
-  revert rather than returning an ambiguous numeric sentinel.
 - Test authorization forwarding and atomic rollback on a real Soroban host.
 
 ### Gate 3 — liquidity lifecycle

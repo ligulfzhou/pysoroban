@@ -193,10 +193,11 @@ def _read_spec_type(reader: _XdrReader) -> str:
     return SPEC_TYPE_NAMES[kind]
 
 
-def _contract_spec(data: bytes) -> Tuple[List[dict], List[dict]]:
+def _contract_spec(data: bytes) -> Tuple[List[dict], List[dict], List[dict]]:
     reader = _XdrReader(data)
     functions = []
     events = []
+    errors = []
     while reader.remaining:
         entry_kind = reader.u32()
         if entry_kind == 0:
@@ -234,8 +235,19 @@ def _contract_spec(data: bytes) -> Tuple[List[dict], List[dict]]:
                 "data_format": "single-value",
             })
             continue
+        if entry_kind == 4:
+            doc = reader.string()
+            reader.string()  # library
+            name = reader.string()
+            cases = []
+            for _ in range(reader.u32()):
+                case_doc = reader.string()
+                case_name = reader.string()
+                cases.append({"doc": case_doc, "name": case_name, "value": reader.u32()})
+            errors.append({"name": name, "doc": doc, "cases": cases})
+            continue
         raise ArtifactError(f"unsupported contract spec entry {entry_kind}")
-    return functions, events
+    return functions, events, errors
 
 
 def _environment_protocol(data: bytes) -> int:
@@ -336,7 +348,7 @@ def inspect_wasm(data: bytes) -> dict:
             + ", ".join(SECTION_NAMES[section_id] for section_id in missing_ids)
         )
     custom = _custom_sections(sections)
-    functions, events = _contract_spec(custom["contractspecv0"])
+    functions, events, errors = _contract_spec(custom["contractspecv0"])
     metadata = _contract_metadata(custom["contractmetav0"])
     if not metadata.get("name"):
         raise ArtifactError("contract metadata does not contain a name")
@@ -366,6 +378,7 @@ def inspect_wasm(data: bytes) -> dict:
         "sha256": hashlib.sha256(data).hexdigest(),
         "functions": functions,
         "events": events,
+        "errors": errors,
         "imports": imports,
         "exports": exports,
         "custom_sections": [

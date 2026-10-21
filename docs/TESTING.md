@@ -50,6 +50,13 @@ contract.invoke("increment", "alice", 5, auth={"alice"})
 ```
 
 The test environment never retains an authorization grant for the next call.
+`fail(Error.CASE)` raises `ContractError`. Any `InvocationError`, including
+authorization failure, a missing storage key, arithmetic overflow, and
+`ContractError`, restores instance storage and events to the state before
+that root invocation. A linked contract called during the invocation is
+restored too. This matches a Soroban trap: the host does not commit the
+failed call. A zero return is not rolled back, because it is a successful
+result.
 
 ## Storage and events
 
@@ -116,6 +123,8 @@ assert vectors.invoke("sum", [3, 5, 8]) == 16
 - It does not reproduce ledger TTL, sequence, timestamp, or network state.
 - Address values are represented as Python strings and are not StrKey-decoded.
 - Nested collections and mutable collection operations are not implemented yet.
+- `fail` traps the call. It does not return a value the caller can catch;
+  PySoroban has no `try`.
 
 Every new host operation should have both interpreter tests and a Stellar
 integration test before it is treated as supported.
