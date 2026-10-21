@@ -41,13 +41,13 @@ class Context:
 class SimpleAccount:
     """Single ed25519 owner.
 
-    Call initialize instead of __constructor. __check_auth does not read the
+    ``__constructor`` runs once. __check_auth does not read the
     auth context. The test host invokes __check_auth only after
     authorize_account.
     """
 
     @public
-    def initialize(self, public_key: BytesN[32]) -> None:
+    def __constructor(self, public_key: BytesN[32]) -> None:
         if storage.instance.has(DataKey.Owner()):
             fail(AccountError.ALREADY_SET)
         storage.instance.set(DataKey.Owner(), public_key)

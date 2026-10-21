@@ -28,7 +28,7 @@ class Token:
     """
 
     @public
-    def initialize(self, admin: Address, decimals: u32, name: String) -> None:
+    def __constructor(self, admin: Address, decimals: u32, name: String) -> None:
         admin.require_auth()
         if storage.instance.has(Symbol("admin")):
             fail(TokenError.ALREADY_INITIALIZED)

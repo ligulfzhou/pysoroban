@@ -109,6 +109,7 @@ class ContractTest:
         self._current_args = ()
         self._contracts = {}
         self._transaction = None
+        self._constructed = False
 
     @classmethod
     def from_source(cls, source: str, source_name: Optional[str] = None) -> "ContractTest":
@@ -203,6 +204,14 @@ class ContractTest:
         function = next((item for item in self.contract.functions if item.name == name), None)
         if function is None:
             raise InvocationError(f"unknown contract function {name!r}")
+        has_constructor = any(item.name == "__constructor" for item in self.contract.functions)
+        if name == "__constructor":
+            if transaction is not None:
+                raise InvocationError("__constructor runs only at contract creation")
+            if self._constructed:
+                raise InvocationError("__constructor already ran")
+        elif has_constructor and not self._constructed:
+            raise InvocationError("contract constructor has not run")
         if args and kwargs:
             raise InvocationError("use positional or keyword arguments, not both")
         if kwargs:
@@ -263,8 +272,12 @@ class ContractTest:
                 self._statements(function.body, variables)
             except _ReturnSignal as returned:
                 _validate_native(returned.value, function.result, "return value")
+                if name == "__constructor":
+                    self._constructed = True
                 return returned.value
             if function.result is ValueType.VOID:
+                if name == "__constructor":
+                    self._constructed = True
                 return None
             raise InvocationError(f"{name}() completed without returning a value")
         except InvocationError:
@@ -526,6 +539,8 @@ class ContractTest:
             return value[2][0]
         if call.op == "try_call":
             address, function, *args = values
+            if function == "__constructor":
+                raise InvocationError("__constructor runs only at contract creation")
             target = self._contracts.get(address)
             if target is None:
                 raise InvocationError(f"unregistered contract address {address!r}")
@@ -542,6 +557,8 @@ class ContractTest:
             return ("ok", result)
         if call.op == "contract_call":
             address, function, *args = values
+            if function == "__constructor":
+                raise InvocationError("__constructor runs only at contract creation")
             target = self._contracts.get(address)
             if target is None:
                 raise InvocationError(f"unregistered contract address {address!r}")

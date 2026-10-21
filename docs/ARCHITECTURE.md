@@ -220,11 +220,13 @@ calls are recorded in `deployments/testnet.json`. That file is the September 202
 - `try_*` calls the protocol `try_call` import. The test host turns a callee
   `fail` into `Result` and rolls that callee back. It does not turn every host
   error into a `Result`.
+- `__constructor` is exported and listed in the contract spec. The test host
+  runs it once before other entrypoints. `deploy.with_constructor` still does
+  not execute the deployed Wasm.
 - `__check_auth` runs in the test host when `authorize_account` recorded a
   signature for a registered account. `auth.as_current_contract` emits one
-  `InvokerContractAuthEntry` and authorizes that subcall. There is still no
-  `__constructor`. Create-contract contexts and protocol-27 delegated signers
-  are not modeled.
+  `InvokerContractAuthEntry` and authorizes that subcall. Create-contract
+  contexts and protocol-27 delegated signers are not modeled.
 - The compiler currently targets a single declared Stellar protocol version.
 - The project has not completed an independent security audit.
 

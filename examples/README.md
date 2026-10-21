@@ -12,7 +12,7 @@ a contract.
 
 Shared differences:
 
-- There is no `__constructor`. Call `initialize`.
+- `__constructor` is the protocol constructor. The test host runs it once via `invoke`. `deploy.with_constructor` does not execute the new Wasm.
 - Token amounts are checked `u128`. The Rust examples use `i128`.
 - `fail` replaces `panic` and `Result`.
 - The test host authorizes the calling contract on a direct call only. The

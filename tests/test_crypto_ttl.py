@@ -184,7 +184,7 @@ class Wide:
         self.assertIn(b"\x01c\x01g", account.compilation.wasm)
         account.contract_address = "CBLS"
         public = b"\x11" * 96
-        account.invoke("initialize", public)
+        account.invoke("__constructor", public)
         payload = b"\x22" * 32
         signature = b"\x33" * 192
         account.allow_host_result("bls12_381_hash_to_g2", b"\x44" * 192)

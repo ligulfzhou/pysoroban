@@ -113,7 +113,8 @@ def contract_spec(contract: Contract) -> bytes:
                 entries += u32(0)
                 entries += xdr_string(case.doc)
                 entries += xdr_string(case.name)
-    for function in contract.functions:
+    functions = sorted(contract.functions, key=lambda item: item.name != "__constructor")
+    for function in functions:
         entries += u32(0)  # SC_SPEC_ENTRY_FUNCTION_V0
         entries += xdr_string(function.doc)
         entries += xdr_string(function.name)

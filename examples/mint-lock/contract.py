@@ -58,7 +58,7 @@ class Contract:
     """
 
     @public
-    def initialize(self, admin: Address) -> None:
+    def __constructor(self, admin: Address) -> None:
         storage.instance.set(Symbol("Admin"), admin)
 
     @public
