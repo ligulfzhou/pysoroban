@@ -121,11 +121,10 @@ assert vectors.invoke("sum", [3, 5, 8]) == 16
 
 - It runs Typed IR, not the compiled Wasm binary.
 - It does not meter CPU, memory, ledger I/O, or fees.
-- It does not reproduce ledger TTL, sequence, timestamp, or network state.
+- TTL expiry is off unless `enforce_ttl` is set. Sequence, timestamp, and
+  network id are values the test assigns.
 - Address values are represented as Python strings and are not StrKey-decoded.
-- Nested collections and mutable collection operations are not implemented yet.
-- `fail` traps the call. It does not return a value the caller can catch;
-  PySoroban has no `try`.
+- `fail` traps the call. `try_*` is the way a caller observes that failure.
 
 Every new host operation should have both interpreter tests and a Stellar
 integration test before it is treated as supported.

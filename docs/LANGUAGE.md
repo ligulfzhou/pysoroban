@@ -39,7 +39,7 @@ Supported value types are `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `u256`,
 `Vec[T]` is homogeneous. The element may be one of those scalars, `BytesN[N]`,
 another `Vec` or `Map`, `Option`, `Result`, `Tuple`, or a user-defined
 `@struct`, `@enum`, or `@union`. `BytesN[N]` is a byte string of length `N`
-(1 through 64). `Map[K, V]` accepts scalar, enum, and struct keys. Values may
+(1 through 1024). BLS points use 96 and 192. `Map[K, V]` accepts scalar, enum, and struct keys. Values may
 be nested collections. Map keys may not be collections. `Bytes` and `BytesN`
 support ordering comparisons. `to_xdr(value)` returns the Soroban ScVal XDR
 bytes.
@@ -181,15 +181,24 @@ compiler writes that handle back to the local.
 `Bytes.slice(start, end)` takes `u32` bounds and excludes `end`. A range outside
 the buffer traps. `value.append(other)` is a statement, like `Vec.push`.
 
-`ledger.sequence()` and `ledger.version()` return `u32`. `ledger.timestamp()`
-returns `u64`. `ledger.network_id()` returns `Bytes`.
-`env.current_contract_address()` returns `Address`.
+`ledger.sequence()`, `ledger.version()`, and `ledger.max_live_until()` return
+`u32`. `ledger.timestamp()` returns `u64`. `ledger.network_id()` returns `Bytes`.
+`env.current_contract_address()` returns `Address`. `ledger.max_live_until()`
+is host `x.8`.
 
 `crypto.sha256(value)` and `crypto.keccak256(value)` hash `Bytes` and return
 `Bytes`. `crypto.ed25519_verify(key, message, signature)` takes three `Bytes`
-values and returns `None`; a rejected signature traps. `log(message)` writes
-one `String`. `prng.bytes(length)` takes a `u32` and returns `Bytes`.
-`prng.u64(low, high)` takes an inclusive `u64` range and returns `u64`.
+or `BytesN` values and returns `None`; a rejected signature traps.
+Protocol 25 also exposes BLS12-381 and BN254 through `crypto.<host name>(...)`,
+including `bls12_381_hash_to_g2`, `bls12_381_multi_pairing_check`,
+`bls12_381_fr_*`, `bn254_g1_add`, `bn254_g1_mul`, and
+`bn254_multi_pairing_check`. Points are `Bytes` or `BytesN`. Scalars are
+`u256`, except `fr_pow`, whose exponent is `u64`. Pairing and MSM arguments
+are `Vec[Bytes]` or `Vec[u256]`. A `Vec[Bytes]` element may be `BytesN`.
+Protocol 26 names such as `bn254_fr_add` and the on-curve checks are not
+imported. `log(message)` writes one `String`. `prng.bytes(length)` takes a
+`u32` and returns `Bytes`. `prng.u64(low, high)` takes an inclusive `u64`
+range and returns `u64`.
 
 `address.require_auth()` traps unless that address authorized the invocation.
 `address.require_auth_for(*args)` does the same and passes the authorized
@@ -219,14 +228,19 @@ decoded for 32-bit and 64-bit integers. `Vec[Val]` is allowed.
 serialized asset bytes and returns its `Address`. The compiler does not build
 that asset XDR.
 
-The test environment is not the Soroban host. It records TTL extensions
-without expiring entries. `ed25519_verify` succeeds only after
-`ContractTest.allow_signature(key, message, signature)`. `prng` is a local
-xorshift, not the host PRNG. Deployed addresses are synthetic, while
-`deploy.upload` returns a real SHA-256 digest. `try_*` catches `fail` in the
-callee and rolls that callee back. `ed25519_verify` succeeds only after
-`ContractTest.allow_signature`. The host does not build create-contract
-`Context` variants or auth trees deeper than one subcall.
+The test environment is not the Soroban host. It records TTL extensions.
+`enforce_ttl` is off by default, so entries stay readable. When it is on, a
+ledger sequence past the recorded live-until ledger makes `has` return false
+and `get` raise. A missing bound is treated as due for extension. The new
+bound is `sequence + extend_to`, clamped to `max_live_until_ledger`.
+`ed25519_verify` accepts a triple from `allow_signature` first. Otherwise it
+uses the `cryptography` package when that package is installed.
+`prng` is a local xorshift, not the host PRNG. Deployed addresses are
+synthetic, while `deploy.upload` returns a real SHA-256 digest. `try_*`
+catches `fail` in the callee and rolls that callee back. Curve calls return
+the next value queued by `allow_host_result`; the test host does not evaluate
+BLS12-381 or BN254. The host does not build create-contract `Context`
+variants or auth trees deeper than one subcall.
 
 Typed events use `@event`, exactly one data field, and `Topic[T]` fields
 before that data field. `events.publish` also accepts a raw `Symbol` topic

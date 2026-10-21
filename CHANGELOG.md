@@ -2,6 +2,18 @@
 
 All notable changes to PySoroban are documented here.
 
+## 0.18.0a1 — 2026-10-21
+
+- Pass protocol-25 BLS12-381 and BN254 host functions through `crypto`.
+  The test host returns a queued `allow_host_result` and does not evaluate
+  the curve. Protocol 26 scalar and on-curve checks stay unwired.
+- Verify ed25519 with `cryptography` when `allow_signature` did not list the
+  triple. `BytesN` lengths run through 1024. `Vec[Bytes]` accepts `BytesN`.
+- `ledger.max_live_until()` reads host `x.8`. `ContractTest.enforce_ttl`
+  expires an entry after its recorded live-until ledger.
+- Port `bls_signature`. `groth16_verifier` and `privacy-pools` stay out: the
+  circuits and the LeanIMT are not the host calls.
+
 ## 0.17.0a1 — 2026-10-21
 
 - Run `__check_auth` from `require_auth` when a test calls `authorize_account`.

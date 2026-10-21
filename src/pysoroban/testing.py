@@ -20,6 +20,7 @@ from .compiler import CompilationResult, compile_source
 from .scval import xdr_bytes
 from .model import (
     BytesNType,
+    CURVE_HOST,
     EnumType,
     OptionType,
     ResultType,
@@ -85,6 +86,12 @@ class ContractTest:
         self.ledger_timestamp = 0
         self.ledger_version = 25
         self.network_id = bytes(32)
+        # Expiry is off unless a test opts in. An extension still records a
+        # live-until ledger so turning the flag on later can observe it.
+        self.enforce_ttl = False
+        self.max_live_until_ledger = 2**32 - 1
+        self._live_until = {}
+        self._host_results = {}
         self.contract_address = "CSELF"
         self.logs = []
         self.deployments = []
@@ -114,15 +121,25 @@ class ContractTest:
 
     @property
     def storage(self) -> Mapping[NativeValue, NativeValue]:
+        if self._entry_expired(("instance",)):
+            return MappingProxyType({})
         return MappingProxyType({key: entry[0] for key, entry in self._storage.items()})
 
     @property
     def persistent(self) -> Mapping[NativeValue, NativeValue]:
-        return MappingProxyType({key: entry[0] for key, entry in self._persistent.items()})
+        return MappingProxyType({
+            key: entry[0]
+            for key, entry in self._persistent.items()
+            if not self._entry_expired(("persistent", key))
+        })
 
     @property
     def temporary(self) -> Mapping[NativeValue, NativeValue]:
-        return MappingProxyType({key: entry[0] for key, entry in self._temporary.items()})
+        return MappingProxyType({
+            key: entry[0]
+            for key, entry in self._temporary.items()
+            if not self._entry_expired(("temporary", key))
+        })
 
     @property
     def ttl_extensions(self) -> Tuple[dict, ...]:
@@ -137,8 +154,23 @@ class ContractTest:
         return tuple(self._last_events)
 
     def allow_signature(self, key: bytes, message: bytes, signature: bytes) -> None:
-        """Accept one ed25519 triple. The test host does not implement the curve."""
+        """Accept one ed25519 triple without checking the curve.
+
+        A triple that is absent here is checked with ``cryptography`` when that
+        package is installed. This list still wins, so a test can accept bytes
+        that are not a real signature.
+        """
         self._signatures.add((key, message, signature))
+
+    def allow_host_result(self, op: str, result: NativeValue) -> None:
+        """Queue one return value for a BLS12-381 or BN254 host function.
+
+        The test host does not evaluate those curves. Each call consumes the
+        next queued value. A failed invocation restores the queue.
+        """
+        if op not in CURVE_HOST:
+            raise InvocationError(f"unknown curve host function {op}")
+        self._host_results.setdefault(op, []).append(result)
 
     def clear_events(self) -> None:
         self._events.clear()
@@ -217,6 +249,8 @@ class ContractTest:
             copy.deepcopy(self._persistent),
             copy.deepcopy(self._temporary),
             list(self._ttl),
+            copy.deepcopy(self._live_until),
+            copy.deepcopy(self._host_results),
             list(self._events),
             list(self._last_events),
             list(self.logs),
@@ -405,27 +439,36 @@ class ContractTest:
             state["pending_subauth"].append((self.contract_address, contract, fn, arg))
             return None
         if call.op == "storage_set":
+            self._require_live(("instance",), "instance")
             self._storage[_storage_key(values[0])] = (values[1], call.args[1].type)
             return None
         if call.op == "storage_has":
-            return _storage_key(values[0]) in self._storage
+            key = _storage_key(values[0])
+            return not self._entry_expired(("instance",)) and key in self._storage
         if call.op.startswith("storage_get"):
+            self._require_live(("instance",), "instance")
             return self._storage_get(self._storage, _storage_key(values[0]), call.type, "instance")
         if call.op == "storage_del":
+            self._require_live(("instance",), "instance")
             return self._storage_delete(self._storage, _storage_key(values[0]), "instance")
         tier = _storage_tier(call.op)
         if tier is not None:
             bucket, label, action = tier
             bucket = {"persistent": self._persistent, "temporary": self._temporary}[label]
             key = _storage_key(values[0])
+            slot = (label, key)
             if action == "set":
+                self._require_live(slot, label)
                 bucket[key] = (values[1], call.args[1].type)
                 return None
             if action == "has":
-                return key in bucket
+                return not self._entry_expired(slot) and key in bucket
             if action == "get":
+                self._require_live(slot, label)
                 return self._storage_get(bucket, key, call.type, label)
             if action == "del":
+                self._require_live(slot, label)
+                self._live_until.pop(slot, None)
                 return self._storage_delete(bucket, key, label)
             if action == "extend":
                 self._ttl.append({
@@ -434,9 +477,11 @@ class ContractTest:
                     "threshold": values[1],
                     "extend_to": values[2],
                 })
+                self._note_extend(slot, values[1], values[2])
                 return None
         if call.op == "extend_instance":
             self._ttl.append({"tier": "instance", "threshold": values[0], "extend_to": values[1]})
+            self._note_extend(("instance",), values[0], values[1])
             return None
         if call.op == "event_publish":
             event = Event(tuple(values[:-1]), values[-1])
@@ -579,6 +624,8 @@ class ContractTest:
             return values[0][field_name]
         if call.op == "ledger_sequence":
             return self.ledger_sequence
+        if call.op == "ledger_max_live":
+            return self.max_live_until_ledger
         if call.op == "ledger_timestamp":
             return self.ledger_timestamp
         if call.op == "ledger_version":
@@ -592,9 +639,12 @@ class ContractTest:
         if call.op == "keccak256":
             return _keccak256(values[0])
         if call.op == "ed25519_verify":
-            if tuple(values) not in self._signatures:
-                raise InvocationError("ed25519 signature was not accepted by the test host")
-            return None
+            key, message, signature = values
+            if (key, message, signature) in self._signatures or _ed25519_accepts(key, message, signature):
+                return None
+            raise InvocationError("ed25519 signature was not accepted by the test host")
+        if call.op in CURVE_HOST:
+            return self._curve_result(call.op, values)
         if call.op == "log":
             self.logs.append(values[0])
             return None
@@ -661,6 +711,54 @@ class ContractTest:
             self.deployments.append({"address": address, "asset": values[0]})
             return address
         raise AssertionError(call.op)
+
+    def _entry_expired(self, slot) -> bool:
+        if not self.enforce_ttl:
+            return False
+        live = self._live_until.get(slot)
+        return live is not None and self.ledger_sequence > live
+
+    def _require_live(self, slot, label: str) -> None:
+        if self._entry_expired(slot):
+            raise StorageMissingError(f"expired {label} storage")
+
+    def _note_extend(self, slot, threshold: int, extend_to: int) -> None:
+        """Match Soroban's threshold rule. A missing bound counts as due."""
+        current = self._live_until.get(slot)
+        remaining = 0 if current is None else current - self.ledger_sequence
+        if current is not None and remaining > threshold:
+            return
+        proposed = self.ledger_sequence + int(extend_to)
+        if proposed > self.max_live_until_ledger:
+            proposed = self.max_live_until_ledger
+        self._live_until[slot] = proposed
+
+    def _curve_result(self, op: str, values) -> NativeValue:
+        _export, kinds, result = CURVE_HOST[op]
+        if len(values) != len(kinds):
+            raise InvocationError(f"{op} received {len(values)} arguments")
+        for value, kind in zip(values, kinds):
+            if kind == "bytes" and not isinstance(value, bytes):
+                raise InvocationError(f"{op} expected bytes")
+            if kind in {"u256", "u64"} and (not isinstance(value, int) or isinstance(value, bool)):
+                raise InvocationError(f"{op} expected an integer")
+            if kind == "vec_bytes":
+                if not isinstance(value, list) or any(not isinstance(item, bytes) for item in value):
+                    raise InvocationError(f"{op} expected a vector of bytes")
+            if kind == "vec_u256":
+                if not isinstance(value, list) or any(not isinstance(item, int) or isinstance(item, bool) for item in value):
+                    raise InvocationError(f"{op} expected a vector of u256")
+        queue = self._host_results.get(op) or []
+        if not queue:
+            raise InvocationError(f"{op} is not evaluated by the test host")
+        scripted = queue.pop(0)
+        if result is ValueType.BOOL and not isinstance(scripted, bool):
+            raise InvocationError(f"{op} scripted result must be a boolean")
+        if result is ValueType.BYTES and not isinstance(scripted, bytes):
+            raise InvocationError(f"{op} scripted result must be bytes")
+        if result is ValueType.U256 and (not isinstance(scripted, int) or isinstance(scripted, bool)):
+            raise InvocationError(f"{op} scripted result must be an integer")
+        return scripted
 
     def _storage_get(self, bucket, key, value_type, label: str):
         if key not in bucket:
@@ -767,17 +865,36 @@ def _storage_tier(op: str):
 
 
 def _restore_transaction(transaction: List[tuple]) -> None:
-    for contract, storage, persistent, temporary, ttl, events, last_events, logs, deployments, uploads, upgraded in reversed(transaction):
+    for (
+        contract, storage, persistent, temporary, ttl, live_until, host_results,
+        events, last_events, logs, deployments, uploads, upgraded,
+    ) in reversed(transaction):
         contract._storage = storage
         contract._persistent = persistent
         contract._temporary = temporary
         contract._ttl = ttl
+        contract._live_until = live_until
+        contract._host_results = host_results
         contract._events = events
         contract._last_events = last_events
         contract.logs = logs
         contract.deployments = deployments
         contract.uploads = uploads
         contract.upgraded = upgraded
+
+
+def _ed25519_accepts(key: bytes, message: bytes, signature: bytes) -> bool:
+    """Verify with ``cryptography`` when it is installed. Import stays local."""
+    try:
+        from cryptography.exceptions import InvalidSignature
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+    except ImportError:
+        return False
+    try:
+        Ed25519PublicKey.from_public_bytes(key).verify(signature, message)
+    except (InvalidSignature, ValueError, TypeError):
+        return False
+    return True
 
 
 def _wrap_integer(value: int, value_type: ValueType) -> int:

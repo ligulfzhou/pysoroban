@@ -228,6 +228,65 @@ def is_object_type(value_type: ContractType) -> bool:
     )
 
 
+# Official points use 96-byte G1 and 192-byte G2 values. The cap is a
+# compiler limit, not a protocol limit on the Bytes object itself.
+BYTESN_MAX = 1024
+
+
+def vec_element_accepts(element: ContractType, actual: ContractType) -> bool:
+    """A ``Vec[Bytes]`` element may be ``Bytes`` or ``BytesN``."""
+    if actual == element:
+        return True
+    return element is ValueType.BYTES and is_bytes_type(actual)
+
+
+# Protocol-25 curve host functions. Each entry is the env export, argument
+# kinds, and result type. Protocol 26 scalar and on-curve checks are omitted
+# because this compiler targets protocol 25.
+_B = "bytes"
+_U = "u256"
+_L = "u64"
+_VB = "vec_bytes"
+_VU = "vec_u256"
+CURVE_HOST = {
+    "bls12_381_check_g1_is_in_subgroup": ("4", (_B,), ValueType.BOOL),
+    "bls12_381_g1_add": ("5", (_B, _B), ValueType.BYTES),
+    "bls12_381_g1_mul": ("6", (_B, _U), ValueType.BYTES),
+    "bls12_381_g1_msm": ("7", (_VB, _VU), ValueType.BYTES),
+    "bls12_381_map_fp_to_g1": ("8", (_B,), ValueType.BYTES),
+    "bls12_381_hash_to_g1": ("9", (_B, _B), ValueType.BYTES),
+    "bls12_381_check_g2_is_in_subgroup": ("a", (_B,), ValueType.BOOL),
+    "bls12_381_g2_add": ("b", (_B, _B), ValueType.BYTES),
+    "bls12_381_g2_mul": ("c", (_B, _U), ValueType.BYTES),
+    "bls12_381_g2_msm": ("d", (_VB, _VU), ValueType.BYTES),
+    "bls12_381_map_fp2_to_g2": ("e", (_B,), ValueType.BYTES),
+    "bls12_381_hash_to_g2": ("f", (_B, _B), ValueType.BYTES),
+    "bls12_381_multi_pairing_check": ("g", (_VB, _VB), ValueType.BOOL),
+    "bls12_381_fr_add": ("h", (_U, _U), ValueType.U256),
+    "bls12_381_fr_sub": ("i", (_U, _U), ValueType.U256),
+    "bls12_381_fr_mul": ("j", (_U, _U), ValueType.U256),
+    "bls12_381_fr_pow": ("k", (_U, _L), ValueType.U256),
+    "bls12_381_fr_inv": ("l", (_U,), ValueType.U256),
+    "bn254_g1_add": ("m", (_B, _B), ValueType.BYTES),
+    "bn254_g1_mul": ("n", (_B, _U), ValueType.BYTES),
+    "bn254_multi_pairing_check": ("o", (_VB, _VB), ValueType.BOOL),
+}
+
+
+def curve_arg_matches(kind: str, actual: ContractType) -> bool:
+    if kind == "bytes":
+        return is_bytes_type(actual)
+    if kind == "u256":
+        return actual is ValueType.U256
+    if kind == "u64":
+        return actual is ValueType.U64
+    if kind == "vec_bytes":
+        return is_vec_type(actual) and is_bytes_type(vec_element(actual))
+    if kind == "vec_u256":
+        return is_vec_type(actual) and vec_element(actual) is ValueType.U256
+    return False
+
+
 @dataclass(frozen=True)
 class Parameter:
     name: str

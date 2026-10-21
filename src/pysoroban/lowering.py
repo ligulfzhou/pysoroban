@@ -30,6 +30,7 @@ from .model import (
     Parameter,
     StructType,
     ValueType,
+    CURVE_HOST,
     is_vec_type,
     vec_element,
 )
@@ -484,6 +485,7 @@ class FunctionLowerer:
     def _service(self, node: ast.Call, path):
         operations = {
             ("ledger", "sequence"): ("ledger_sequence", ValueType.U32),
+            ("ledger", "max_live_until"): ("ledger_max_live", ValueType.U32),
             ("ledger", "timestamp"): ("ledger_timestamp", ValueType.U64),
             ("ledger", "version"): ("ledger_version", ValueType.U32),
             ("ledger", "network_id"): ("ledger_network", ValueType.BYTES),
@@ -503,6 +505,10 @@ class FunctionLowerer:
         }
         if len(path) == 2 and path[1] == "from_val" and path[0] in ANNOTATIONS:
             return ir.HostCall("from_val", (self.expression(node.args[0]),), ANNOTATIONS[path[0]])
+        if len(path) == 2 and path[0] == "crypto" and path[1] in CURVE_HOST:
+            result = CURVE_HOST[path[1]][2]
+            args = tuple(self.expression(value) for value in node.args)
+            return ir.HostCall(path[1], args, result)
         if tuple(path) in operations:
             op, result = operations[tuple(path)]
             args = tuple(self.expression(value) for value in node.args)
