@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Sequence, Tuple
 
 from . import ir
-from .model import ContractType, ValueType, VEC_ELEMENT_TYPES, is_object_type
+from .model import ContractType, EnumType, StructType, ValueType, is_object_type
 from .xdr import contract_spec, environment_metadata
 
 
@@ -16,6 +16,8 @@ I64_SMALL_TAG = 7
 VOID_TAG = 2
 ERROR_TAG = 3
 INSTANCE_STORAGE = 2
+PERSISTENT_STORAGE = 1
+TEMPORARY_STORAGE = 0
 
 # Names and indices are the protocol-25 env.json interface. Every imported
 # argument and result is directly marshalled through the Wasm i64 ABI.
@@ -178,13 +180,13 @@ class FunctionEmitter:
         body = vector(local_decls) + code
         return uleb(len(body)) + body
 
-    def _decode_param(self, variable: str, value_type: ValueType) -> bytes:
+    def _decode_param(self, variable: str, value_type: ContractType) -> bytes:
         raw_index = self.locals.param_raw[variable]
         raw = b"\x20" + uleb(raw_index)
         if value_type is ValueType.I32:
             # Soroban I32Val: [i32 bits:32][minor:24][tag:8].
             return raw + b"\x42\x20\x87\xa7"
-        if value_type is ValueType.U32:
+        if value_type is ValueType.U32 or isinstance(value_type, EnumType):
             return raw + b"\x42\x20\x88\xa7"
         if value_type is ValueType.BOOL:
             # False and true are represented by Val tags 0 and 1.
@@ -245,6 +247,19 @@ class FunctionEmitter:
             if isinstance(node.value, ir.Constant) and node.value.type is ValueType.VOID:
                 return b""
             return self.expression(node.value) + b"\x1a"  # drop Void Val
+        if isinstance(node, ir.PopBack):
+            collection = uleb(self.locals.native[node.collection])
+            target = uleb(self.locals.native[node.target])
+            element_type = self.locals.types[node.target]
+            return b"".join([
+                b"\x20", collection,
+                b"\x10", uleb(self.host_indices[("v", "9")]),
+                self._decode_call_result(element_type),
+                b"\x21", target,
+                b"\x20", collection,
+                b"\x10", uleb(self.host_indices[("v", "7")]),
+                b"\x21", collection,
+            ])
         if isinstance(node, ir.Fail):
             # Error Val: major = contract code, minor = ScErrorType::Contract (0), tag = 3.
             # fail_with_error traps; unreachable keeps the Wasm type checker satisfied.
@@ -336,7 +351,7 @@ class FunctionEmitter:
                 "le": 0x4C,
                 "ge": 0x4E,
             }
-            if operand_type is ValueType.U32:
+            if operand_type is ValueType.U32 or isinstance(operand_type, EnumType):
                 i32_opcodes.update({"lt": 0x49, "gt": 0x4B, "le": 0x4D, "ge": 0x4F})
             i64_opcodes = {"eq": 0x51, "ne": 0x52, "lt": 0x53, "gt": 0x55, "le": 0x57, "ge": 0x59}
             if operand_type is ValueType.U64:
@@ -489,6 +504,78 @@ class FunctionEmitter:
                 "storage_get_string", "storage_get_bytes",
             }:
                 return raw
+            if node.op == "storage_get":
+                return raw + self._decode_call_result(node.type)
+            if node.op == "storage_del":
+                return prefix + b"\x10" + uleb(self.host_indices[("l", "2")])
+        if node.op.startswith("pstorage_") or node.op.startswith("tstorage_"):
+            return self._tier_storage(node)
+        if node.op == "extend_instance":
+            threshold, extend_to = node.args
+            return b"".join([
+                self.expression(threshold), self.encode_val(ValueType.U32),
+                self.expression(extend_to), self.encode_val(ValueType.U32),
+                b"\x10", uleb(self.host_indices[("l", "8")]),
+            ])
+        if node.op == "vec_new":
+            return b"\x10" + uleb(self.host_indices[("v", "_")])
+        if node.op == "map_new":
+            return b"\x10" + uleb(self.host_indices[("m", "_")])
+        if node.op == "vec_push":
+            vector, item = node.args
+            return b"".join([
+                self.expression(vector),
+                self.expression(item), self.encode_val(item.type),
+                b"\x10", uleb(self.host_indices[("v", "6")]),
+            ])
+        if node.op == "vec_put":
+            vector, index, item = node.args
+            return b"".join([
+                self.expression(vector),
+                self.expression(index), self.encode_val(ValueType.U32),
+                self.expression(item), self.encode_val(item.type),
+                b"\x10", uleb(self.host_indices[("v", "0")]),
+            ])
+        if node.op == "vec_insert":
+            vector, index, item = node.args
+            return b"".join([
+                self.expression(vector),
+                self.expression(index), self.encode_val(ValueType.U32),
+                self.expression(item), self.encode_val(item.type),
+                b"\x10", uleb(self.host_indices[("v", "a")]),
+            ])
+        if node.op == "vec_del":
+            vector, index = node.args
+            return b"".join([
+                self.expression(vector),
+                self.expression(index), self.encode_val(ValueType.U32),
+                b"\x10", uleb(self.host_indices[("v", "2")]),
+            ])
+        if node.op == "map_put":
+            map_value, key, item = node.args
+            return b"".join([
+                self.expression(map_value),
+                self.expression(key), self.encode_val(key.type),
+                self.expression(item), self.encode_val(item.type),
+                b"\x10", uleb(self.host_indices[("m", "0")]),
+            ])
+        if node.op == "map_del":
+            map_value, key = node.args
+            return b"".join([
+                self.expression(map_value),
+                self.expression(key), self.encode_val(key.type),
+                b"\x10", uleb(self.host_indices[("m", "2")]),
+            ])
+        if node.op == "struct_new":
+            return self._struct_new(node)
+        if node.op == "struct_field":
+            owner, field = node.args
+            raw = b"".join([
+                self.expression(owner),
+                self.expression(field), self.encode_val(ValueType.SYMBOL),
+                b"\x10", uleb(self.host_indices[("m", "1")]),
+            ])
+            return raw + self._decode_call_result(node.type)
         if node.op == "event_publish":
             topics, data = node.args[:-1], node.args[-1]
             stored_topics = bytearray()
@@ -548,6 +635,54 @@ class FunctionEmitter:
             ])
             return raw + self._decode_call_result(node.type)
         raise AssertionError(node.op)
+
+    def _tier_storage(self, node: ir.HostCall) -> bytes:
+        durability = PERSISTENT_STORAGE if node.op.startswith("pstorage_") else TEMPORARY_STORAGE
+        action = node.op.split("_", 1)[1]
+        key = node.args[0]
+        prefix = self.expression(key) + self.encode_val(key.type) + b"\x42" + sleb(durability)
+        if action == "set":
+            value = node.args[1]
+            return (
+                self.expression(key) + self.encode_val(key.type)
+                + self.expression(value) + self.encode_val(value.type)
+                + b"\x42" + sleb(durability)
+                + b"\x10" + uleb(PUT_CONTRACT_DATA)
+            )
+        if action == "has":
+            return prefix + b"\x10" + uleb(HAS_CONTRACT_DATA) + b"\x42\x01\x51"
+        if action == "get":
+            return prefix + b"\x10" + uleb(GET_CONTRACT_DATA) + self._decode_call_result(node.type)
+        if action == "del":
+            return prefix + b"\x10" + uleb(self.host_indices[("l", "2")])
+        if action == "extend":
+            _key, threshold, extend_to = node.args
+            return b"".join([
+                prefix,
+                self.expression(threshold), self.encode_val(ValueType.U32),
+                self.expression(extend_to), self.encode_val(ValueType.U32),
+                b"\x10", uleb(self.host_indices[("l", "7")]),
+            ])
+        raise AssertionError(node.op)
+
+    def _struct_new(self, node: ir.HostCall) -> bytes:
+        slot = self._claim_wide_scratch()[0]
+        try:
+            struct = node.type
+            output = bytearray()
+            output += b"\x10" + uleb(self.host_indices[("m", "_")]) + b"\x21" + uleb(slot)
+            for field, argument in zip(struct.fields, node.args):
+                output += b"\x20" + uleb(slot)
+                output += self.expression(ir.Constant(field.name, ValueType.SYMBOL))
+                output += self.encode_val(ValueType.SYMBOL)
+                output += self.expression(argument)
+                output += self.encode_val(argument.type)
+                output += b"\x10" + uleb(self.host_indices[("m", "0")])
+                output += b"\x21" + uleb(slot)
+            output += b"\x20" + uleb(slot)
+            return bytes(output)
+        finally:
+            self._release_wide_scratch()
 
     def _u256_part(self, value_local: int, part: int) -> bytes:
         object_export = ("c", "d", "e", "f")[part]
@@ -609,7 +744,7 @@ class FunctionEmitter:
             return b""
         if value_type is ValueType.I32:
             return b"\x42\x20\x87\xa7"
-        if value_type is ValueType.U32:
+        if value_type is ValueType.U32 or isinstance(value_type, EnumType):
             return b"\x42\x20\x88\xa7"
         if value_type is ValueType.BOOL:
             return b"\x42\x01\x51"
@@ -629,7 +764,7 @@ class FunctionEmitter:
         if value_type is ValueType.I32:
             # Preserve the i32 bit pattern, shift it into Val.major, add tag 5.
             return b"\xad\x42\x20\x86\x42" + sleb(I32_TAG) + b"\x84"
-        if value_type is ValueType.U32:
+        if value_type is ValueType.U32 or isinstance(value_type, EnumType):
             return b"\xad\x42\x20\x86\x42" + sleb(U32_TAG) + b"\x84"
         if value_type is ValueType.I64:
             return b"\x10" + uleb(OBJ_FROM_I64)
@@ -648,7 +783,7 @@ def _wide_expression_depth(function: ir.Function) -> int:
     def expression(node: ir.Expression) -> int:
         if isinstance(node, ir.HostCall):
             child = max((expression(arg) for arg in node.args), default=0)
-            return child + (1 if node.op == "u128_mul_div_floor" else 0)
+            return child + (1 if node.op in {"u128_mul_div_floor", "struct_new"} else 0)
         if isinstance(node, ir.Unary):
             return expression(node.operand)
         if isinstance(node, (ir.Binary, ir.Compare)):
@@ -718,6 +853,8 @@ def emit_module(contract: ir.Contract, protocol: int = 25) -> bytes:
             ("i", "e", 1), ("i", "f", 1), ("i", "p", 2), ("i", "q", 2),
         ):
             optional(host_import)
+    for host_import in _collection_imports(contract):
+        optional(host_import)
     host_imports = HOST_IMPORTS + tuple(optional_imports)
     host_indices = {(module, field): index for index, (module, field, _) in enumerate(host_imports)}
     emitters = [FunctionEmitter(function, literals, host_indices) for function in contract.functions]
@@ -808,6 +945,79 @@ def _max_linear_values(contract: ir.Contract) -> int:
         for item in function.body:
             statement(item)
     return maximum
+
+
+def _collection_imports(contract: ir.Contract):
+    """Host imports introduced by structs, collection updates, and storage tiers."""
+    needed = {
+        "vec_new": ("v", "_", 0),
+        "vec_push": ("v", "6", 2),
+        "vec_put": ("v", "0", 3),
+        "vec_insert": ("v", "a", 3),
+        "vec_del": ("v", "2", 2),
+        "vec_back": ("v", "9", 1),
+        "vec_pop": ("v", "7", 1),
+        "map_new": ("m", "_", 0),
+        "map_put": ("m", "0", 3),
+        "map_del": ("m", "2", 2),
+        "struct_new": ("m", "_", 0),
+        "struct_field": ("m", "1", 2),
+        "storage_del": ("l", "2", 2),
+        "pstorage_del": ("l", "2", 2),
+        "tstorage_del": ("l", "2", 2),
+        "pstorage_extend": ("l", "7", 4),
+        "tstorage_extend": ("l", "7", 4),
+        "extend_instance": ("l", "8", 2),
+    }
+    found = set()
+
+    def expression(node: ir.Expression):
+        if isinstance(node, ir.HostCall):
+            if node.op in needed:
+                found.add(node.op)
+            if node.op == "struct_new":
+                found.add("struct_new")
+                found.add("map_put")
+            for arg in node.args:
+                expression(arg)
+        elif isinstance(node, ir.Unary):
+            expression(node.operand)
+        elif isinstance(node, (ir.Binary, ir.Compare)):
+            expression(node.left)
+            expression(node.right)
+
+    def statement(node: ir.Statement):
+        if isinstance(node, ir.PopBack):
+            found.add("vec_back")
+            found.add("vec_pop")
+        elif isinstance(node, (ir.Return, ir.SetLocal, ir.Drop)):
+            expression(node.value)
+        elif isinstance(node, ir.If):
+            expression(node.test)
+            for child in node.body + node.otherwise:
+                statement(child)
+        elif isinstance(node, ir.ForRange):
+            expression(node.start)
+            expression(node.stop)
+            for child in node.body:
+                statement(child)
+
+    for function in contract.functions:
+        for item in function.body:
+            statement(item)
+    imports = []
+    for op in (
+        "vec_new", "vec_push", "vec_put", "vec_insert", "vec_del", "vec_back", "vec_pop",
+        "map_new", "map_put", "map_del", "struct_field", "storage_del", "pstorage_del",
+        "tstorage_del", "pstorage_extend", "tstorage_extend", "extend_instance",
+    ):
+        if op in found and needed[op] not in imports:
+            imports.append(needed[op])
+    if "struct_new" in found:
+        for op in ("map_new", "map_put"):
+            if needed[op] not in imports:
+                imports.append(needed[op])
+    return imports
 
 
 def _contains_fail(contract: ir.Contract) -> bool:

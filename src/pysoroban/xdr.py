@@ -1,6 +1,6 @@
 import struct
 
-from .model import Contract, MapType, ValueType, VEC_ELEMENT_TYPES
+from .model import Contract, EnumType, MapType, StructType, ValueType, VecType, VEC_ELEMENT_TYPES
 
 
 SPEC_TYPES = {
@@ -37,6 +37,10 @@ def environment_metadata(protocol: int) -> bytes:
 def spec_type(value_type) -> bytes:
     if isinstance(value_type, MapType):
         return u32(1004) + spec_type(value_type.key) + spec_type(value_type.value_type)
+    if isinstance(value_type, VecType):
+        return u32(1002) + spec_type(value_type.element)
+    if isinstance(value_type, (StructType, EnumType)):
+        return u32(2000) + xdr_string(value_type.name)
     if value_type in VEC_ELEMENT_TYPES:
         return u32(1002) + spec_type(VEC_ELEMENT_TYPES[value_type])
     return u32(SPEC_TYPES[value_type])
@@ -44,6 +48,26 @@ def spec_type(value_type) -> bytes:
 
 def contract_spec(contract: Contract) -> bytes:
     entries = bytearray()
+    for struct in getattr(contract, "structs", ()):
+        entries += u32(1)  # SC_SPEC_ENTRY_UDT_STRUCT_V0
+        entries += xdr_string(struct.doc)
+        entries += xdr_string("")  # library
+        entries += xdr_string(struct.name)
+        entries += u32(len(struct.fields))
+        for field in struct.fields:
+            entries += xdr_string(field.doc)
+            entries += xdr_string(field.name)
+            entries += spec_type(field.type)
+    for enum in getattr(contract, "enums", ()):
+        entries += u32(3)  # SC_SPEC_ENTRY_UDT_ENUM_V0
+        entries += xdr_string(enum.doc)
+        entries += xdr_string("")  # library
+        entries += xdr_string(enum.name)
+        entries += u32(len(enum.cases))
+        for case in enum.cases:
+            entries += xdr_string(case.doc)
+            entries += xdr_string(case.name)
+            entries += u32(case.value)
     for function in contract.functions:
         entries += u32(0)  # SC_SPEC_ENTRY_FUNCTION_V0
         entries += xdr_string(function.doc)

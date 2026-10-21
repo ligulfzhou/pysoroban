@@ -184,8 +184,10 @@ calls are recorded in `deployments/testnet.json`.
 - Only the documented restricted Python subset is accepted.
 - Recursion, exceptions, floating point, reflection, dynamic imports, and
   arbitrary Python objects are excluded.
-- Collection mutation and nested collection types are not yet supported.
-- User-defined contract structs and enums are not yet supported.
+- Nested collection types are not yet supported. `Vec` and `Map` updates
+  reassign the local through the host's functional collection interface.
+- `@struct` and `@enum` are supported. Structs are Soroban maps of field
+  symbols. Enums are `u32` discriminants. Recursive struct fields are rejected.
 - Signed floor division is not supported; `//` currently has explicit unsigned
   `u32` and `u64` semantics only.
 - `i128` and `u128` support ABI pass-through, checked literals, comparisons,

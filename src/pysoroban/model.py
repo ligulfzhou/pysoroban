@@ -46,29 +46,113 @@ VEC_ELEMENT_TYPES = {value: key for key, value in VEC_TYPES_BY_ELEMENT.items()}
 
 
 @dataclass(frozen=True)
+class StructField:
+    name: str
+    type: "ContractType"
+    doc: str = ""
+
+
+@dataclass(frozen=True)
+class StructType:
+    """A named product type stored as a Soroban map of field symbols."""
+
+    name: str
+    fields: Tuple[StructField, ...]
+    doc: str = ""
+
+    @property
+    def value(self) -> str:
+        return self.name
+
+
+@dataclass(frozen=True)
+class EnumCase:
+    name: str
+    value: int
+    doc: str = ""
+
+
+@dataclass(frozen=True)
+class EnumType:
+    """A named integer enum stored as a Soroban u32."""
+
+    name: str
+    cases: Tuple[EnumCase, ...]
+    doc: str = ""
+
+    @property
+    def value(self) -> str:
+        return self.name
+
+
+@dataclass(frozen=True)
+class VecType:
+    """A vector whose element is a user-defined struct or enum."""
+
+    element: "ContractType"
+
+    @property
+    def value(self) -> str:
+        return f"Vec[{self.element.value}]"
+
+
+@dataclass(frozen=True)
 class MapType:
     """A homogeneous Soroban map type carried through the typed pipeline."""
 
-    key: ValueType
-    value_type: ValueType
+    key: "ContractType"
+    value_type: "ContractType"
 
     @property
     def value(self) -> str:
         return f"Map[{self.key.value}, {self.value_type.value}]"
 
 
-ContractType = Union[ValueType, MapType]
+ContractType = Union[ValueType, MapType, StructType, EnumType, VecType]
+
+
+def is_vec_type(value_type: ContractType) -> bool:
+    return isinstance(value_type, VecType) or value_type in VEC_ELEMENT_TYPES
+
+
+def vec_element(value_type: ContractType) -> ContractType:
+    if isinstance(value_type, VecType):
+        return value_type.element
+    return VEC_ELEMENT_TYPES[value_type]
+
+
+def is_map_type(value_type: ContractType) -> bool:
+    return isinstance(value_type, MapType)
+
+
+def is_collection(value_type: ContractType) -> bool:
+    return is_vec_type(value_type) or is_map_type(value_type)
+
+
+def is_integer_type(value_type: ContractType) -> bool:
+    return value_type in {
+        ValueType.I32,
+        ValueType.U32,
+        ValueType.I64,
+        ValueType.U64,
+        ValueType.I128,
+        ValueType.U128,
+    }
 
 
 def is_object_type(value_type: ContractType) -> bool:
-    return isinstance(value_type, MapType) or value_type in {
-        ValueType.ADDRESS,
-        ValueType.BYTES,
-        ValueType.I128,
-        ValueType.STRING,
-        ValueType.SYMBOL,
-        ValueType.U128,
-    } | set(VEC_ELEMENT_TYPES)
+    return (
+        isinstance(value_type, (MapType, StructType, VecType))
+        or value_type in {
+            ValueType.ADDRESS,
+            ValueType.BYTES,
+            ValueType.I128,
+            ValueType.STRING,
+            ValueType.SYMBOL,
+            ValueType.U128,
+        }
+        | set(VEC_ELEMENT_TYPES)
+    )
 
 
 @dataclass(frozen=True)
@@ -124,4 +208,6 @@ class Contract:
     functions: Tuple[Function, ...]
     events: Tuple[Event, ...] = ()
     errors: Tuple[ErrorEnum, ...] = ()
+    structs: Tuple[StructType, ...] = ()
+    enums: Tuple[EnumType, ...] = ()
     source_name: Optional[str] = None

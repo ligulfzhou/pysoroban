@@ -16,7 +16,16 @@ from typing import Dict, Iterable, List, Mapping, Optional, Tuple, Union
 
 from . import ir
 from .compiler import CompilationResult, compile_source
-from .model import MapType, ValueType, VEC_ELEMENT_TYPES
+from .model import (
+    EnumType,
+    MapType,
+    StructType,
+    ValueType,
+    VecType,
+    VEC_ELEMENT_TYPES,
+    is_vec_type,
+    vec_element,
+)
 
 
 NativeValue = Union[None, bool, int, str, bytes, list, tuple, Dict]
@@ -62,6 +71,9 @@ class ContractTest:
         self.compilation = compilation
         self.contract = compilation.ir
         self._storage = {}
+        self._persistent = {}
+        self._temporary = {}
+        self._ttl = []
         self._events = []
         self._last_events = []
         self._authorized = set()
@@ -80,6 +92,18 @@ class ContractTest:
     @property
     def storage(self) -> Mapping[NativeValue, NativeValue]:
         return MappingProxyType({key: entry[0] for key, entry in self._storage.items()})
+
+    @property
+    def persistent(self) -> Mapping[NativeValue, NativeValue]:
+        return MappingProxyType({key: entry[0] for key, entry in self._persistent.items()})
+
+    @property
+    def temporary(self) -> Mapping[NativeValue, NativeValue]:
+        return MappingProxyType({key: entry[0] for key, entry in self._temporary.items()})
+
+    @property
+    def ttl_extensions(self) -> Tuple[dict, ...]:
+        return tuple(self._ttl)
 
     @property
     def events(self) -> Tuple[Event, ...]:
@@ -143,6 +167,9 @@ class ContractTest:
         transaction.append((
             self,
             copy.deepcopy(self._storage),
+            copy.deepcopy(self._persistent),
+            copy.deepcopy(self._temporary),
+            list(self._ttl),
             list(self._events),
             list(self._last_events),
         ))
@@ -183,6 +210,13 @@ class ContractTest:
                 continue
             if isinstance(statement, ir.Drop):
                 self._expression(statement.value, variables)
+                continue
+            if isinstance(statement, ir.PopBack):
+                vector = variables[statement.collection]
+                if not isinstance(vector, (list, tuple)) or not vector:
+                    raise InvocationError("Vec.pop() on an empty vector")
+                variables[statement.target] = vector[-1]
+                variables[statement.collection] = list(vector[:-1])
                 continue
             if isinstance(statement, ir.Fail):
                 raise ContractError(statement.code, statement.error, statement.case)
@@ -245,16 +279,34 @@ class ContractTest:
             return None
         if call.op == "storage_has":
             return values[0] in self._storage
-        if call.op.startswith("storage_get_"):
-            if values[0] not in self._storage:
-                raise StorageMissingError(f"missing instance storage key {values[0]!r}")
-            result, stored_type = self._storage[values[0]]
-            if stored_type is not call.type:
-                raise InvocationError(
-                    f"stored value is {stored_type.value}, not the requested {call.type.value}"
-                )
-            _validate_native(result, call.type, "stored value")
-            return result
+        if call.op.startswith("storage_get"):
+            return self._storage_get(self._storage, values[0], call.type, "instance")
+        if call.op == "storage_del":
+            return self._storage_delete(self._storage, values[0], "instance")
+        tier = _storage_tier(call.op)
+        if tier is not None:
+            bucket, label, action = tier
+            bucket = {"persistent": self._persistent, "temporary": self._temporary}[label]
+            if action == "set":
+                bucket[values[0]] = (values[1], call.args[1].type)
+                return None
+            if action == "has":
+                return values[0] in bucket
+            if action == "get":
+                return self._storage_get(bucket, values[0], call.type, label)
+            if action == "del":
+                return self._storage_delete(bucket, values[0], label)
+            if action == "extend":
+                self._ttl.append({
+                    "tier": label,
+                    "key": values[0],
+                    "threshold": values[1],
+                    "extend_to": values[2],
+                })
+                return None
+        if call.op == "extend_instance":
+            self._ttl.append({"tier": "instance", "threshold": values[0], "extend_to": values[1]})
+            return None
         if call.op == "event_publish":
             event = Event(tuple(values[:-1]), values[-1])
             self._events.append(event)
@@ -292,12 +344,88 @@ class ContractTest:
             if key not in map_value:
                 raise InvocationError(f"Map key {key!r} was not found")
             return map_value[key]
+        if call.op == "vec_new":
+            return []
+        if call.op == "map_new":
+            return {}
+        if call.op == "vec_push":
+            _validate_native(values[1], vec_element(call.type), "Vec element")
+            return list(values[0]) + [values[1]]
+        if call.op == "vec_put":
+            vector, index, item = values
+            if index < 0 or index >= len(vector):
+                raise InvocationError(f"Vec index {index} is out of bounds")
+            _validate_native(item, vec_element(call.type), "Vec element")
+            updated = list(vector)
+            updated[index] = item
+            return updated
+        if call.op == "vec_insert":
+            vector, index, item = values
+            if index < 0 or index > len(vector):
+                raise InvocationError(f"Vec index {index} is out of bounds")
+            _validate_native(item, vec_element(call.type), "Vec element")
+            updated = list(vector)
+            updated.insert(index, item)
+            return updated
+        if call.op == "vec_del":
+            vector, index = values
+            if index < 0 or index >= len(vector):
+                raise InvocationError(f"Vec index {index} is out of bounds")
+            updated = list(vector)
+            del updated[index]
+            return updated
+        if call.op == "map_put":
+            updated = dict(values[0])
+            updated[values[1]] = values[2]
+            return updated
+        if call.op == "map_del":
+            if values[1] not in values[0]:
+                raise InvocationError(f"Map key {values[1]!r} was not found")
+            updated = dict(values[0])
+            del updated[values[1]]
+            return updated
+        if call.op == "struct_new":
+            struct = call.type
+            return {field.name: value for field, value in zip(struct.fields, values)}
+        if call.op == "struct_field":
+            field_name = values[1]
+            if field_name not in values[0]:
+                raise InvocationError(f"missing struct field {field_name!r}")
+            return values[0][field_name]
         raise AssertionError(call.op)
+
+    def _storage_get(self, bucket, key, value_type, label: str):
+        if key not in bucket:
+            raise StorageMissingError(f"missing {label} storage key {key!r}")
+        result, stored_type = bucket[key]
+        if stored_type != value_type:
+            raise InvocationError(
+                f"stored value is {stored_type.value}, not the requested {value_type.value}"
+            )
+        _validate_native(result, value_type, "stored value")
+        return result
+
+    def _storage_delete(self, bucket, key, label: str):
+        if key not in bucket:
+            raise StorageMissingError(f"missing {label} storage key {key!r}")
+        del bucket[key]
+        return None
+
+
+def _storage_tier(op: str):
+    if op.startswith("pstorage_"):
+        return "persistent", "persistent", op[len("pstorage_"):]
+    if op.startswith("tstorage_"):
+        return "temporary", "temporary", op[len("tstorage_"):]
+    return None
 
 
 def _restore_transaction(transaction: List[tuple]) -> None:
-    for contract, storage, events, last_events in reversed(transaction):
+    for contract, storage, persistent, temporary, ttl, events, last_events in reversed(transaction):
         contract._storage = storage
+        contract._persistent = persistent
+        contract._temporary = temporary
+        contract._ttl = ttl
         contract._events = events
         contract._last_events = last_events
 
@@ -342,12 +470,12 @@ def _validate_native(value: NativeValue, value_type: ValueType, label: str) -> N
         valid = isinstance(value, str)
     elif value_type is ValueType.BYTES:
         valid = isinstance(value, bytes)
-    elif value_type in VEC_ELEMENT_TYPES:
+    elif is_vec_type(value_type):
         valid = isinstance(value, (list, tuple))
         if valid:
             try:
                 for index, item in enumerate(value):
-                    _validate_native(item, VEC_ELEMENT_TYPES[value_type], f"{label}[{index}]")
+                    _validate_native(item, vec_element(value_type), f"{label}[{index}]")
             except InvocationError:
                 raise
     elif isinstance(value_type, MapType):
@@ -356,6 +484,15 @@ def _validate_native(value: NativeValue, value_type: ValueType, label: str) -> N
             for key, item in value.items():
                 _validate_native(key, value_type.key, f"{label} key")
                 _validate_native(item, value_type.value_type, f"{label}[{key!r}]")
+    elif isinstance(value_type, EnumType):
+        valid = isinstance(value, int) and not isinstance(value, bool) and any(
+            case.value == value for case in value_type.cases
+        )
+    elif isinstance(value_type, StructType):
+        valid = isinstance(value, dict) and set(value) == {field.name for field in value_type.fields}
+        if valid:
+            for field in value_type.fields:
+                _validate_native(value[field.name], field.type, f"{label}.{field.name}")
     else:
         valid = False
     if not valid:
