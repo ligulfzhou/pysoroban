@@ -206,8 +206,10 @@ calls are recorded in `deployments/testnet.json`.
   the invocation back, including linked contracts in that call. Numeric `0`
   is not an error sentinel.
 - Existing 32- and 64-bit arithmetic wraps at its integer width. Asset
-  accounting should use checked `u128` operations; additional checked formulas
-  are still required for the liquidity lifecycle of a tokenized AMM.
+  accounting should use checked `u128` operations. `examples/soroban/liquidity_pool`
+  is a tokenized constant-product pool on that arithmetic.
+- There is no `try_call`, no `__constructor`, and no custom-account
+  `__check_auth` context. Those stellar/soroban-examples are documented as gaps.
 - The compiler currently targets a single declared Stellar protocol version.
 - The project has not completed an independent security audit.
 

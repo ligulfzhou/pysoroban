@@ -149,7 +149,9 @@ one `String`. `prng.bytes(length)` takes a `u32` and returns `Bytes`.
 `address.require_auth()` traps unless that address authorized the invocation.
 `address.require_auth_for(*args)` does the same and passes the authorized
 argument vector to the host. The test environment checks only that the address
-is in the call's `auth` list.
+is in the call's `auth` list. A cross-contract call keeps that list and also
+authorizes the calling contract's address, which is how a contract spends its
+own token balance. It still does not model Soroban auth entries.
 
 `deploy.upload(wasm)` returns the `Bytes` hash of a Wasm payload.
 `deploy.contract(wasm_hash, salt)` and

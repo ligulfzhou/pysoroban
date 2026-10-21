@@ -132,9 +132,15 @@ class FunctionLowerer:
             otherwise = tuple(self.statement(child) for child in node.orelse)
             otherwise_types = dict(self.types)
             self.types = dict(before)
-            for name in set(body_types) & set(otherwise_types):
-                if body_types[name] is otherwise_types[name]:
-                    self.types[name] = body_types[name]
+            # Locals declared in only one branch still occupy a Wasm slot.
+            # Keep a type for them. A name declared in both branches must agree.
+            for name in set(body_types) | set(otherwise_types):
+                left = body_types.get(name)
+                right = otherwise_types.get(name)
+                if left is not None and right is not None and left is not right:
+                    continue
+                if name not in self.types:
+                    self.types[name] = left if left is not None else right
             return ir.If(test, body, otherwise)
         if isinstance(node, ast.For):
             args = node.iter.args

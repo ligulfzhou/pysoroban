@@ -2,6 +2,17 @@
 
 All notable changes to PySoroban are documented here.
 
+## 0.12.0a1 — 2026-10-21
+
+- Port the stellar/soroban-examples tree under `examples/soroban/`. Each
+  example is a Python contract with tests, or a README that names the missing
+  host or language feature.
+- Add a tokenized constant-product pool, atomic swap, timelock, single-offer
+  exchange, and mint limiter on the SEP-41 style token.
+- Direct cross-contract calls in the test host authorize the caller and keep
+  the invocation's address list, so a contract can spend its own balance.
+- Keep a Wasm local for a name declared in only one branch of `if`.
+
 ## 0.11.0a1 — 2026-10-21
 
 - Check `u128` multiplication and floor division through a `u256`
