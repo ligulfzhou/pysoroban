@@ -2,6 +2,14 @@
 
 All notable changes to PySoroban are documented here.
 
+## 0.15.0a1 — 2026-10-21
+
+- Add `BytesN[N]`, `to_xdr`, byte ordering, `u256.to_be_bytes` /
+  `from_be_bytes`, and `Address.to_strkey`.
+- The test host encodes `to_xdr` as ScVal XDR. A non-StrKey address is the
+  contract id SHA-256 of that string. Generated Wasm calls the host.
+- Port `merkle_distribution`.
+
 ## 0.14.0a1 — 2026-10-21
 
 - Add the `u256` contract type. Literals, comparisons, storage, vectors, and

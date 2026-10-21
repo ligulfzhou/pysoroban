@@ -273,6 +273,28 @@ class SorobanExampleBehaviorTests(unittest.TestCase):
         self.assertEqual(token_a.invoke("balance", "CPOOL"), 0)
         self.assertEqual(token_b.invoke("balance", "CPOOL"), 0)
 
+    def test_merkle_distribution_claim(self):
+        import hashlib
+
+        token = make_token("CTOKEN")
+        token.invoke("mint", "GFUNDER", 100, auth=["GADMIN"])
+        merkle = load("merkle_distribution")
+        merkle.contract_address = "CMERKLE"
+        merkle.register_contract("CTOKEN", token)
+        first = merkle.invoke("leaf_hash", 0, "GALICE", 40)
+        second = merkle.invoke("leaf_hash", 1, "GBOB", 60)
+        left, right = (first, second) if first < second else (second, first)
+        root = hashlib.sha256(left + right).digest()
+        merkle.invoke("initialize", root, "CTOKEN", 100, "GFUNDER", auth=["GFUNDER"])
+        self.assertEqual(token.invoke("balance", "CMERKLE"), 100)
+        merkle.invoke("claim", 0, "GALICE", 40, [second], auth=["GALICE"])
+        self.assertEqual(token.invoke("balance", "GALICE"), 40)
+        with self.assertRaises(ContractError):
+            merkle.invoke("claim", 0, "GALICE", 40, [second], auth=["GALICE"])
+        with self.assertRaises(ContractError):
+            merkle.invoke("claim", 1, "GBOB", 60, [b"\x00" * 32], auth=["GBOB"])
+        self.assertEqual(token.invoke("balance", "CMERKLE"), 60)
+
 
 if __name__ == "__main__":
     unittest.main()

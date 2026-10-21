@@ -184,6 +184,9 @@ calls are recorded in `deployments/testnet.json`.
 - Only the documented restricted Python subset is accepted.
 - Recursion, exceptions, floating point, reflection, dynamic imports, and
   arbitrary Python objects are excluded.
+- `BytesN[N]`, `to_xdr`, byte ordering, and `u256` big-endian bytes are
+  supported. The test host's `to_xdr` matches ScVal XDR; a non-StrKey address
+  is the contract id SHA-256 of the string. Wasm calls `serialize_to_bytes`.
 - Nested collection types are not yet supported. `Vec` and `Map` updates
   reassign the local through the host's functional collection interface.
 - `@struct` and `@enum` are supported. Structs are Soroban maps of field

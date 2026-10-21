@@ -17,7 +17,9 @@ from typing import Dict, Iterable, List, Mapping, Optional, Tuple, Union
 
 from . import ir
 from .compiler import CompilationResult, compile_source
+from .scval import xdr_bytes
 from .model import (
+    BytesNType,
     EnumType,
     MapType,
     StructType,
@@ -458,6 +460,22 @@ class ContractTest:
             return values[0][start:end]
         if call.op == "bytes_append":
             return values[0] + values[1]
+        if call.op == "to_xdr":
+            return xdr_bytes(values[0], call.args[0].type)
+        if call.op == "bytesn":
+            size = call.type.size
+            if len(values[0]) != size:
+                raise InvocationError(f"BytesN[{size}] received {len(values[0])} bytes")
+            return values[0]
+        if call.op == "u256_to_be_bytes":
+            return values[0].to_bytes(32, "big")
+        if call.op == "u256_from_be_bytes":
+            raw = values[0]
+            if len(raw) > 32:
+                raise InvocationError("u256.from_be_bytes() received more than 32 bytes")
+            return int.from_bytes(raw, "big")
+        if call.op == "address_to_strkey":
+            return values[0]
         if call.op == "prng_bytes":
             length = values[0]
             if length < 0 or length > 256:
@@ -647,8 +665,10 @@ def _validate_native(value: NativeValue, value_type: ValueType, label: str) -> N
             valid = lower <= value <= upper
     elif value_type in {ValueType.ADDRESS, ValueType.STRING, ValueType.SYMBOL}:
         valid = isinstance(value, str)
-    elif value_type is ValueType.BYTES:
-        valid = isinstance(value, bytes)
+    elif value_type is ValueType.BYTES or isinstance(value_type, BytesNType):
+        valid = isinstance(value, bytes) and (
+            value_type is ValueType.BYTES or len(value) == value_type.size
+        )
     elif is_vec_type(value_type):
         valid = isinstance(value, (list, tuple))
         if valid:

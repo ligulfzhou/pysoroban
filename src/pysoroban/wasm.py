@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Sequence, Tuple
 
 from . import ir
-from .model import ContractType, EnumType, StructType, ValueType, is_object_type
+from .model import BytesNType, ContractType, EnumType, StructType, ValueType, is_object_type
 from .xdr import contract_spec, environment_metadata
 
 
@@ -595,8 +595,9 @@ class FunctionEmitter:
             "ledger_sequence", "ledger_version", "ledger_timestamp", "ledger_network",
             "current_contract", "sha256", "keccak256", "ed25519_verify", "log",
             "prng_bytes", "prng_u64", "string_len", "bytes_len", "string_to_bytes",
-            "bytes_to_string", "bytes_slice", "bytes_append", "upload_wasm", "upgrade",
-            "deploy_asset",
+            "bytes_to_string", "bytes_slice",             "bytes_append", "upload_wasm", "upgrade",
+            "deploy_asset", "to_xdr", "bytesn", "u256_to_be_bytes",
+            "u256_from_be_bytes", "address_to_strkey",
         }:
             return self._simple_host(node)
         if node.op == "require_auth_for":
@@ -744,11 +745,17 @@ class FunctionEmitter:
             "bytes_to_string": ("b", "o"),
             "bytes_append": ("b", "e"),
             "bytes_slice": ("b", "f"),
+            "to_xdr": ("b", "_"),
+            "u256_to_be_bytes": ("i", "b"),
+            "u256_from_be_bytes": ("i", "a"),
+            "address_to_strkey": ("a", "2"),
             "prng_bytes": ("p", "0"),
             "upload_wasm": ("l", "5"),
             "upgrade": ("l", "6"),
             "deploy_asset": ("l", "4"),
         }
+        if node.op == "bytesn":
+            return self._bytesn(node)
         output = bytearray()
         for argument in node.args:
             output += self.expression(argument)
@@ -793,6 +800,21 @@ class FunctionEmitter:
             ])
         finally:
             self._release_wide_scratch()
+
+    def _bytesn(self, node: ir.HostCall) -> bytes:
+        size = node.type.size
+        scratch = uleb(self.locals.scratch)
+        return b"".join([
+            self.expression(node.args[0]),
+            self.encode_val(node.args[0].type),
+            b"\x22", scratch,
+            b"\x10", uleb(self.host_indices[("b", "8")]),
+            b"\x42\x20\x88\xa7",
+            b"\x41", sleb(size, 32),
+            b"\x47",
+            b"\x04\x40\x00\x0b",
+            b"\x20", scratch,
+        ])
 
     def _pack_values(self, args) -> bytes:
         stored = bytearray()
@@ -1291,6 +1313,11 @@ def _service_imports(contract: ir.Contract):
         "bytes_to_string": ("b", "o", 1),
         "bytes_slice": ("b", "f", 3),
         "bytes_append": ("b", "e", 2),
+        "to_xdr": ("b", "_", 1),
+        "bytesn": ("b", "8", 1),
+        "u256_to_be_bytes": ("i", "b", 1),
+        "u256_from_be_bytes": ("i", "a", 1),
+        "address_to_strkey": ("a", "2", 1),
         "prng_bytes": ("p", "0", 1),
         "prng_u64": ("p", "1", 2),
         "upload_wasm": ("l", "5", 1),

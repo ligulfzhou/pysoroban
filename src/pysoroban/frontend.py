@@ -4,6 +4,7 @@ from typing import Dict, Iterable, List, Optional, Set
 
 from .errors import CompileError, fail
 from .model import (
+    BytesNType,
     Contract,
     EnumCase,
     EnumType,
@@ -20,6 +21,7 @@ from .model import (
     VecType,
     VEC_ELEMENT_TYPES,
     VEC_TYPES_BY_ELEMENT,
+    is_bytes_type,
     is_collection,
     is_integer_type,
     is_map_type,
@@ -114,6 +116,11 @@ def _annotation(node: Optional[ast.expr], user_types=None, *, allow_void: bool =
             result = VecType(element)
         else:
             fail(node, "unsupported Vec element type", "E0202")
+    elif isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "BytesN":
+        size = _integer_literal(node.slice)
+        if size is None or not 1 <= size <= 64:
+            fail(node, "BytesN length must be an integer literal from 1 to 64", "E0208")
+        result = BytesNType(size)
     elif isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "Map":
         if not isinstance(node.slice, ast.Tuple) or len(node.slice.elts) != 2:
             fail(node, "Map requires key and value types", "E0203")
@@ -613,7 +620,7 @@ class TypeChecker:
             if left not in {
                 ValueType.I32, ValueType.U32, ValueType.I64, ValueType.U64,
                 ValueType.I128, ValueType.U128, ValueType.U256,
-            } and not isinstance(
+            } and not is_bytes_type(left) and not isinstance(
                 node.ops[0], (ast.Eq, ast.NotEq)
             ):
                 fail(node, f"{left.value} only supports == and !=", "E0516")
@@ -678,6 +685,16 @@ class TypeChecker:
             if actual != map_type.key:
                 fail(node.args[0], f"Map key expects {map_type.key.value}, got {actual.value}", "E0606")
             return ValueType.BOOL
+        if path == ["to_xdr"]:
+            if len(node.args) != 1 or self.check_expr(node.args[0]) is ValueType.VOID:
+                fail(node, "to_xdr() takes one contract value", "E0657")
+            return ValueType.BYTES
+        if isinstance(node.func, ast.Subscript):
+            return self._check_bytesn_call(node)
+        if path == ["u256", "from_be_bytes"]:
+            if len(node.args) != 1 or not is_bytes_type(self.check_expr(node.args[0])):
+                fail(node, "u256.from_be_bytes() takes one Bytes value", "E0658")
+            return ValueType.U256
         if path == ["u128", "mul_div_floor"]:
             if len(node.args) != 3:
                 fail(node, "u128.mul_div_floor() takes left, right, and denominator", "E0607")
@@ -904,7 +921,7 @@ class TypeChecker:
             if len(node.args) != 1:
                 fail(node, "Bytes.append() takes one Bytes value", "E0644")
             actual = self.check_expr(node.args[0])
-            if actual is not ValueType.BYTES:
+            if not is_bytes_type(actual):
                 fail(node.args[0], f"Bytes.append() expects Bytes, got {actual.value}", "E0644")
             return
         if isinstance(value_type, MapType):
@@ -939,7 +956,7 @@ class TypeChecker:
         if path == ["env", "current_contract_address"] and not node.args:
             return ValueType.ADDRESS
         if path == ["crypto", "sha256"] or path == ["crypto", "keccak256"]:
-            if len(node.args) != 1 or self.check_expr(node.args[0]) is not ValueType.BYTES:
+            if len(node.args) != 1 or not is_bytes_type(self.check_expr(node.args[0])):
                 fail(node, f"{path[1]}() takes one Bytes value", "E0651")
             return ValueType.BYTES
         if path == ["crypto", "ed25519_verify"]:
@@ -990,6 +1007,14 @@ class TypeChecker:
                 if self.check_expr(argument) is ValueType.VOID:
                     fail(argument, "authorization arguments cannot be None", "E0655")
             return ValueType.VOID
+        if len(path) == 2 and path[1] == "to_be_bytes":
+            if self.variables.get(path[0]) is not ValueType.U256 or node.args:
+                fail(node, "to_be_bytes() is only available on u256 values", "E0658")
+            return ValueType.BYTES
+        if len(path) == 2 and path[1] == "to_strkey":
+            if self.variables.get(path[0]) is not ValueType.ADDRESS or node.args:
+                fail(node, "to_strkey() is only available on Address values", "E0659")
+            return ValueType.STRING
         if len(path) == 2 and path[1] in {"to_bytes", "to_string", "slice"}:
             owner = self.variables.get(path[0])
             if path[1] == "to_bytes" and owner is ValueType.STRING and not node.args:
@@ -1001,6 +1026,17 @@ class TypeChecker:
                     fail(node, "Bytes.slice() takes u32 start and end positions", "E0656")
                 return ValueType.BYTES
         return None
+
+    def _check_bytesn_call(self, node: ast.Call):
+        func = node.func
+        if not isinstance(func.value, ast.Name) or func.value.id != "BytesN":
+            fail(node, "unsupported function or method call", "E0629")
+        size = _integer_literal(func.slice)
+        if size is None or not 1 <= size <= 64:
+            fail(func, "BytesN length must be an integer literal from 1 to 64", "E0208")
+        if node.keywords or len(node.args) != 1 or not is_bytes_type(self.check_expr(node.args[0])):
+            fail(node, "BytesN[N]() takes one Bytes value", "E0660")
+        return BytesNType(size)
 
     def _check_error_case(self, node: ast.expr):
         path = _attribute_path(node)

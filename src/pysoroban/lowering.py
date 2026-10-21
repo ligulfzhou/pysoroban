@@ -14,6 +14,7 @@ from .frontend import (
     function_body,
 )
 from .model import (
+    BytesNType,
     Contract,
     EnumType,
     ErrorEnum,
@@ -244,6 +245,13 @@ class FunctionLowerer:
                 (ir.Local(path[0], self.types[path[0]]), self.expression(node.args[0])),
                 ValueType.BOOL,
             )
+        if path == ["to_xdr"]:
+            return ir.HostCall("to_xdr", (self.expression(node.args[0]),), ValueType.BYTES)
+        if isinstance(node.func, ast.Subscript):
+            size = _integer_literal(node.func.slice)
+            return ir.HostCall("bytesn", (self.expression(node.args[0]),), BytesNType(size))
+        if path == ["u256", "from_be_bytes"]:
+            return ir.HostCall("u256_from_be_bytes", (self.expression(node.args[0]),), ValueType.U256)
         if path == ["u128", "mul_div_floor"]:
             return ir.HostCall(
                 "u128_mul_div_floor",
@@ -415,6 +423,18 @@ class FunctionLowerer:
                 "require_auth_for",
                 (ir.Local(path[0], ValueType.ADDRESS),) + args,
                 ValueType.VOID,
+            )
+        if len(path) == 2 and path[1] == "to_be_bytes":
+            return ir.HostCall(
+                "u256_to_be_bytes",
+                (ir.Local(path[0], ValueType.U256),),
+                ValueType.BYTES,
+            )
+        if len(path) == 2 and path[1] == "to_strkey":
+            return ir.HostCall(
+                "address_to_strkey",
+                (ir.Local(path[0], ValueType.ADDRESS),),
+                ValueType.STRING,
             )
         if len(path) == 2 and path[1] in {"to_bytes", "to_string", "slice"}:
             owner = ir.Local(path[0], self.types[path[0]])

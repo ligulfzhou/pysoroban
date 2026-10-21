@@ -31,6 +31,7 @@ Shared differences:
 | increment_with_pause | `increment_with_pause/contract.py` | Calls `pause`. |
 | liquidity_pool | `liquidity_pool/contract.py` | Tokenized constant-product pool. Tuple results are structs. No address ordering. |
 | logging | `logging/contract.py` | `log` takes a `String`, not a formatted `Symbol`. |
+| merkle_distribution | `merkle_distribution/contract.py` | Leaf is `to_xdr` of the receiver. Claimed keys are `u32`. |
 | mint-lock | `mint-lock/contract.py` | Struct keys. `minter` returns `MinterInfo`. |
 | other_custom_types | `other_custom_types/contract.py` | See the gaps below for the types that were left out. |
 | pause | `pause/contract.py` | |
@@ -49,11 +50,10 @@ Shared differences:
 | assets | Repository image, not a contract. |
 | bls_signature | BLS12-381 host functions and the custom-account interface. |
 | deep_contract_auth | `authorize_as_current_contract` and nested auth entries. |
-| eth_abi | Ethereum ABI decoding, `U256`, and arbitrary byte copies. No `alloy` equivalent. |
+| eth_abi | Ethereum ABI decoding. `u256` and byte copies exist; there is no ABI decoder. |
 | fuzzing | Cargo-fuzz harness. The contract body is the timelock example. |
 | groth16_verifier | BN254 and BLS12-381 pairing host functions. |
 | import_ark_bn254 | Imported arkworks BN254 Wasm, not a contract written in the guest language. |
-| merkle_distribution | `to_xdr` for the leaf, byte ordering, and encoding addresses or integers into `Bytes`. SHA-256 itself is available. |
 | modular_account | Custom-account context lists and signer policies. |
 | multisig_1_of_n_account | Same custom-account entry point, plus `BytesN<32>` signers. |
 | privacy-pools | Groth16 verification, BLS scalars, and the incremental Merkle tree. |
