@@ -24,10 +24,14 @@ from .model import (
     StructType,
     ValueType,
     VecType,
+    BYTESN_MAX,
+    CURVE_HOST,
     VEC_ELEMENT_TYPES,
     VEC_TYPES_BY_ELEMENT,
+    curve_arg_matches,
     is_bytes_type,
     is_collection,
+    vec_element_accepts,
     is_integer_type,
     is_map_type,
     is_vec_type,
@@ -159,8 +163,8 @@ def _annotation(node: Optional[ast.expr], user_types=None, *, allow_void: bool =
         result = TupleType(elements)
     elif isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "BytesN":
         size = _integer_literal(node.slice)
-        if size is None or not 1 <= size <= 64:
-            fail(node, "BytesN length must be an integer literal from 1 to 64", "E0208")
+        if size is None or not 1 <= size <= BYTESN_MAX:
+            fail(node, f"BytesN length must be an integer literal from 1 to {BYTESN_MAX}", "E0208")
         result = BytesNType(size)
     elif isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "Map":
         if not isinstance(node.slice, ast.Tuple) or len(node.slice.elts) != 2:
@@ -1039,7 +1043,7 @@ class TypeChecker:
                 if len(node.args) != 1:
                     fail(node, "Vec.push() takes one element", "E0644")
                 actual = self.check_expr(node.args[0])
-                if actual != element:
+                if not vec_element_accepts(element, actual):
                     fail(node.args[0], f"Vec element expects {element.value}, got {actual.value}", "E0644")
                 return
             if method in {"set", "insert"}:
@@ -1048,7 +1052,7 @@ class TypeChecker:
                 if self.check_expr(node.args[0]) is not ValueType.I32:
                     fail(node.args[0], "Vec indices must be i32", "E0644")
                 actual = self.check_expr(node.args[1])
-                if actual != element:
+                if not vec_element_accepts(element, actual):
                     fail(node.args[1], f"Vec element expects {element.value}, got {actual.value}", "E0644")
                 return
             if method == "remove":
@@ -1085,6 +1089,8 @@ class TypeChecker:
     def _check_service(self, node: ast.Call, path):
         if path == ["ledger", "sequence"] and not node.args:
             return ValueType.U32
+        if path == ["ledger", "max_live_until"] and not node.args:
+            return ValueType.U32
         if path == ["ledger", "timestamp"] and not node.args:
             return ValueType.U64
         if path == ["ledger", "version"] and not node.args:
@@ -1101,6 +1107,15 @@ class TypeChecker:
             if len(node.args) != 3 or any(not is_bytes_type(self.check_expr(arg)) for arg in node.args):
                 fail(node, "ed25519_verify() takes a public key, message, and signature", "E0651")
             return ValueType.VOID
+        if len(path) == 2 and path[0] == "crypto" and path[1] in CURVE_HOST:
+            _export, kinds, result = CURVE_HOST[path[1]]
+            if len(node.args) != len(kinds):
+                fail(node, f"crypto.{path[1]}() takes {len(kinds)} arguments", "E0651")
+            for argument, kind in zip(node.args, kinds):
+                actual = self.check_expr(argument)
+                if not curve_arg_matches(kind, actual):
+                    fail(argument, f"crypto.{path[1]}() argument does not match the host type", "E0651")
+            return result
         if path == ["auth", "as_current_contract"]:
             if len(node.args) != 3:
                 fail(node, "auth.as_current_contract() takes a contract, a function symbol, and one argument", "E0664")
@@ -1266,8 +1281,8 @@ class TypeChecker:
         if not isinstance(func.value, ast.Name) or func.value.id != "BytesN":
             fail(node, "unsupported function or method call", "E0629")
         size = _integer_literal(func.slice)
-        if size is None or not 1 <= size <= 64:
-            fail(func, "BytesN length must be an integer literal from 1 to 64", "E0208")
+        if size is None or not 1 <= size <= BYTESN_MAX:
+            fail(func, f"BytesN length must be an integer literal from 1 to {BYTESN_MAX}", "E0208")
         if node.keywords or len(node.args) != 1 or not is_bytes_type(self.check_expr(node.args[0])):
             fail(node, "BytesN[N]() takes one Bytes value", "E0660")
         return BytesNType(size)

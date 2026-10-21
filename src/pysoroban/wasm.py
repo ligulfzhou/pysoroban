@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Sequence, Tuple
 
 from . import ir
-from .model import BytesNType, ContractType, EnumType, StructType, ValueType, is_object_type
+from .model import CURVE_HOST, BytesNType, ContractType, EnumType, StructType, ValueType, is_object_type
 from .xdr import contract_spec, environment_metadata
 
 
@@ -602,13 +602,13 @@ class FunctionEmitter:
         if node.op == "struct_new":
             return self._struct_new(node)
         if node.op in {
-            "ledger_sequence", "ledger_version", "ledger_timestamp", "ledger_network",
+            "ledger_sequence", "ledger_max_live", "ledger_version", "ledger_timestamp", "ledger_network",
             "current_contract", "sha256", "keccak256", "ed25519_verify", "log",
             "prng_bytes", "prng_u64", "string_len", "bytes_len", "string_to_bytes",
             "bytes_to_string", "bytes_slice",             "bytes_append", "upload_wasm", "upgrade",
             "deploy_asset", "to_xdr", "bytesn", "u256_to_be_bytes",
             "u256_from_be_bytes", "address_to_strkey",
-        }:
+        } or node.op in CURVE_HOST:
             return self._simple_host(node)
         if node.op == "require_auth_for":
             address, *args = node.args
@@ -742,6 +742,7 @@ class FunctionEmitter:
             )
         direct = {
             "ledger_sequence": ("x", "3"),
+            "ledger_max_live": ("x", "8"),
             "ledger_version": ("x", "2"),
             "ledger_timestamp": ("x", "4"),
             "ledger_network": ("x", "6"),
@@ -779,7 +780,11 @@ class FunctionEmitter:
             output += self.expression(value)
             output += self.expression(start) + self.encode_val(ValueType.U32)
             output += self.expression(end) + self.encode_val(ValueType.U32)
-        output += b"\x10" + uleb(self.host_indices[direct[node.op]])
+        if node.op in CURVE_HOST:
+            target = ("c", CURVE_HOST[node.op][0])
+        else:
+            target = direct[node.op]
+        output += b"\x10" + uleb(self.host_indices[target])
         output += self._decode_call_result(node.type)
         return bytes(output)
 
@@ -1454,6 +1459,7 @@ def _collection_imports(contract: ir.Contract):
 def _service_imports(contract: ir.Contract):
     needed = {
         "ledger_sequence": ("x", "3", 0),
+        "ledger_max_live": ("x", "8", 0),
         "ledger_version": ("x", "2", 0),
         "ledger_timestamp": ("x", "4", 0),
         "ledger_network": ("x", "6", 0),
@@ -1486,6 +1492,8 @@ def _service_imports(contract: ir.Contract):
         "deploy": ("l", "3", 3),
         "deploy_constructor": ("l", "e", 4),
     }
+    for name, (export, kinds, _result) in CURVE_HOST.items():
+        needed[name] = ("c", export, len(kinds))
     found = set()
     dynamic_log = False
     wide = set()

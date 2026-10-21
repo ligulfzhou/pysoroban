@@ -91,8 +91,10 @@ are optional. They call this same SDK. PySoroban does not generate them.
 
 ## What the Python test host does not prove
 
-`ContractTest` records TTL extensions, accepts ed25519 triples only after
-`allow_signature`, uses a local PRNG, and invents deploy addresses. Those
+`ContractTest` records TTL extensions and expires them only when `enforce_ttl`
+is set. It accepts an ed25519 triple from `allow_signature` or, when
+`cryptography` is installed, a real signature. Curve calls need
+`allow_host_result`. It uses a local PRNG and invents deploy addresses. Those
 calls still need a network run before they are treated as host-accurate.
-Custom-account authorization is not modeled at all. See
+`__check_auth` runs when `authorize_account` recorded the signature. See
 [LANGUAGE.md](LANGUAGE.md) and [examples/soroban/README.md](../examples/soroban/README.md).

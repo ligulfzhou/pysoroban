@@ -204,10 +204,12 @@ calls are recorded in `deployments/testnet.json`.
   `u128.mul_div_floor()` widens both operands into `u256` and traps
   unless the quotient narrows to `u128`. Exact integer rules are in
   [LANGUAGE.md](LANGUAGE.md).
-- Ledger context, hashing, ed25519 verification, PRNG, logging, byte and
-  string operations, `require_auth_for`, and deploy or upgrade call the
-  protocol host. The Python test host records them with the limits in
-  `LANGUAGE.md`; it does not replace network execution.
+- Ledger context, hashing, ed25519 verification, protocol-25 BLS12-381 and
+  BN254 host functions, PRNG, logging, byte and string operations,
+  `require_auth_for`, and deploy or upgrade call the protocol host. The
+  Python test host records them with the limits in `LANGUAGE.md`. It verifies
+  ed25519 when `cryptography` is installed, can expire TTL entries, and
+  returns scripted curve results. It does not replace network execution.
 - Contract errors are `@error` enums plus `fail(Error.CASE)`. They trap
   through protocol-25 `fail_with_error` (`x.5`). The test environment rolls
   the invocation back, including linked contracts in that call. Numeric `0`

@@ -5,7 +5,7 @@ support. The compiler reads the source as an AST; contracts are never executed
 by the Python runtime.
 """
 
-__version__ = "0.17.0a1"
+__version__ = "0.18.0a1"
 
 from .compiler import CompilationResult, check_file, check_source, compile_file, compile_source
 from .abi import contract_abi
@@ -243,6 +243,9 @@ class _Ledger:
     def sequence(self):
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
+    def max_live_until(self):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
     def timestamp(self):
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
@@ -272,6 +275,16 @@ class _Crypto:
 
     def ed25519_verify(self, key, message, signature):
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def __getattr__(self, name):
+        from .model import CURVE_HOST
+        if name not in CURVE_HOST:
+            raise AttributeError(name)
+
+        def _call(*_args):
+            raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+        return _call
 
 
 class _Prng:
