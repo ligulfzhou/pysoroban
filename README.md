@@ -73,6 +73,9 @@ run it locally with `cd web && npm install && npm run dev`.
 - `deploy.upload`, `deploy.contract`, `deploy.with_constructor`,
   `deploy.upgrade`, and `deploy.asset`
 - `examples/token_contract.py`, a contract-owned SEP-41 style token
+- `examples/soroban/`, a Python mirror of stellar/soroban-examples, including
+  a tokenized constant-product pool. Gaps such as custom accounts, Groth16,
+  and `try_call` are documented in that directory's README
 
 `i128` floor division, nested collections, custom-account authorization, and
 the Stellar Asset Contract XDR builder are still absent. The Python test host

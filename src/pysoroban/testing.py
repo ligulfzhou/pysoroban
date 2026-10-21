@@ -338,7 +338,11 @@ class ContractTest:
             target = self._contracts.get(address)
             if target is None:
                 raise InvocationError(f"unregistered contract address {address!r}")
-            result = target._invoke(function, tuple(args), {}, (), self._transaction)
+            # Direct calls are authorized for the caller. The flat auth set is
+            # also inherited: this host has no Soroban auth-entry tree.
+            granted = set(self._authorized)
+            granted.add(self.contract_address)
+            result = target._invoke(function, tuple(args), {}, granted, self._transaction)
             _validate_native(result, call.type, "cross-contract return value")
             return result
         if call.op == "u128_mul_div_floor":
