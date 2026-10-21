@@ -193,7 +193,12 @@ calls are recorded in `deployments/testnet.json`.
   cross-contract results. `u128.mul_div_floor()` widens both operands into
   `u256`, multiplies and divides through checked protocol host functions, and
   traps unless the quotient narrows to `u128`. General multiplication and
-  division are not yet supported.
+  division are not yet supported. Exact integer rules are in
+  [LANGUAGE.md](LANGUAGE.md).
+- Contract errors are `@error` enums plus `fail(Error.CASE)`. They trap
+  through protocol-25 `fail_with_error` (`x.5`). The test environment rolls
+  the invocation back, including linked contracts in that call. Numeric `0`
+  is not an error sentinel.
 - Existing 32- and 64-bit arithmetic wraps at its integer width. Asset
   accounting should use checked `u128` operations; additional checked formulas
   are still required for the liquidity lifecycle of a tokenized AMM.

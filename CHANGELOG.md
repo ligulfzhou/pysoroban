@@ -4,6 +4,16 @@ All notable changes to PySoroban are documented here.
 
 ## Unreleased
 
+- Specify the current language, including integer wrapping and checked
+  overflow, in `docs/LANGUAGE.md`.
+- Give `CompileError` stable `E####` codes alongside line and column.
+- Lock Wasm hashes for the examples and integer programs whose source did not
+  change.
+- Add `@error` enums and `fail(Error.CASE)`. Failures call protocol-25
+  `fail_with_error` and roll back the test invocation's storage and events.
+- Change the AMM kernel so rejected quotes, initialization, and swaps trap
+  with `KernelError` instead of returning `u128(0)`.
+
 ## 0.9.0a2 — 2026-10-09
 
 - Add statically checked `u32` and `u64` floor division through the frontend,

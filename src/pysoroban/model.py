@@ -103,8 +103,25 @@ class Event:
 
 
 @dataclass(frozen=True)
+class ErrorCase:
+    name: str
+    value: int
+    doc: str = ""
+
+
+@dataclass(frozen=True)
+class ErrorEnum:
+    """A Soroban contract-error enum recorded in the contract specification."""
+
+    name: str
+    cases: Tuple[ErrorCase, ...]
+    doc: str = ""
+
+
+@dataclass(frozen=True)
 class Contract:
     name: str
     functions: Tuple[Function, ...]
     events: Tuple[Event, ...] = ()
+    errors: Tuple[ErrorEnum, ...] = ()
     source_name: Optional[str] = None

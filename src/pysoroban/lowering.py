@@ -5,8 +5,8 @@ from typing import Dict, List, Tuple
 
 from . import ir
 from .errors import fail
-from .frontend import CONTRACT_CALL_TYPES, _attribute_path, _integer_literal, function_body
-from .model import Contract, Event, Function, MapType, Parameter, ValueType, VEC_ELEMENT_TYPES
+from .frontend import CONTRACT_CALL_TYPES, _attribute_path, _integer_literal, _is_fail_call, function_body
+from .model import Contract, ErrorEnum, Event, Function, MapType, Parameter, ValueType, VEC_ELEMENT_TYPES
 
 
 ANNOTATIONS = {
@@ -44,16 +44,21 @@ COMPARE_OPS = {
 def lower_contract(contract: Contract) -> ir.Contract:
     return ir.Contract(
         name=contract.name,
-        functions=tuple(FunctionLowerer(function, contract.events).lower() for function in contract.functions),
+        functions=tuple(
+            FunctionLowerer(function, contract.events, contract.errors).lower()
+            for function in contract.functions
+        ),
         events=contract.events,
+        errors=contract.errors,
         source_name=contract.source_name,
     )
 
 
 class FunctionLowerer:
-    def __init__(self, function: Function, events: Tuple[Event, ...] = ()):
+    def __init__(self, function: Function, events: Tuple[Event, ...] = (), errors: Tuple[ErrorEnum, ...] = ()):
         self.function = function
         self.events = {event.name: event for event in events}
+        self.errors = {error.name: error for error in errors}
         self.types: Dict[str, ValueType] = {param.name: param.type for param in function.params}
         self.local_order: List[str] = []
         self.range_counter = 0
@@ -107,11 +112,13 @@ class FunctionLowerer:
             body = tuple(self.statement(child) for child in node.body)
             return ir.ForRange(node.target.id, start, stop, stop_local, body)
         if isinstance(node, ast.Expr):
+            if _is_fail_call(node.value):
+                return self._fail(node.value)
             return ir.Drop(self.expression(node.value))
         if isinstance(node, ast.Pass):
             # A no-op is represented as an empty conditional-free statement list.
             return ir.Drop(ir.Constant(None, ValueType.VOID))
-        fail(node, f"cannot lower statement: {type(node).__name__}")
+        fail(node, f"cannot lower statement: {type(node).__name__}", "E9001")
 
     def _declare(self, name: str, value_type: ValueType):
         if name not in self.types and name not in self.local_order:
@@ -151,7 +158,7 @@ class FunctionLowerer:
             )
         if isinstance(node, ast.Call):
             return self.call(node)
-        fail(node, f"cannot lower expression: {type(node).__name__}")
+        fail(node, f"cannot lower expression: {type(node).__name__}", "E9002")
 
     def call(self, node: ast.Call) -> ir.HostCall:
         path = _attribute_path(node.func)
@@ -217,4 +224,10 @@ class FunctionLowerer:
                         data = lowered
                 return ir.HostCall("event_publish", tuple(topics + [data]), ValueType.VOID)
             return ir.HostCall("event_publish", tuple(self.expression(value) for value in node.args), ValueType.VOID)
-        fail(node, "cannot lower unsupported call")
+        fail(node, "cannot lower unsupported call", "E9003")
+
+    def _fail(self, node: ast.Call) -> ir.Fail:
+        error_name, case_name = _attribute_path(node.args[0])
+        error = self.errors[error_name]
+        case = next(item for item in error.cases if item.name == case_name)
+        return ir.Fail(case.value, error.name, case.name)

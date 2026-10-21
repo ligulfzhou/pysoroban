@@ -180,8 +180,16 @@ def contract(cls):
     return cls
 
 
+def error(cls):
+    return cls
+
+
 def event(cls):
     return cls
+
+
+def fail(error_case):
+    raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
 
 def public(fn):
@@ -205,7 +213,9 @@ __all__ = [
     "compile_source",
     "contract",
     "contract_abi",
+    "error",
     "event",
+    "fail",
     "events",
     "i32",
     "i64",

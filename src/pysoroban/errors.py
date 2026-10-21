@@ -2,7 +2,11 @@ from typing import Optional
 
 
 class CompileError(Exception):
-    """A source error with an optional source location."""
+    """A source error with a stable code and an optional source location.
+
+    ``code`` is part of the language contract. Wording may be clarified, but a
+    code keeps its meaning for the life of this specification.
+    """
 
     def __init__(
         self,
@@ -10,30 +14,33 @@ class CompileError(Exception):
         line: Optional[int] = None,
         column: Optional[int] = None,
         source_name: Optional[str] = None,
+        code: Optional[str] = None,
     ):
         self.message = message
         self.line = line
         self.column = column
         self.source_name = source_name
+        self.code = code
+        prefix = f"{code}: " if code else ""
         if source_name:
             location = source_name
             if line is not None:
                 location += f":{line}"
             if line is not None and column is not None:
                 location += f":{column + 1}"
-            rendered = f"{location}: {message}"
+            rendered = f"{location}: {prefix}{message}"
         else:
             location = ""
             if line is not None:
                 location = f" at line {line}"
                 if column is not None:
                     location += f", column {column + 1}"
-            rendered = message + location
+            rendered = prefix + message + location
         super().__init__(rendered)
 
     def with_source(self, source_name: str) -> "CompileError":
-        return CompileError(self.message, self.line, self.column, source_name)
+        return CompileError(self.message, self.line, self.column, source_name, self.code)
 
 
-def fail(node, message: str):
-    raise CompileError(message, getattr(node, "lineno", None), getattr(node, "col_offset", None))
+def fail(node, message: str, code: str):
+    raise CompileError(message, getattr(node, "lineno", None), getattr(node, "col_offset", None), code=code)

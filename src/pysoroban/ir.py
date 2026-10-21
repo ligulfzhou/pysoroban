@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
-from .model import ContractType, Event, Parameter, ValueType
+from .model import ContractType, ErrorEnum, Event, Parameter, ValueType
 
 
 @dataclass(frozen=True)
@@ -83,7 +83,16 @@ class Drop:
     value: Expression
 
 
-Statement = Union[Return, SetLocal, If, ForRange, Drop]
+@dataclass(frozen=True)
+class Fail:
+    """Abort the invocation with a Soroban contract error."""
+
+    code: int
+    error: str
+    case: str
+
+
+Statement = Union[Return, SetLocal, If, ForRange, Drop, Fail]
 
 
 @dataclass(frozen=True)
@@ -101,4 +110,5 @@ class Contract:
     name: str
     functions: Tuple[Function, ...]
     events: Tuple[Event, ...] = ()
+    errors: Tuple[ErrorEnum, ...] = ()
     source_name: Optional[str] = None

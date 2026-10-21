@@ -35,4 +35,15 @@ def contract_abi(contract: Contract) -> dict:
             }
             for event in contract.events
         ],
+        "errors": [
+            {
+                "name": error.name,
+                "doc": error.doc,
+                "cases": [
+                    {"doc": case.doc, "name": case.name, "value": case.value}
+                    for case in error.cases
+                ],
+            }
+            for error in contract.errors
+        ],
     }

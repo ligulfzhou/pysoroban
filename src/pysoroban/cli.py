@@ -83,6 +83,9 @@ def main(argv=None) -> int:
                     )
                     data = ", ".join(f"{item['name']}: {item['type']}" for item in event["data"])
                     print(f"  event {event['name']}({topics}) data({data})")
+                for error in abi.get("errors", []):
+                    cases = ", ".join(f"{case['name']}={case['value']}" for case in error["cases"])
+                    print(f"  error {error['name']}({cases})")
                 if is_wasm:
                     for item in abi["imports"]:
                         print(f"  import {item['module']}.{item['name']} ({item['kind']})")

@@ -1,0 +1,155 @@
+# PySoroban language specification
+
+This document freezes the behavior of the current compiler. It is the
+reference for integer semantics, overflow, and contract errors. A source
+program accepted by this specification must keep compiling to the same
+protocol-25 Wasm bytes until the specification itself changes. That lock is
+enforced by `tests/test_bytecode_lock.py` for every example whose source did
+not change, and for a small integer corpus.
+
+The compiler still targets Stellar protocol 25. Dynamic Python, including
+arbitrary objects, reflection, `eval`, floating point, exceptions, generators,
+and unbounded recursion, is rejected. PySoroban does not promise CPython
+evaluation order beyond what this document states.
+
+## Diagnostics
+
+`CompileError.code` is a stable `E####` identifier. The human message may be
+clarified, but a code keeps its meaning. Location is 1-based line and column
+when the parser has a node. Codes are grouped as follows:
+
+| Range | Meaning |
+| --- | --- |
+| `E0001`–`E0002` | Python syntax, or not exactly one `@contract` class |
+| `E0101`–`E0110` | Function shape and return checking |
+| `E0201`–`E0207` | Type annotations |
+| `E0301`–`E0309` | Events |
+| `E0401`–`E0412` | Statements |
+| `E0501`–`E0517` | Expressions |
+| `E0601`–`E0633` | Calls, storage, and cross-contract invocations |
+| `E0701`–`E0715` | `@error` and `fail` |
+| `E9001`–`E9003` | Internal lowering failure after a frontend bug |
+
+## Types and literals
+
+Supported value types are `i32`, `u32`, `i64`, `u64`, `i128`, `u128`,
+`boolean`, `Address`, `Symbol`, `String`, `Bytes`, and `None` (`void`).
+`Vec[T]` is homogeneous over those types. `Map[K, V]` requires scalar keys
+and scalar values. Nested collections are rejected.
+
+A bare integer literal is `i32` and must lie in `[-2^31, 2^31)`. `True` and
+`False` are `boolean`. Wider integers and host objects are constructed from
+literals: `u64(1)`, `Symbol("name")`, `String("text")`, `Bytes(b"...")`.
+Those constructors are not runtime casts. `Symbol` literals are at most 32
+bytes and use only `[A-Za-z0-9_]`.
+
+## Integer semantics
+
+Arithmetic requires both operands to have the same numeric type. `and` / `or`
+are allowed only on `boolean`. Comparisons require the same type. Ordering
+(`<`, `>`, `<=`, `>=`) is allowed only for the six integer types. Other types
+support `==` and `!=` only. Chained comparisons are rejected.
+
+`and` and `or` evaluate both operands. They are Wasm `i32.and` / `i32.or`,
+not short-circuiting Python operators.
+
+| Type | `+`, `-`, `*` | `//` | Division by zero | Overflow |
+| --- | --- | --- | --- | --- |
+| `i32` | wrap modulo `2^32`, then interpret as signed | rejected | — | wrap |
+| `u32` | wrap modulo `2^32` | unsigned floor division | trap | wrap |
+| `i64` | wrap modulo `2^64`, then interpret as signed | rejected | — | wrap |
+| `u64` | wrap modulo `2^64` | unsigned floor division | trap | wrap |
+| `i128` | checked `+` and `-` only; `*` rejected | rejected | — | trap |
+| `u128` | checked `+` and `-` only; `*` rejected | rejected | — | trap |
+
+Unary minus is defined for `i32` and `i64` and uses the same wrapping
+subtraction from zero. It is rejected for unsigned types and for `i128`.
+Unary `not` is defined for `boolean` only.
+
+`i128` and `u128` live in Soroban `Val` objects, not in Wasm integer locals.
+Checked addition and subtraction trap by executing Wasm `unreachable` when the
+signed `i128` sign bit disagrees with the operands, or when a `u128` result
+would wrap. That trap is a Wasm trap, not a contract-error code.
+
+`u128.mul_div_floor(left, right, denominator)` computes
+`floor((left * right) / denominator)` with a `u256` intermediate using the
+protocol-25 checked `u256` host multiply and divide (`i.p`, `i.q`). A zero
+denominator traps inside that host divide. If the quotient does not fit in
+`u128`, the compiler emits `unreachable`. Rounding is toward zero, which is
+floor for unsigned values. General `i128` / `u128` multiplication and division
+remain rejected (`E0510`, `E0511`).
+
+Asset accounting must use the checked `u128` operations. Wrapping `i32` /
+`u32` / `i64` / `u64` arithmetic is intentional and is not a contract error.
+
+## Control flow
+
+`if` / `else` and `return` are supported. A non-void function must return or
+`fail` on every path. `for` accepts only `range(stop)` and `range(start, stop)`
+with `i32` bounds and an implicit step of `+1`. The stop is exclusive. The
+loop variable is `i32`. Variables assigned in the body must already exist.
+`break`, `continue`, `for` / `else`, `while`, and recursion are rejected.
+
+## Storage, authorization, calls, and events
+
+Only `storage.instance` exists. `set` accepts any non-void value. Typed
+getters exist for `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `boolean`,
+`Symbol`, `String`, and `Bytes`. A missing key traps in the host; the test
+environment raises `StorageMissingError`. There is no `get_address`,
+`get_vec`, or `get_map`.
+
+`address.require_auth()` traps unless that address authorized the invocation.
+The test environment grants authorization only for the current call.
+
+Cross-contract calls are `call_void`, `call_i32`, `call_u32`, `call_i64`,
+`call_u64`, `call_i128`, `call_u128`, `call_bool`, `call_address`,
+`call_symbol`, `call_string`, and `call_bytes`. The first argument is a
+`Symbol` function name. There is no `call_vec` or `call_map`.
+
+`Vec` supports `len` and `values[index]` with an `i32` index. `Map` supports
+`len`, `has`, and indexing. Both are read-only. Slicing and mutation are
+rejected.
+
+Typed events use `@event`, exactly one data field, and `Topic[T]` fields
+before that data field. `events.publish` also accepts a raw `Symbol` topic
+plus one data value.
+
+## Contract errors
+
+```python
+@error
+class SwapError:
+    SLIPPAGE = 1
+
+fail(SwapError.SLIPPAGE)
+```
+
+`@error` is a module-level enum. Each case is `NAME = <u32 literal>`. Values
+must be unique and in `[0, 2^32)`. Names are at most 60 UTF-8 bytes. The enum
+is written to `contractspecv0` as `SC_SPEC_ENTRY_UDT_ERROR_ENUM_V0` (kind 4),
+so Stellar CLI can read the case names and values.
+
+`fail` is valid only as an expression statement. It ends the current path, so
+a branch that fails does not also need to return. It lowers to host import
+`x.5` (`fail_with_error`) with a Soroban `Error` value:
+
+- tag `3` (`Tag::Error`);
+- minor `0` (`ScErrorType::Contract`);
+- major equal to the case value.
+
+The bits are `(code << 32) | 3`. The call is followed by Wasm `unreachable`.
+The import is emitted only when the contract contains `fail`, so contracts
+that do not fail keep their previous bytes.
+
+On a real Soroban host, `fail_with_error` traps the contract and the host
+discards the invocation's ledger writes. The Python test environment does the
+same for every `InvocationError` raised by the root call, including
+`ContractError`, `AuthorizationError`, `StorageMissingError`, overflow, and
+division by zero. Events published during that call are discarded. Linked
+contracts invoked as part of the call are restored too. `fail` is not a value
+and cannot be caught; the language has no `try`.
+
+Returning `0` or `u128(0)` is a successful result. It does not roll anything
+back. Use `fail` when a call must not commit. View functions may still return
+zero to mean "absent", which is what `Counter.value` and the AMM reserve
+getters do.

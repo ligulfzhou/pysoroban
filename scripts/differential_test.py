@@ -151,8 +151,30 @@ SUITES = (
         ROOT / "examples" / "amm_kernel_contract.py",
         (
             ("amm-small-quote", "quote", (100, 1_000, 1_000)),
-            ("amm-zero-quote", "quote", (0, 1_000, 1_000)),
+            ("amm-zero-quote", "quote", (0, 1_000, 1_000), "contract error 17179869187"),
             ("amm-wide-quote", "quote", (2**80, 2**100, 2**100)),
+        ),
+    ),
+    (
+        "contract-errors",
+        """
+from pysoroban import contract, error, fail, i32, public
+
+@error
+class GateError:
+    NOPE = 7
+
+@contract
+class Gate:
+    @public
+    def pick(self, flag: i32, value: i32) -> i32:
+        if flag == 0:
+            fail(GateError.NOPE)
+        return value
+""",
+        (
+            ("fail-pass", "pick", (1, 4)),
+            ("fail-trap", "pick", (0, 4), "contract error 30064771075"),
         ),
     ),
 )

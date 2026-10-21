@@ -2,7 +2,7 @@ import unittest
 from pathlib import Path
 
 from pysoroban import compile_file
-from pysoroban.testing import AuthorizationError, ContractTest, Event, InvocationError
+from pysoroban.testing import AuthorizationError, ContractError, ContractTest, Event, InvocationError
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,7 +22,9 @@ class AmmKernelTests(unittest.TestCase):
     def test_quotes_constant_product_swap_with_fee(self):
         amm = ContractTest.from_file(AMM)
         self.assertEqual(amm.invoke("quote", 100, 1_000, 1_000), 90)
-        self.assertEqual(amm.invoke("quote", 0, 1_000, 1_000), 0)
+        with self.assertRaises(ContractError) as raised:
+            amm.invoke("quote", 0, 1_000, 1_000)
+        self.assertEqual(raised.exception.case, "INVALID_AMOUNT")
 
     def test_quotes_with_a_product_larger_than_u128(self):
         amm = ContractTest.from_file(AMM)
@@ -33,6 +35,18 @@ class AmmKernelTests(unittest.TestCase):
         self.assertGreater(amount_in * 997 * reserve_out, 2**128)
         self.assertEqual(amm.invoke("quote", amount_in, reserve_in, reserve_out), expected)
 
+    def test_rejected_initialize_and_uninitialized_swap_do_not_write(self):
+        amm = ContractTest.from_file(AMM)
+        with self.assertRaises(ContractError) as raised:
+            amm.invoke("initialize", "provider", 0, 5, auth={"provider"})
+        self.assertEqual(raised.exception.case, "INVALID_RESERVE")
+        self.assertEqual(dict(amm.storage), {})
+
+        with self.assertRaises(ContractError) as raised:
+            amm.invoke("swap_a_for_b", "trader", 1, 0, auth={"trader"})
+        self.assertEqual(raised.exception.case, "NOT_INITIALIZED")
+        self.assertEqual(dict(amm.storage), {})
+
     def test_initializes_once_with_authorization(self):
         amm = ContractTest.from_file(AMM)
         with self.assertRaises(AuthorizationError):
@@ -42,13 +56,18 @@ class AmmKernelTests(unittest.TestCase):
         self.assertEqual(amm.invoke("reserve_a"), 1_000)
         self.assertEqual(amm.invoke("reserve_b"), 1_000)
         self.assertEqual(amm.invoke("total_shares"), 1_000)
-        self.assertEqual(amm.invoke("initialize", "provider", 5, 7, auth={"provider"}), 0)
+        with self.assertRaises(ContractError) as raised:
+            amm.invoke("initialize", "provider", 5, 7, auth={"provider"})
+        self.assertEqual(raised.exception.case, "ALREADY_INITIALIZED")
+        self.assertEqual(amm.invoke("reserve_a"), 1_000)
 
     def test_swap_enforces_minimum_output_before_state_change(self):
         amm = ContractTest.from_file(AMM)
         amm.invoke("initialize", "provider", 1_000, 1_000, auth={"provider"})
 
-        self.assertEqual(amm.invoke("swap_a_for_b", "trader", 100, 91, auth={"trader"}), 0)
+        with self.assertRaises(ContractError) as raised:
+            amm.invoke("swap_a_for_b", "trader", 100, 91, auth={"trader"})
+        self.assertEqual(raised.exception.case, "SLIPPAGE")
         self.assertEqual((amm.invoke("reserve_a"), amm.invoke("reserve_b")), (1_000, 1_000))
 
         amount_out = amm.invoke("swap_a_for_b", "trader", 100, 90, auth={"trader"})
