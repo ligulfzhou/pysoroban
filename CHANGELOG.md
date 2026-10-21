@@ -4,6 +4,10 @@ All notable changes to PySoroban are documented here.
 
 ## 0.12.0a1 — 2026-10-21
 
+- Document Stellar CLI and stellar-sdk invocation in `docs/INVOKE.md`. The
+  compiler still does not submit transactions or speak RPC.
+- Load compiler 0.12.0a1 in the browser demo.
+
 - Port the stellar/soroban-examples tree under `examples/soroban/`. Each
   example is a Python contract with tests, or a README that names the missing
   host or language feature.

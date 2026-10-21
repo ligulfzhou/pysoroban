@@ -231,6 +231,8 @@ topic, and `value` as single-value event data in `contractspecv0`.
 Integer wrapping, checked wide arithmetic, and contract errors are specified in
 [the language specification](docs/LANGUAGE.md). That document is the behavior
 contract for the current compiler: unchanged sources keep their Wasm bytes.
+Deploy and invoke with Stellar CLI or stellar-sdk, as described in
+[docs/INVOKE.md](docs/INVOKE.md).
 
 ## Language boundary
 
