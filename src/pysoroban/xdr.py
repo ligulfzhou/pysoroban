@@ -1,6 +1,15 @@
 import struct
 
-from .model import Contract, EnumType, MapType, StructType, ValueType, VecType, VEC_ELEMENT_TYPES
+from .model import (
+    BytesNType,
+    Contract,
+    EnumType,
+    MapType,
+    StructType,
+    ValueType,
+    VecType,
+    VEC_ELEMENT_TYPES,
+)
 
 
 SPEC_TYPES = {
@@ -40,6 +49,8 @@ def spec_type(value_type) -> bytes:
         return u32(1004) + spec_type(value_type.key) + spec_type(value_type.value_type)
     if isinstance(value_type, VecType):
         return u32(1002) + spec_type(value_type.element)
+    if isinstance(value_type, BytesNType):
+        return u32(1006) + u32(value_type.size)
     if isinstance(value_type, (StructType, EnumType)):
         return u32(2000) + xdr_string(value_type.name)
     if value_type in VEC_ELEMENT_TYPES:

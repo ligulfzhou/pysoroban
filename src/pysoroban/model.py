@@ -111,7 +111,18 @@ class MapType:
         return f"Map[{self.key.value}, {self.value_type.value}]"
 
 
-ContractType = Union[ValueType, MapType, StructType, EnumType, VecType]
+@dataclass(frozen=True)
+class BytesNType:
+    """A byte string whose length is fixed by the contract spec."""
+
+    size: int
+
+    @property
+    def value(self) -> str:
+        return f"BytesN[{self.size}]"
+
+
+ContractType = Union[ValueType, MapType, StructType, EnumType, VecType, BytesNType]
 
 
 def is_vec_type(value_type: ContractType) -> bool:
@@ -144,9 +155,13 @@ def is_integer_type(value_type: ContractType) -> bool:
     }
 
 
+def is_bytes_type(value_type: ContractType) -> bool:
+    return value_type is ValueType.BYTES or isinstance(value_type, BytesNType)
+
+
 def is_object_type(value_type: ContractType) -> bool:
     return (
-        isinstance(value_type, (MapType, StructType, VecType))
+        isinstance(value_type, (MapType, StructType, VecType, BytesNType))
         or value_type in {
             ValueType.ADDRESS,
             ValueType.BYTES,

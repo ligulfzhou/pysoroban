@@ -5,7 +5,7 @@ support. The compiler reads the source as an AST; contracts are never executed
 by the Python runtime.
 """
 
-__version__ = "0.14.0a1"
+__version__ = "0.15.0a1"
 
 from .compiler import CompilationResult, check_file, check_source, compile_file, compile_source
 from .abi import contract_abi
@@ -35,6 +35,13 @@ class i128:
 class u256:
     """Unsigned 256-bit Soroban contract value."""
 
+    def to_be_bytes(self):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    @staticmethod
+    def from_be_bytes(data):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
 
 class u128:
     """Unsigned 128-bit Soroban contract value."""
@@ -55,6 +62,9 @@ class Address:
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
     def require_auth_for(self, *args) -> None:
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def to_strkey(self) -> str:
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
     def call_void(self, function, *args) -> None:
@@ -105,6 +115,16 @@ class String:
     """Soroban UTF-8 string object."""
 
     def to_bytes(self):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+
+class BytesN:
+    """A fixed-length byte string, written BytesN[32](value)."""
+
+    def __class_getitem__(cls, length):
+        return cls
+
+    def __init__(self, value):
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
 
@@ -305,6 +325,10 @@ def fail(error_case):
     raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
 
+def to_xdr(value):
+    raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+
 def public(fn):
     return fn
 
@@ -314,6 +338,7 @@ __all__ = [
     "CompilationResult",
     "Address",
     "Bytes",
+    "BytesN",
     "String",
     "Symbol",
     "Topic",
@@ -345,6 +370,7 @@ __all__ = [
     "inspect_wasm_file",
     "public",
     "storage",
+    "to_xdr",
     "u32",
     "u64",
     "u128",

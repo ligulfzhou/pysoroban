@@ -189,6 +189,8 @@ def _read_spec_type(reader: _XdrReader) -> str:
         return "Vec[{}]".format(_read_spec_type(reader))
     if kind == 1004:
         return "Map[{}, {}]".format(_read_spec_type(reader), _read_spec_type(reader))
+    if kind == 1006:
+        return "BytesN[{}]".format(reader.u32())
     if kind == 2000:
         return reader.string()
     if kind not in SPEC_TYPE_NAMES:

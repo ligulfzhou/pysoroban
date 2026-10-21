@@ -36,9 +36,15 @@ when the parser has a node. Codes are grouped as follows:
 
 Supported value types are `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `u256`,
 `boolean`, `Address`, `Symbol`, `String`, `Bytes`, and `None` (`void`).
-`Vec[T]` is homogeneous. The element may be one of those scalars or a
-user-defined `@struct` or `@enum`. `Map[K, V]` accepts scalar, enum, and
-struct keys and values. Nested collections are rejected. A `@struct` is a
+`Vec[T]` is homogeneous. The element may be one of those scalars, `BytesN[N]`,
+or a user-defined `@struct` or `@enum`. `BytesN[N]` is a byte string of length
+`N` (1 through 64). `Map[K, V]` accepts scalar, enum, and struct keys and
+values. Nested collections are rejected. `Bytes` and `BytesN` support ordering
+comparisons. `to_xdr(value)` returns the Soroban ScVal XDR bytes.
+`u256.to_be_bytes()` and `u256.from_be_bytes(data)` convert the raw 32-byte
+integer. `address.to_strkey()` asks the host for the `G...` or `C...` form.
+
+A `@struct` is a
 named record stored as a Soroban map from field symbol to value. An `@enum`
 is a named `u32` discriminant. Directly recursive struct fields are rejected.
 
