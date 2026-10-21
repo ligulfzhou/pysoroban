@@ -352,6 +352,7 @@ PYTHONPATH=src python3 -m pysoroban validate dist/hello.wasm
 GitHub Actions runs the compiler suite on Python 3.9 and 3.13, validates every
 example as WebAssembly, runs the Typed IR/Wasm differential suite, builds an
 installable wheel, and builds/tests/lints the Cloudflare demo with Node 24.
+Publishing a release is described in [docs/RELEASING.md](docs/RELEASING.md).
 
 Run the same differential suite locally when Node.js is available:
 
