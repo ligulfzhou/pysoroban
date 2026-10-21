@@ -288,6 +288,14 @@ class FunctionEmitter:
                     ValueType.SYMBOL: SYMBOL_FROM_MEMORY,
                 }[node.type]
                 return self._u32_val(offset) + self._u32_val(len(raw)) + b"\x10" + uleb(constructor)
+            if node.type is ValueType.U256:
+                parts = bytearray()
+                for shift in (192, 128, 64, 0):
+                    part = (node.value >> shift) & (2**64 - 1)
+                    if part >= 2**63:
+                        part -= 2**64
+                    parts += b"\x42" + sleb(part)
+                return bytes(parts) + b"\x10" + uleb(self.host_indices[("i", "9")])
             if node.type in WIDE_INTEGER_TYPES:
                 bits = node.value % (2**128)
                 hi = bits >> 64
@@ -315,6 +323,13 @@ class FunctionEmitter:
             if node.op == "not":
                 return self.expression(node.operand) + b"\x45"
         if isinstance(node, ir.Binary):
+            if node.type is ValueType.U256:
+                export = {"add": "n", "sub": "o", "mul": "p", "div": "q"}[node.op]
+                return (
+                    self.expression(node.left)
+                    + self.expression(node.right)
+                    + b"\x10" + uleb(self.host_indices[("i", export)])
+                )
             if node.type in WIDE_INTEGER_TYPES:
                 return self._wide_binary(node)
             i32_opcodes = {
@@ -508,8 +523,8 @@ class FunctionEmitter:
             if node.op == "storage_get_bool":
                 return raw + b"\x42\x01\x51"
             if node.op in {
-                "storage_get_i128", "storage_get_u128", "storage_get_symbol",
-                "storage_get_string", "storage_get_bytes",
+                "storage_get_i128", "storage_get_u128", "storage_get_u256",
+                "storage_get_symbol", "storage_get_string", "storage_get_bytes",
             }:
                 return raw
             if node.op == "storage_get":
@@ -1066,6 +1081,8 @@ def emit_module(contract: ir.Contract, protocol: int = 25) -> bytes:
         optional(CONTRACT_CALL_IMPORT)
     if _uses_constant_type(contract, ValueType.U128):
         optional(("i", "3", 2))
+    if _uses_constant_type(contract, ValueType.U256):
+        optional(("i", "9", 4))
     if _uses_constant_type(contract, ValueType.I128):
         optional(("i", "6", 2))
     wide_operations = _wide_operation_types(contract)
@@ -1289,7 +1306,7 @@ def _service_imports(contract: ir.Contract):
 
     def expression(node: ir.Expression):
         nonlocal dynamic_log
-        if isinstance(node, ir.Binary) and node.type in WIDE_INTEGER_TYPES and node.op in {"mul", "div"}:
+        if isinstance(node, ir.Binary) and node.type in WIDE_INTEGER_TYPES | {ValueType.U256} and node.op in {"add", "sub", "mul", "div"}:
             wide.add((node.type, node.op))
         if isinstance(node, ir.HostCall):
             if node.op in needed:
@@ -1347,6 +1364,10 @@ def _service_imports(contract: ir.Contract):
     if (ValueType.I128, "div") in wide:
         add(("i", "y", 2))
         add(("i", "w", 2))
+    u256_exports = {"add": ("i", "n", 2), "sub": ("i", "o", 2), "mul": ("i", "p", 2), "div": ("i", "q", 2)}
+    for op, item in u256_exports.items():
+        if (ValueType.U256, op) in wide:
+            add(item)
     return imports
 
 

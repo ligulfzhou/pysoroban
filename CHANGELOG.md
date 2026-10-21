@@ -2,6 +2,12 @@
 
 All notable changes to PySoroban are documented here.
 
+## 0.14.0a1 — 2026-10-21
+
+- Add the `u256` contract type. Literals, comparisons, storage, vectors, and
+  cross-contract returns use the protocol object. Checked `+`, `-`, `*`, and
+  `//` call the host `u256` operations and trap on overflow or division by zero.
+
 ## 0.13.0a1 — 2026-10-21
 
 - Check `i128` floor division. The protocol `i256` divide truncates toward

@@ -36,6 +36,7 @@ TYPE_NAMES = {
     "u64": ValueType.U64,
     "i128": ValueType.I128,
     "u128": ValueType.U128,
+    "u256": ValueType.U256,
     "Symbol": ValueType.SYMBOL,
     "String": ValueType.STRING,
     "Bytes": ValueType.BYTES,
@@ -52,6 +53,7 @@ CONTRACT_CALL_TYPES = {
     "call_u64": ValueType.U64,
     "call_i128": ValueType.I128,
     "call_u128": ValueType.U128,
+    "call_u256": ValueType.U256,
     "call_bool": ValueType.BOOL,
     "call_address": ValueType.ADDRESS,
     "call_symbol": ValueType.SYMBOL,
@@ -71,11 +73,26 @@ def _has_decorator(node, name: str) -> bool:
 
 
 def _integer_literal(node: ast.expr) -> Optional[int]:
+    """Fold a compile-time integer expression of literals, +, -, *, and **."""
     if isinstance(node, ast.Constant) and isinstance(node.value, int) and not isinstance(node.value, bool):
         return node.value
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
-        if isinstance(node.operand, ast.Constant) and isinstance(node.operand.value, int) and not isinstance(node.operand.value, bool):
-            return -node.operand.value
+        value = _integer_literal(node.operand)
+        return None if value is None else -value
+    if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.Pow)):
+        left = _integer_literal(node.left)
+        right = _integer_literal(node.right)
+        if left is None or right is None:
+            return None
+        if isinstance(node.op, ast.Pow):
+            if right < 0 or right > 4096:
+                return None
+            return left ** right
+        if isinstance(node.op, ast.Add):
+            return left + right
+        if isinstance(node.op, ast.Sub):
+            return left - right
+        return left * right
     return None
 
 
@@ -568,16 +585,15 @@ class TypeChecker:
             fail(node, "invalid unary operator for operand type", "E0508")
         if isinstance(node, ast.BinOp):
             left, right = self.check_expr(node.left), self.check_expr(node.right)
-            if left is not right or left not in {
-                ValueType.I32, ValueType.U32, ValueType.I64, ValueType.U64,
-                ValueType.I128, ValueType.U128,
-            }:
+            if left is not right or not is_integer_type(left):
                 fail(node, "arithmetic operands must have the same numeric type", "E0509")
+            if left is ValueType.U256 and not isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.FloorDiv)):
+                fail(node, "u256 arithmetic supports checked +, -, *, and //", "E0510")
             if left in {ValueType.I128, ValueType.U128} and not isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.FloorDiv)):
                 fail(node, "i128/u128 arithmetic supports checked +, -, *, and //", "E0510")
             if isinstance(node.op, ast.FloorDiv):
-                if left not in {ValueType.U32, ValueType.U64, ValueType.U128, ValueType.I128}:
-                    fail(node, "floor division is supported for u32, u64, checked u128, and checked i128", "E0511")
+                if left not in {ValueType.U32, ValueType.U64, ValueType.U128, ValueType.I128, ValueType.U256}:
+                    fail(node, "floor division is supported for u32, u64, checked u128, checked i128, and checked u256", "E0511")
                 return left
             if not isinstance(node.op, (ast.Add, ast.Sub, ast.Mult)):
                 fail(node, "supported arithmetic operators are +, -, *, and //", "E0512")
@@ -596,7 +612,7 @@ class TypeChecker:
                 return ValueType.BOOL
             if left not in {
                 ValueType.I32, ValueType.U32, ValueType.I64, ValueType.U64,
-                ValueType.I128, ValueType.U128,
+                ValueType.I128, ValueType.U128, ValueType.U256,
             } and not isinstance(
                 node.ops[0], (ast.Eq, ast.NotEq)
             ):
@@ -670,7 +686,7 @@ class TypeChecker:
                 if actual is not ValueType.U128:
                     fail(argument, f"u128.mul_div_floor() expects u128 arguments, got {actual.value}", "E0608")
             return ValueType.U128
-        if len(path) == 1 and path[0] in {"i32", "u32", "i64", "u64", "i128", "u128"}:
+        if len(path) == 1 and path[0] in {"i32", "u32", "i64", "u64", "i128", "u128", "u256"}:
             value = _integer_literal(node.args[0]) if len(node.args) == 1 else None
             if value is None:
                 fail(node, f"{path[0]}() requires one integer literal", "E0609")
@@ -681,6 +697,7 @@ class TypeChecker:
                 "u64": (0, 2**64 - 1),
                 "i128": (-(2**127), 2**127 - 1),
                 "u128": (0, 2**128 - 1),
+                "u256": (0, 2**256 - 1),
             }
             lower, upper = bounds[path[0]]
             if not lower <= value <= upper:
@@ -761,6 +778,7 @@ class TypeChecker:
             "get_u64": ValueType.U64,
             "get_i128": ValueType.I128,
             "get_u128": ValueType.U128,
+            "get_u256": ValueType.U256,
             "get_bool": ValueType.BOOL,
             "get_symbol": ValueType.SYMBOL,
             "get_string": ValueType.STRING,
