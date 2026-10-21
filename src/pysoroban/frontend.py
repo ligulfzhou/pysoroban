@@ -8,6 +8,11 @@ from .model import (
     Contract,
     EnumCase,
     EnumType,
+    OptionType,
+    ResultType,
+    TupleType,
+    UnionCase,
+    UnionType,
     ErrorCase,
     ErrorEnum,
     Event,
@@ -44,7 +49,24 @@ TYPE_NAMES = {
     "Bytes": ValueType.BYTES,
     "boolean": ValueType.BOOL,
     "bool": ValueType.BOOL,
+    "Val": ValueType.VAL,
     "None": ValueType.VOID,
+}
+
+TRY_CALL_TYPES = {
+    "try_void": ResultType(ValueType.VOID, ValueType.U32),
+    "try_i32": ResultType(ValueType.I32, ValueType.U32),
+    "try_u32": ResultType(ValueType.U32, ValueType.U32),
+    "try_i64": ResultType(ValueType.I64, ValueType.U32),
+    "try_u64": ResultType(ValueType.U64, ValueType.U32),
+    "try_i128": ResultType(ValueType.I128, ValueType.U32),
+    "try_u128": ResultType(ValueType.U128, ValueType.U32),
+    "try_u256": ResultType(ValueType.U256, ValueType.U32),
+    "try_bool": ResultType(ValueType.BOOL, ValueType.U32),
+    "try_address": ResultType(ValueType.ADDRESS, ValueType.U32),
+    "try_symbol": ResultType(ValueType.SYMBOL, ValueType.U32),
+    "try_string": ResultType(ValueType.STRING, ValueType.U32),
+    "try_bytes": ResultType(ValueType.BYTES, ValueType.U32),
 }
 
 CONTRACT_CALL_TYPES = {
@@ -112,10 +134,29 @@ def _annotation(node: Optional[ast.expr], user_types=None, *, allow_void: bool =
         element = _annotation(node.slice, user_types)
         if element in VEC_TYPES_BY_ELEMENT:
             result = VEC_TYPES_BY_ELEMENT[element]
-        elif isinstance(element, (StructType, EnumType)):
+        elif is_vec_type(element) or isinstance(element, (StructType, EnumType, MapType, BytesNType, OptionType, ResultType, TupleType, UnionType)):
             result = VecType(element)
         else:
             fail(node, "unsupported Vec element type", "E0202")
+    elif isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "Option":
+        result = OptionType(_annotation(node.slice, user_types, allow_void=True))
+        if result.inner is ValueType.VOID:
+            fail(node, "Option[None] is not supported", "E0209")
+    elif isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "Result":
+        if not isinstance(node.slice, ast.Tuple) or len(node.slice.elts) != 2:
+            fail(node, "Result requires an ok type and an error type", "E0210")
+        result = ResultType(
+            _annotation(node.slice.elts[0], user_types, allow_void=True),
+            _annotation(node.slice.elts[1], user_types),
+        )
+        if result.err is not ValueType.U32:
+            fail(node, "Result error type must be u32", "E0210")
+    elif isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "Tuple":
+        slices = node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice]
+        elements = tuple(_annotation(item, user_types, allow_void=True) for item in slices)
+        if not elements or len(elements) > 12:
+            fail(node, "Tuple requires 1 to 12 element types", "E0211")
+        result = TupleType(elements)
     elif isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "BytesN":
         size = _integer_literal(node.slice)
         if size is None or not 1 <= size <= 64:
@@ -128,8 +169,6 @@ def _annotation(node: Optional[ast.expr], user_types=None, *, allow_void: bool =
         value = _annotation(node.slice.elts[1], user_types)
         if is_collection(key):
             fail(node.slice.elts[0], "Map keys must be scalar contract types", "E0204")
-        if is_collection(value):
-            fail(node.slice.elts[1], "nested collection values are not supported yet", "E0205")
         result = MapType(key, value)
     elif isinstance(node, ast.Constant) and node.value is None:
         result = ValueType.VOID
@@ -161,25 +200,32 @@ def _symbol_name(name: str) -> bool:
 def _user_type_nodes(module: ast.Module):
     structs = []
     enums = []
+    unions = []
     for node in module.body:
         if not isinstance(node, ast.ClassDef):
             continue
         is_struct = _has_decorator(node, "struct")
         is_enum = _has_decorator(node, "enum")
-        if not is_struct and not is_enum:
+        is_union = _has_decorator(node, "union")
+        if not is_struct and not is_enum and not is_union:
             continue
-        if is_struct and is_enum or _has_decorator(node, "contract") or _has_decorator(node, "event") or _has_decorator(node, "error"):
-            fail(node, "a class cannot combine @struct or @enum with another contract decorator", "E0803")
+        if sum((is_struct, is_enum, is_union)) > 1 or _has_decorator(node, "contract") or _has_decorator(node, "event") or _has_decorator(node, "error"):
+            fail(node, "a class cannot combine @struct, @enum, or @union with another contract decorator", "E0803")
         if not node.name or len(node.name.encode("utf-8")) > 60:
             fail(node, "struct and enum names are limited to 60 UTF-8 bytes", "E0802")
-        (structs if is_struct else enums).append(node)
-    return structs, enums
+        if is_struct:
+            structs.append(node)
+        elif is_enum:
+            enums.append(node)
+        else:
+            unions.append(node)
+    return structs, enums, unions
 
 
 def _parse_user_types(module: ast.Module):
-    struct_nodes, enum_nodes = _user_type_nodes(module)
+    struct_nodes, enum_nodes, union_nodes = _user_type_nodes(module)
     names: Set[str] = set()
-    for node in struct_nodes + enum_nodes:
+    for node in struct_nodes + enum_nodes + union_nodes:
         if node.name in names or node.name in TYPE_NAMES:
             fail(node, f"duplicate type {node.name!r}", "E0801")
         names.add(node.name)
@@ -219,6 +265,58 @@ def _parse_user_types(module: ast.Module):
     struct_by_name = {node.name: node for node in struct_nodes}
     structs: Dict[str, StructType] = {}
     resolving: Set[str] = set()
+    union_by_name = {node.name: node for node in union_nodes}
+    unions: Dict[str, UnionType] = {}
+
+    def resolve_union(name: str) -> UnionType:
+        if name in unions:
+            return unions[name]
+        if name in resolving:
+            fail(union_by_name[name], "recursive union cases are not supported", "E0825")
+        resolving.add(name)
+        unions[name] = _build_union(union_by_name[name], _user_field_type)
+        resolving.remove(name)
+        return unions[name]
+
+    def _user_field_type(node):
+        if isinstance(node, ast.Name) and node.id in struct_by_name:
+            return resolve_struct(node.id)
+        if isinstance(node, ast.Name) and node.id in union_by_name:
+            return resolve_union(node.id)
+        if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "Vec":
+            element = _user_field_type(node.slice)
+            if element in VEC_TYPES_BY_ELEMENT:
+                return VEC_TYPES_BY_ELEMENT[element]
+            if is_vec_type(element) or isinstance(element, (StructType, EnumType, MapType, BytesNType, OptionType, ResultType, TupleType, UnionType)):
+                return VecType(element)
+            fail(node, "unsupported Vec element type", "E0202")
+        if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "Map":
+            if not isinstance(node.slice, ast.Tuple) or len(node.slice.elts) != 2:
+                fail(node, "Map requires key and value types", "E0203")
+            key = _user_field_type(node.slice.elts[0])
+            value = _user_field_type(node.slice.elts[1])
+            if is_collection(key):
+                fail(node.slice.elts[0], "Map keys must be scalar contract types", "E0204")
+            return MapType(key, value)
+        if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "Option":
+            inner = _user_field_type(node.slice)
+            if inner is ValueType.VOID:
+                fail(node, "Option[None] is not supported", "E0209")
+            return OptionType(inner)
+        if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "Result":
+            if not isinstance(node.slice, ast.Tuple) or len(node.slice.elts) != 2:
+                fail(node, "Result requires an ok type and an error type", "E0210")
+            result = ResultType(_user_field_type(node.slice.elts[0]), _user_field_type(node.slice.elts[1]))
+            if result.err is not ValueType.U32:
+                fail(node, "Result error type must be u32", "E0210")
+            return result
+        if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "Tuple":
+            slices = node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice]
+            elements = tuple(_user_field_type(item) for item in slices)
+            if not elements or len(elements) > 12:
+                fail(node, "Tuple requires 1 to 12 element types", "E0211")
+            return TupleType(elements)
+        return _annotation(node, {**enums, **structs, **unions})
 
     def resolve_struct(name: str) -> StructType:
         if name in structs:
@@ -240,8 +338,7 @@ def _parse_user_types(module: ast.Module):
             if not _symbol_name(field_name) or len(field_name.encode("utf-8")) > 30:
                 fail(child, "struct field names must be Symbol-sized identifiers of at most 30 bytes", "E0806")
             field_names.add(field_name)
-            field_type = _struct_field_type(child.annotation, enums, structs, struct_by_name, resolve_struct)
-            fields.append(StructField(field_name, field_type))
+            fields.append(StructField(field_name, _user_field_type(child.annotation)))
         if not fields:
             fail(node, "structs must contain at least one field", "E0807")
         if len(fields) > 40:
@@ -252,32 +349,34 @@ def _parse_user_types(module: ast.Module):
 
     for node in struct_nodes:
         resolve_struct(node.name)
+    for node in union_nodes:
+        resolve_union(node.name)
     ordered_structs = tuple(structs[node.name] for node in struct_nodes)
     ordered_enums = tuple(enums[node.name] for node in enum_nodes)
-    return ordered_structs, ordered_enums
+    ordered_unions = tuple(unions[node.name] for node in union_nodes)
+    return ordered_structs, ordered_enums, ordered_unions
 
 
-def _struct_field_type(node, enums, structs, struct_by_name, resolve_struct):
-    if isinstance(node, ast.Name) and node.id in struct_by_name:
-        return resolve_struct(node.id)
-    if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "Vec":
-        element = _struct_field_type(node.slice, enums, structs, struct_by_name, resolve_struct)
-        if element in VEC_TYPES_BY_ELEMENT:
-            return VEC_TYPES_BY_ELEMENT[element]
-        if isinstance(element, (StructType, EnumType)):
-            return VecType(element)
-        fail(node, "unsupported Vec element type", "E0202")
-    if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "Map":
-        if not isinstance(node.slice, ast.Tuple) or len(node.slice.elts) != 2:
-            fail(node, "Map requires key and value types", "E0203")
-        key = _struct_field_type(node.slice.elts[0], enums, structs, struct_by_name, resolve_struct)
-        value = _struct_field_type(node.slice.elts[1], enums, structs, struct_by_name, resolve_struct)
-        if is_collection(key):
-            fail(node.slice.elts[0], "Map keys must be scalar contract types", "E0204")
-        if is_collection(value):
-            fail(node.slice.elts[1], "nested collection values are not supported yet", "E0205")
-        return MapType(key, value)
-    return _annotation(node, {**enums, **structs})
+def _build_union(node: ast.ClassDef, field_type) -> UnionType:
+    cases: List[UnionCase] = []
+    names: Set[str] = set()
+    for child in _without_docstring(node.body):
+        if isinstance(child, ast.Pass):
+            continue
+        if not isinstance(child, ast.AnnAssign) or not isinstance(child.target, ast.Name) or child.value is not None:
+            fail(child, "union bodies may only contain annotated cases", "E0820")
+        case_name = child.target.id
+        if case_name in names or not _symbol_name(case_name) or len(case_name.encode("utf-8")) > 30:
+            fail(child, f"invalid union case {case_name!r}", "E0821")
+        names.add(case_name)
+        if isinstance(child.annotation, ast.Constant) and child.annotation.value is None:
+            payload = ()
+        else:
+            payload = (field_type(child.annotation),)
+        cases.append(UnionCase(case_name, payload))
+    if not cases:
+        fail(node, "unions must contain at least one case", "E0822")
+    return UnionType(node.name, tuple(cases), ast.get_docstring(node) or "")
 
 
 def _parse_events(module: ast.Module, user_types=None) -> List[Event]:
@@ -373,6 +472,15 @@ def _parse_errors(module: ast.Module) -> List[ErrorEnum]:
     return errors
 
 
+def _is_option_none(node: ast.expr) -> bool:
+    return (
+        isinstance(node, ast.Call)
+        and not node.args
+        and not node.keywords
+        and _attribute_path(node.func) == ["Option", "none"]
+    )
+
+
 def _is_fail_call(node: ast.expr) -> bool:
     return isinstance(node, ast.Call) and _attribute_path(node.func) == ["fail"]
 
@@ -391,8 +499,8 @@ def parse_contract(source: str, source_name: Optional[str] = None) -> Contract:
         raise CompileError("source must contain exactly one @contract class", code="E0002")
     contract_node = classes[0]
 
-    structs, enums = _parse_user_types(module)
-    user_types = {item.name: item for item in structs + enums}
+    structs, enums, unions = _parse_user_types(module)
+    user_types = {item.name: item for item in structs + enums + unions}
     events = _parse_events(module, user_types)
     errors = _parse_errors(module)
     error_names = {item.name for item in errors}
@@ -440,6 +548,7 @@ def parse_contract(source: str, source_name: Optional[str] = None) -> Contract:
         errors=tuple(errors),
         structs=structs,
         enums=enums,
+        unions=unions,
         source_name=source_name,
     )
     TypeChecker(contract).check()
@@ -455,7 +564,8 @@ class TypeChecker:
         self.errors = {error.name: error for error in contract.errors}
         self.structs = {item.name: item for item in contract.structs}
         self.enums = {item.name: item for item in contract.enums}
-        self.user_types = {**self.structs, **self.enums}
+        self.unions = {item.name: item for item in getattr(contract, "unions", ())}
+        self.user_types = {**self.structs, **self.enums, **self.unions}
 
     def check(self):
         for function in self.contract.functions:
@@ -481,6 +591,10 @@ class TypeChecker:
                 actual = self._check_pop(node.value)
             elif self._is_empty_collection(node.value):
                 actual = self._check_empty_collection(node.value, declared)
+            elif _is_option_none(node.value):
+                if not isinstance(declared, OptionType):
+                    fail(node.value, "Option.none() requires an Option annotation", "E0661")
+                actual = declared
             else:
                 actual = self.check_expr(node.value)
             if declared != actual:
@@ -494,6 +608,8 @@ class TypeChecker:
                 actual = self._check_pop(node.value)
             elif self._is_empty_collection(node.value):
                 fail(node.value, "empty Vec() and Map() require an annotated type", "E0647")
+            elif _is_option_none(node.value):
+                fail(node.value, "Option.none() requires an annotated type", "E0661")
             else:
                 actual = self.check_expr(node.value)
             target = node.targets[0]
@@ -576,6 +692,11 @@ class TypeChecker:
                 if index_type is not ValueType.I32:
                     fail(node.slice, "Vec indices must be i32", "E0505")
                 return vec_element(collection_type)
+            if isinstance(collection_type, TupleType):
+                index = _integer_literal(node.slice)
+                if index is None or not 0 <= index < len(collection_type.elements):
+                    fail(node.slice, "tuple indexes must be in-range integer literals", "E0518")
+                return collection_type.elements[index]
             if isinstance(collection_type, MapType):
                 if index_type != collection_type.key:
                     fail(node.slice, f"Map key expects {collection_type.key.value}, got {index_type.value}", "E0506")
@@ -654,6 +775,8 @@ class TypeChecker:
     def _check_call(self, node: ast.Call) -> ValueType:
         if node.keywords:
             fail(node, "keyword arguments are not supported", "E0601")
+        if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Subscript):
+            return self._check_result_constructor(node)
         path = _attribute_path(node.func)
         service = self._check_service(node, path)
         if service is not None:
@@ -685,6 +808,21 @@ class TypeChecker:
             if actual != map_type.key:
                 fail(node.args[0], f"Map key expects {map_type.key.value}, got {actual.value}", "E0606")
             return ValueType.BOOL
+        if len(path) == 2 and path[0] in getattr(self, "unions", {}):
+            return self._check_union_constructor(node, path)
+        if len(path) == 2 and path[1] in TRY_CALL_TYPES:
+            return self._check_try_call(node, path)
+        if len(path) == 2 and path[0] in self.variables:
+            summed = self._check_sum_method(node, path)
+            if summed is not None:
+                return summed
+        if path == ["Option", "some"]:
+            if len(node.args) != 1:
+                fail(node, "Option.some() takes one value", "E0661")
+            inner = self.check_expr(node.args[0])
+            if inner is ValueType.VOID:
+                fail(node.args[0], "Option.some() cannot wrap None", "E0661")
+            return OptionType(inner)
         if path == ["to_xdr"]:
             if len(node.args) != 1 or self.check_expr(node.args[0]) is ValueType.VOID:
                 fail(node, "to_xdr() takes one contract value", "E0657")
@@ -1027,8 +1165,88 @@ class TypeChecker:
                 return ValueType.BYTES
         return None
 
+    def _check_union_constructor(self, node: ast.Call, path):
+        union = self.unions[path[0]]
+        case = next((item for item in union.cases if item.name == path[1]), None)
+        if case is None:
+            fail(node, f"unknown union case {path[0]}.{path[1]}", "E0821")
+        if len(node.args) != len(case.types):
+            fail(node, f"{path[0]}.{path[1]}() expects {len(case.types)} values", "E0823")
+        for expected, argument in zip(case.types, node.args):
+            actual = self.check_expr(argument)
+            if actual != expected:
+                fail(argument, f"union payload expects {expected.value}, got {actual.value}", "E0823")
+        return union
+
+    def _check_try_call(self, node: ast.Call, path):
+        if path[0] not in self.variables or self.variables[path[0]] is not ValueType.ADDRESS:
+            fail(node, f"{path[1]}() is only available on Address values", "E0614")
+        if not node.args or self.check_expr(node.args[0]) is not ValueType.SYMBOL:
+            fail(node, f"{path[1]}() takes a Symbol and arguments", "E0616")
+        for argument in node.args[1:]:
+            if self.check_expr(argument) is ValueType.VOID:
+                fail(argument, "cross-contract arguments cannot be None", "E0619")
+        return TRY_CALL_TYPES[path[1]]
+
+    def _check_sum_method(self, node: ast.Call, path):
+        if node.args:
+            return None
+        owner = self.variables[path[0]]
+        method = path[1]
+        if isinstance(owner, OptionType):
+            if method == "is_some":
+                return ValueType.BOOL
+            if method == "unwrap":
+                return owner.inner
+        if isinstance(owner, ResultType):
+            if method == "is_ok":
+                return ValueType.BOOL
+            if method == "unwrap":
+                return owner.ok
+            if method == "unwrap_err":
+                return ValueType.U32
+        if isinstance(owner, UnionType):
+            if method.startswith("is_"):
+                if any(case.name == method[3:] for case in owner.cases):
+                    return ValueType.BOOL
+            if method.startswith("unwrap_"):
+                case = next((item for item in owner.cases if item.name == method[7:]), None)
+                if case is not None and case.types:
+                    return case.types[0] if len(case.types) == 1 else TupleType(case.types)
+        return None
+
+    def _check_result_constructor(self, node: ast.Call):
+        base = node.func.value
+        if not isinstance(base.value, ast.Name) or base.value.id != "Result" or node.func.attr not in {"ok", "err"}:
+            fail(node, "unsupported function or method call", "E0629")
+        if not isinstance(base.slice, ast.Tuple) or len(base.slice.elts) != 2:
+            fail(base, "Result requires an ok type and an error type", "E0210")
+        result = ResultType(
+            _annotation(base.slice.elts[0], self.user_types, allow_void=True),
+            _annotation(base.slice.elts[1], self.user_types),
+        )
+        if node.func.attr == "ok":
+            if len(node.args) != 1 or self.check_expr(node.args[0]) != result.ok:
+                fail(node, f"Result.ok() expects {result.ok.value}", "E0662")
+            return result
+        if result.err is not ValueType.U32 or len(node.args) != 1:
+            fail(node, "Result.err() takes one @error case and the error type must be u32", "E0662")
+        self._check_error_case(node.args[0])
+        return result
+
     def _check_bytesn_call(self, node: ast.Call):
         func = node.func
+        if isinstance(func.value, ast.Name) and func.value.id == "Tuple":
+            parsed = _annotation(func, self.user_types)
+            if not isinstance(parsed, TupleType):
+                fail(node, "Tuple[T, ...]() requires tuple element types", "E0211")
+            if len(node.args) != len(parsed.elements):
+                fail(node, f"tuple constructor expects {len(parsed.elements)} values", "E0663")
+            for expected, argument in zip(parsed.elements, node.args):
+                actual = self.check_expr(argument)
+                if actual != expected:
+                    fail(argument, f"tuple element expects {expected.value}, got {actual.value}", "E0663")
+            return parsed
         if not isinstance(func.value, ast.Name) or func.value.id != "BytesN":
             fail(node, "unsupported function or method call", "E0629")
         size = _integer_literal(func.slice)

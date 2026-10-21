@@ -21,6 +21,10 @@ from .scval import xdr_bytes
 from .model import (
     BytesNType,
     EnumType,
+    OptionType,
+    ResultType,
+    TupleType,
+    UnionType,
     MapType,
     StructType,
     ValueType,
@@ -335,6 +339,60 @@ class ContractTest:
             self._events.append(event)
             self._last_events.append(event)
             return None
+        if call.op == "option_none":
+            return None
+        if call.op == "option_some":
+            return values[0]
+        if call.op == "option_is_some":
+            return values[0] is not None
+        if call.op == "option_unwrap":
+            if values[0] is None:
+                raise InvocationError("unwrap of None")
+            return values[0]
+        if call.op == "result_ok":
+            return ("ok", values[0])
+        if call.op == "result_err":
+            return ("err", values[0])
+        if call.op == "result_is_ok":
+            return values[0][0] == "ok"
+        if call.op == "result_unwrap":
+            if values[0][0] != "ok":
+                raise InvocationError("unwrap of an error Result")
+            return values[0][1]
+        if call.op == "result_unwrap_err":
+            if values[0][0] != "err":
+                raise InvocationError("unwrap_err of an ok Result")
+            return values[0][1]
+        if call.op == "tuple_new":
+            return values
+        if call.op == "union_new":
+            return ("union", values[0], values[1:])
+        if call.op == "union_is":
+            value, name, _flag = values
+            return isinstance(value, tuple) and value[0] == "union" and value[1] == name
+        if call.op == "union_unwrap":
+            value, name = values
+            if not (isinstance(value, tuple) and value[0] == "union" and value[1] == name and value[2]):
+                raise InvocationError(f"unwrap of union case {name!r}")
+            return value[2][0]
+        if call.op == "try_call":
+            address, function, *args = values
+            target = self._contracts.get(address)
+            if target is None:
+                raise InvocationError(f"unregistered contract address {address!r}")
+            granted = set(self._authorized)
+            granted.add(self.contract_address)
+            # A caught failure rolls the callee back and leaves the caller.
+            # Frames belong to the shared transaction, so only the suffix
+            # appended by this attempt is restored.
+            mark = len(self._transaction)
+            try:
+                result = target._invoke(function, tuple(args), {}, granted, self._transaction)
+            except ContractError as exc:
+                _restore_transaction(self._transaction[mark:])
+                del self._transaction[mark:]
+                return ("err", exc.code)
+            return ("ok", result)
         if call.op == "contract_call":
             address, function, *args = values
             target = self._contracts.get(address)
@@ -687,6 +745,40 @@ def _validate_native(value: NativeValue, value_type: ValueType, label: str) -> N
         valid = isinstance(value, int) and not isinstance(value, bool) and any(
             case.value == value for case in value_type.cases
         )
+    elif value_type is ValueType.VAL:
+        valid = True
+    elif isinstance(value_type, OptionType):
+        if value is None:
+            valid = True
+        else:
+            _validate_native(value, value_type.inner, label)
+            return
+    elif isinstance(value_type, ResultType):
+        valid = (
+            isinstance(value, tuple)
+            and len(value) == 2
+            and value[0] in {"ok", "err"}
+        )
+        if valid and value[0] == "ok":
+            _validate_native(value[1], value_type.ok, f"{label} ok")
+            return
+        if valid:
+            valid = isinstance(value[1], int) and not isinstance(value[1], bool)
+    elif isinstance(value_type, TupleType):
+        valid = isinstance(value, (list, tuple)) and len(value) == len(value_type.elements)
+        if valid:
+            for index, (item, item_type) in enumerate(zip(value, value_type.elements)):
+                _validate_native(item, item_type, f"{label}[{index}]")
+            return
+    elif isinstance(value_type, UnionType):
+        valid = isinstance(value, tuple) and len(value) == 3 and value[0] == "union"
+        if valid:
+            case = next((item for item in value_type.cases if item.name == value[1]), None)
+            valid = case is not None and len(value[2]) == len(case.types)
+            if valid:
+                for index, (item, item_type) in enumerate(zip(value[2], case.types)):
+                    _validate_native(item, item_type, f"{label}.{value[1]}[{index}]")
+                return
     elif isinstance(value_type, StructType):
         valid = isinstance(value, dict) and set(value) == {field.name for field in value_type.fields}
         if valid:

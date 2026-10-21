@@ -7,16 +7,22 @@ from . import ir
 from .errors import fail
 from .frontend import (
     CONTRACT_CALL_TYPES,
+    TRY_CALL_TYPES,
     _annotation,
     _attribute_path,
     _integer_literal,
     _is_fail_call,
+    _is_option_none,
     function_body,
 )
 from .model import (
     BytesNType,
     Contract,
     EnumType,
+    OptionType,
+    ResultType,
+    TupleType,
+    UnionType,
     ErrorEnum,
     Event,
     Function,
@@ -66,13 +72,16 @@ def lower_contract(contract: Contract) -> ir.Contract:
     return ir.Contract(
         name=contract.name,
         functions=tuple(
-            FunctionLowerer(function, contract.events, contract.errors, contract.structs, contract.enums).lower()
+            FunctionLowerer(
+                function, contract.events, contract.errors, contract.structs, contract.enums, contract.unions,
+            ).lower()
             for function in contract.functions
         ),
         events=contract.events,
         errors=contract.errors,
         structs=contract.structs,
         enums=contract.enums,
+        unions=contract.unions,
         source_name=contract.source_name,
     )
 
@@ -85,13 +94,15 @@ class FunctionLowerer:
         errors: Tuple[ErrorEnum, ...] = (),
         structs: Tuple[StructType, ...] = (),
         enums: Tuple[EnumType, ...] = (),
+        unions: Tuple[UnionType, ...] = (),
     ):
         self.function = function
         self.events = {event.name: event for event in events}
         self.errors = {error.name: error for error in errors}
         self.structs = {item.name: item for item in structs}
         self.enums = {item.name: item for item in enums}
-        self.user_types = {**self.structs, **self.enums}
+        self.unions = {item.name: item for item in unions}
+        self.user_types = {**self.structs, **self.enums, **self.unions}
         self.types: Dict[str, object] = {param.name: param.type for param in function.params}
         self.local_order: List[str] = []
         self.range_counter = 0
@@ -179,6 +190,13 @@ class FunctionLowerer:
             return ir.Local(node.id, self.types[node.id])
         if isinstance(node, ast.Subscript):
             collection = ir.Local(node.value.id, self.types[node.value.id])
+            if isinstance(collection.type, TupleType):
+                index = _integer_literal(node.slice)
+                return ir.HostCall(
+                    "vec_get",
+                    (collection, ir.Constant(index, ValueType.I32)),
+                    collection.type.elements[index],
+                )
             if isinstance(collection.type, MapType):
                 return ir.HostCall("map_get", (collection, self.expression(node.slice)), collection.type.value_type)
             return ir.HostCall("vec_get", (collection, self.expression(node.slice)), vec_element(collection.type))
@@ -245,6 +263,26 @@ class FunctionLowerer:
                 (ir.Local(path[0], self.types[path[0]]), self.expression(node.args[0])),
                 ValueType.BOOL,
             )
+        if path == ["Option", "some"]:
+            value = self.expression(node.args[0])
+            return ir.HostCall("option_some", (value,), OptionType(value.type))
+        if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Subscript):
+            return self._result_constructor(node)
+        if isinstance(node.func, ast.Subscript) and isinstance(node.func.value, ast.Name) and node.func.value.id == "Tuple":
+            parsed = _annotation(node.func, self.user_types)
+            return ir.HostCall("tuple_new", tuple(self.expression(value) for value in node.args), parsed)
+        if len(path) == 2 and path[0] in self.unions:
+            union = self.unions[path[0]]
+            case = next(item for item in union.cases if item.name == path[1])
+            args = (ir.Constant(case.name, ValueType.SYMBOL),) + tuple(self.expression(value) for value in node.args)
+            return ir.HostCall("union_new", args, union)
+        if len(path) == 2 and path[1] in TRY_CALL_TYPES:
+            args = (ir.Local(path[0], ValueType.ADDRESS),) + tuple(self.expression(value) for value in node.args)
+            return ir.HostCall("try_call", args, TRY_CALL_TYPES[path[1]])
+        if len(path) == 2 and path[0] in self.types:
+            summed = self._sum_method(path)
+            if summed is not None:
+                return summed
         if path == ["to_xdr"]:
             return ir.HostCall("to_xdr", (self.expression(node.args[0]),), ValueType.BYTES)
         if isinstance(node.func, ast.Subscript):
@@ -299,7 +337,56 @@ class FunctionLowerer:
         ):
             op = "vec_new" if _attribute_path(node.func) == ["Vec"] else "map_new"
             return ir.HostCall(op, (), declared)
+        if _is_option_none(node):
+            return ir.HostCall("option_none", (), declared)
         return self.expression(node)
+
+    def _result_constructor(self, node: ast.Call) -> ir.HostCall:
+        result = _annotation(node.func.value, self.user_types)
+        value = self.expression(node.args[0]) if node.func.attr == "ok" else self._error_code(node.args[0])
+        op = "result_ok" if node.func.attr == "ok" else "result_err"
+        return ir.HostCall(op, (value,), result)
+
+    def _error_code(self, node: ast.expr) -> ir.Constant:
+        error_name, case_name = _attribute_path(node)
+        error = self.errors[error_name]
+        case = next(item for item in error.cases if item.name == case_name)
+        return ir.Constant(case.value, ValueType.U32)
+
+    def _sum_method(self, path):
+        owner_type = self.types[path[0]]
+        owner = ir.Local(path[0], owner_type)
+        method = path[1]
+        if isinstance(owner_type, OptionType) and method == "is_some":
+            return ir.HostCall("option_is_some", (owner,), ValueType.BOOL)
+        if isinstance(owner_type, OptionType) and method == "unwrap":
+            return ir.HostCall("option_unwrap", (owner,), owner_type.inner)
+        if isinstance(owner_type, ResultType) and method == "is_ok":
+            return ir.HostCall("result_is_ok", (owner,), ValueType.BOOL)
+        if isinstance(owner_type, ResultType) and method == "unwrap":
+            return ir.HostCall("result_unwrap", (owner,), owner_type.ok)
+        if isinstance(owner_type, ResultType) and method == "unwrap_err":
+            return ir.HostCall("result_unwrap_err", (owner,), ValueType.U32)
+        if isinstance(owner_type, UnionType) and method.startswith("is_"):
+            case = next((item for item in owner_type.cases if item.name == method[3:]), None)
+            if case is None:
+                return None
+            return ir.HostCall(
+                "union_is",
+                (owner, ir.Constant(case.name, ValueType.SYMBOL), ir.Constant(1 if case.types else 0, ValueType.I32)),
+                ValueType.BOOL,
+            )
+        if isinstance(owner_type, UnionType) and method.startswith("unwrap_"):
+            case = next((item for item in owner_type.cases if item.name == method[7:]), None)
+            if case is None or not case.types:
+                return None
+            result = case.types[0] if len(case.types) == 1 else TupleType(case.types)
+            return ir.HostCall(
+                "union_unwrap",
+                (owner, ir.Constant(case.name, ValueType.SYMBOL)),
+                result,
+            )
+        return None
 
     def _is_pop(self, node: ast.expr) -> bool:
         return (

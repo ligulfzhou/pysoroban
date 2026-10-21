@@ -492,6 +492,12 @@ class FunctionEmitter:
         return bytes(output)
 
     def call(self, node: ir.HostCall) -> bytes:
+        if node.op in {
+            "option_none", "option_some", "option_is_some", "option_unwrap",
+            "result_ok", "result_err", "result_is_ok", "result_unwrap", "result_unwrap_err",
+            "tuple_new", "union_new", "union_is", "union_unwrap", "try_call",
+        }:
+            return self._sum(node)
         if node.op == "u128_mul_div_floor":
             return self._u128_mul_div_floor(node)
         if node.op == "require_auth":
@@ -800,6 +806,100 @@ class FunctionEmitter:
             ])
         finally:
             self._release_wide_scratch()
+
+    def _tag_compare(self, value: bytes, tag: int, *, equal: bool) -> bytes:
+        opcode = b"\x51" if equal else b"\x52"
+        return value + b"\x42" + sleb(0xFF) + b"\x83" + b"\x42" + sleb(tag) + opcode
+
+    def _guard_tag(self, value: bytes, tag: int, *, trap_if_equal: bool) -> bytes:
+        scratch = uleb(self.locals.scratch)
+        return b"".join([
+            value,
+            b"\x22", scratch,
+            self._tag_compare(b"\x20" + scratch, tag, equal=trap_if_equal),
+            b"\x04\x40\x00\x0b",
+            b"\x20", scratch,
+        ])
+
+    def _sum(self, node: ir.HostCall) -> bytes:
+        if node.op == "option_none":
+            return b"\x42" + sleb(VOID_TAG)
+        if node.op == "option_some":
+            return self.expression(node.args[0]) + self.encode_val(node.args[0].type)
+        if node.op == "option_is_some":
+            return self._tag_compare(self.expression(node.args[0]), VOID_TAG, equal=False)
+        if node.op == "option_unwrap":
+            guarded = self._guard_tag(self.expression(node.args[0]), VOID_TAG, trap_if_equal=True)
+            return guarded + self._decode_call_result(node.type)
+        if node.op == "result_ok":
+            return self.expression(node.args[0]) + self.encode_val(node.args[0].type)
+        if node.op == "result_err":
+            error_val = (node.args[0].value << 32) | ERROR_TAG
+            if error_val >= 2**63:
+                error_val -= 2**64
+            return b"\x42" + sleb(error_val)
+        if node.op == "result_is_ok":
+            return self._tag_compare(self.expression(node.args[0]), ERROR_TAG, equal=False)
+        if node.op == "result_unwrap":
+            guarded = self._guard_tag(self.expression(node.args[0]), ERROR_TAG, trap_if_equal=True)
+            return guarded + self._decode_call_result(node.type)
+        if node.op == "result_unwrap_err":
+            guarded = self._guard_tag(self.expression(node.args[0]), ERROR_TAG, trap_if_equal=False)
+            return guarded + b"\x42\x20\x88\xa7"
+        if node.op == "tuple_new":
+            return self._pack_values(node.args)
+        if node.op == "union_new":
+            if len(node.args) == 1:
+                return self.expression(node.args[0])
+            return self._pack_values(node.args)
+        if node.op == "union_is":
+            value, symbol, flag = node.args
+            if flag.value == 0:
+                compared = self.expression(value) + self.expression(symbol) + b"\x10" + uleb(OBJ_CMP)
+                return compared + b"\x50"
+            raw = b"".join([
+                self.expression(value),
+                self._u32_val(0),
+                b"\x10", uleb(self.host_indices[("v", "1")]),
+                self.expression(symbol),
+                b"\x10", uleb(OBJ_CMP),
+                b"\x50",
+            ])
+            return raw
+        if node.op == "union_unwrap":
+            value, symbol = node.args
+            scratch = uleb(self.locals.scratch)
+            raw = b"".join([
+                self.expression(value),
+                b"\x22", scratch,
+                self._u32_val(0),
+                b"\x10", uleb(self.host_indices[("v", "1")]),
+                self.expression(symbol),
+                b"\x10", uleb(OBJ_CMP),
+                b"\x50",  # i64.eqz
+                b"\x45",  # i32.eqz: 1 when the case symbol differs
+                b"\x04\x40\x00\x0b",
+                b"\x20", scratch,
+                self._u32_val(1),
+                b"\x10", uleb(self.host_indices[("v", "1")]),
+            ])
+            return raw + self._decode_call_result(node.type)
+        if node.op == "try_call":
+            target, function, *args = node.args
+            stored_args = bytearray()
+            for index, argument in enumerate(args):
+                stored_args += b"\x41" + sleb(index * 8, 32)
+                stored_args += self.expression(argument) + self.encode_val(argument.type)
+                stored_args += b"\x37\x03\x00"
+            return b"".join([
+                self.expression(target),
+                self.expression(function),
+                bytes(stored_args),
+                self._u32_val(0), self._u32_val(len(args)),
+                b"\x10", uleb(VEC_FROM_MEMORY),
+                b"\x10", uleb(self.host_indices[("d", "0")]),
+            ])
+        raise AssertionError(node.op)
 
     def _bytesn(self, node: ir.HostCall) -> bytes:
         size = node.type.size
@@ -1186,7 +1286,7 @@ def _max_linear_values(contract: ir.Contract) -> int:
         if isinstance(node, ir.HostCall):
             if node.op == "event_publish":
                 maximum = max(maximum, len(node.args) - 1)
-            elif node.op == "contract_call":
+            elif node.op in {"contract_call", "try_call"}:
                 maximum = max(maximum, len(node.args) - 2)
             elif node.op == "require_auth_for":
                 maximum = max(maximum, len(node.args) - 1)
@@ -1318,6 +1418,9 @@ def _service_imports(contract: ir.Contract):
         "u256_to_be_bytes": ("i", "b", 1),
         "u256_from_be_bytes": ("i", "a", 1),
         "address_to_strkey": ("a", "2", 1),
+        "try_call": ("d", "0", 3),
+        "union_is": ("v", "1", 2),
+        "union_unwrap": ("v", "1", 2),
         "prng_bytes": ("p", "0", 1),
         "prng_u64": ("p", "1", 2),
         "upload_wasm": ("l", "5", 1),

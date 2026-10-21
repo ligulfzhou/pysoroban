@@ -187,10 +187,12 @@ calls are recorded in `deployments/testnet.json`.
 - `BytesN[N]`, `to_xdr`, byte ordering, and `u256` big-endian bytes are
   supported. The test host's `to_xdr` matches ScVal XDR; a non-StrKey address
   is the contract id SHA-256 of the string. Wasm calls `serialize_to_bytes`.
-- Nested collection types are not yet supported. `Vec` and `Map` updates
-  reassign the local through the host's functional collection interface.
-- `@struct` and `@enum` are supported. Structs are Soroban maps of field
-  symbols. Enums are `u32` discriminants. Recursive struct fields are rejected.
+- Nested `Vec` and `Map` values are supported. Map keys stay scalar.
+  Collection updates reassign the local through the host's functional
+  collection interface.
+- `@struct`, `@enum`, and `@union` are supported. Structs are Soroban maps of
+  field symbols. Enums are `u32` discriminants. A union case is a symbol, or
+  a vector of that symbol plus one payload. Recursive fields are rejected.
 - `//` is defined for `u32`, `u64`, checked `u128`, and checked `i128`.
   `i32` and `i64` floor division stay rejected. Host `i256` division truncates
   toward zero; the compiler adjusts an inexact mixed-sign quotient by one so
@@ -213,8 +215,11 @@ calls are recorded in `deployments/testnet.json`.
 - Existing 32- and 64-bit arithmetic wraps at its integer width. Asset
   accounting should use checked `u128` operations. `examples/soroban/liquidity_pool`
   is a tokenized constant-product pool on that arithmetic.
-- There is no `try_call`, no `__constructor`, and no custom-account
-  `__check_auth` context. Those stellar/soroban-examples are documented as gaps.
+- `try_*` calls the protocol `try_call` import. The test host turns a callee
+  `fail` into `Result` and rolls that callee back. It does not turn every host
+  error into a `Result`.
+- There is no `__constructor` and no custom-account `__check_auth` context.
+  Those stellar/soroban-examples are documented as gaps.
 - The compiler currently targets a single declared Stellar protocol version.
 - The project has not completed an independent security audit.
 

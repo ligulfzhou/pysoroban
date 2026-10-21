@@ -466,7 +466,7 @@ class Lookup:
     def test_rejects_invalid_vec_annotations_and_indexing(self):
         cases = [
             ("Vec[None]", "None is not valid"),
-            ("Vec[Vec[i32]]", "unsupported Vec element type"),
+            ("Option[None]", r"Option\[None\] is not supported"),
         ]
         for annotation, message in cases:
             with self.subTest(annotation=annotation):

@@ -12,8 +12,8 @@ class AtomicSwapContract:
     """Atomic two-party token swap.
 
     Amounts are checked u128 values. The upstream token interface uses i128.
-    A failed price check traps with fail, which rolls the call back. There is
-    no try_swap, so a caller cannot ignore that failure.
+    A failed price check traps with fail, which rolls the call back. A caller
+    can ignore that failure with try_void.
     """
 
     @public

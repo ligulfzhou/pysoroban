@@ -2,6 +2,15 @@
 
 All notable changes to PySoroban are documented here.
 
+## 0.16.0a1 — 2026-10-21
+
+- Add `Option`, `Result[T, u32]`, `Tuple`, `Val`, and `@union`. A union case
+  carries one payload. `try_*` calls protocol `try_call` and returns that
+  `Result`. The test host rolls a caught `fail` back.
+- Allow nested `Vec` and `Map` values. Map keys stay scalar.
+- `atomic_multiswap` uses `try_void`. `other_custom_types` echoes the new
+  types. `i256` and multi-field enum variants are still absent.
+
 ## 0.15.0a1 — 2026-10-21
 
 - Add `BytesN[N]`, `to_xdr`, byte ordering, `u256.to_be_bytes` /

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
-from .model import ContractType, EnumType, ErrorEnum, Event, Parameter, StructType, ValueType
+from .model import ContractType, EnumType, ErrorEnum, Event, Parameter, StructType, UnionType, ValueType
 
 
 @dataclass(frozen=True)
@@ -121,4 +121,5 @@ class Contract:
     errors: Tuple[ErrorEnum, ...] = ()
     structs: Tuple[StructType, ...] = ()
     enums: Tuple[EnumType, ...] = ()
+    unions: Tuple[UnionType, ...] = ()
     source_name: Optional[str] = None
