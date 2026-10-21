@@ -2,6 +2,13 @@
 
 All notable changes to PySoroban are documented here.
 
+## 0.13.0a1 — 2026-10-21
+
+- Check `i128` floor division. The protocol `i256` divide truncates toward
+  zero; an inexact mixed-sign quotient is decreased by one so the result
+  matches Python `//`. Division by zero traps in the host. A quotient that
+  does not fit in `i128`, including the minimum divided by `-1`, traps.
+
 ## 0.12.0a1 — 2026-10-21
 
 - Document Stellar CLI and stellar-sdk invocation in `docs/INVOKE.md`. The

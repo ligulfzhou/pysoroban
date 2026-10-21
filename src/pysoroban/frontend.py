@@ -573,16 +573,14 @@ class TypeChecker:
                 ValueType.I128, ValueType.U128,
             }:
                 fail(node, "arithmetic operands must have the same numeric type", "E0509")
-            if left is ValueType.I128 and isinstance(node.op, ast.FloorDiv):
-                fail(node, "i128 division is not supported; use checked u128 // or u128.mul_div_floor", "E0511")
             if left in {ValueType.I128, ValueType.U128} and not isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.FloorDiv)):
-                fail(node, "i128/u128 arithmetic supports checked +, -, *, and unsigned //", "E0510")
+                fail(node, "i128/u128 arithmetic supports checked +, -, *, and //", "E0510")
             if isinstance(node.op, ast.FloorDiv):
-                if left not in {ValueType.U32, ValueType.U64, ValueType.U128}:
-                    fail(node, "floor division is supported for u32, u64, and checked u128", "E0511")
+                if left not in {ValueType.U32, ValueType.U64, ValueType.U128, ValueType.I128}:
+                    fail(node, "floor division is supported for u32, u64, checked u128, and checked i128", "E0511")
                 return left
             if not isinstance(node.op, (ast.Add, ast.Sub, ast.Mult)):
-                fail(node, "supported arithmetic operators are +, -, *, and unsigned //", "E0512")
+                fail(node, "supported arithmetic operators are +, -, *, and //", "E0512")
             return left
         if isinstance(node, ast.BoolOp):
             if not all(self.check_expr(value) is ValueType.BOOL for value in node.values):

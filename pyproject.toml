@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pysoroban-compiler"
-version = "0.12.0a1"
+version = "0.13.0a1"
 description = "A deterministic, statically typed Python contract compiler for Stellar"
 readme = "README.md"
 requires-python = ">=3.9"

@@ -436,6 +436,8 @@ class FunctionEmitter:
                 return self._u128_div(node, scratch)
             if node.op == "mul" and node.type is ValueType.I128:
                 return self._i128_mul(node, scratch)
+            if node.op == "div" and node.type is ValueType.I128:
+                return self._i128_div(node, scratch)
             return self._wide_binary_with_scratch(node, scratch)
         finally:
             self._release_wide_scratch()
@@ -856,6 +858,58 @@ class FunctionEmitter:
         output += b"\x20" + uleb(lhs_val) + b"\x10" + uleb(self.host_indices[("i", "m")])
         output += b"\x21" + uleb(result_hi)
         output += b"\x20" + uleb(result_lo) + b"\x20" + uleb(result_hi)
+        output += b"\x10" + uleb(self.host_indices[("i", "6")])
+        return bytes(output)
+
+    def _i128_div(self, node: ir.Binary, scratch: Tuple[int, ...]) -> bytes:
+        """Python floor division on top of truncating host i256 division.
+
+        q = trunc(a / b). When the division is inexact and the signs differ,
+        q -= 1. A zero divisor traps inside i.y. A quotient that is not a
+        valid i128, including i128 min // -1, traps with unreachable.
+        """
+        lhs_val, rhs_val, lhs_hi, lhs_lo, rhs_hi, rhs_lo, dividend, product, sign = scratch
+        output = self._normalized_wide_values(node.left, node.right, scratch)
+
+        def widen(value_local: int, hi_local: int, lo_local: int) -> bytes:
+            return b"".join([
+                b"\x20", uleb(hi_local), b"\x42", sleb(63), b"\x87", b"\x21", uleb(sign),
+                b"\x20", uleb(sign), b"\x20", uleb(sign),
+                b"\x20", uleb(hi_local), b"\x20", uleb(lo_local),
+                b"\x10", uleb(self.host_indices[("i", "g")]),
+                b"\x21", uleb(value_local),
+            ])
+
+        output += widen(lhs_val, lhs_hi, lhs_lo)
+        output += widen(rhs_val, rhs_hi, rhs_lo)
+        output += b"\x20" + uleb(lhs_val) + b"\x21" + uleb(dividend)
+        output += b"\x20" + uleb(lhs_val) + b"\x20" + uleb(rhs_val)
+        output += b"\x10" + uleb(self.host_indices[("i", "y")]) + b"\x21" + uleb(lhs_val)
+        output += b"\x20" + uleb(lhs_val) + b"\x20" + uleb(rhs_val)
+        output += b"\x10" + uleb(self.host_indices[("i", "x")]) + b"\x21" + uleb(product)
+        # inexact (obj_cmp != 0) and the operand signs differ
+        output += b"\x20" + uleb(product) + b"\x20" + uleb(dividend)
+        output += b"\x10" + uleb(self.host_indices[("x", "0")]) + b"\x50\x45"
+        output += b"\x20" + uleb(lhs_hi) + b"\x42\x00\x53"
+        output += b"\x20" + uleb(rhs_hi) + b"\x42\x00\x53\x73\x71"
+        output += b"\x04\x40"
+        output += b"\x20" + uleb(lhs_val)
+        output += b"\x42\x00\x42\x00\x42\x00\x42\x01"
+        output += b"\x10" + uleb(self.host_indices[("i", "g")])
+        output += b"\x10" + uleb(self.host_indices[("i", "w")])
+        output += b"\x21" + uleb(lhs_val)
+        output += b"\x0b"
+        output += b"\x20" + uleb(lhs_val) + b"\x10" + uleb(self.host_indices[("i", "l")])
+        output += b"\x21" + uleb(product)
+        output += b"\x20" + uleb(product) + b"\x42" + sleb(63) + b"\x87" + b"\x21" + uleb(sign)
+        output += b"\x20" + uleb(lhs_val) + b"\x10" + uleb(self.host_indices[("i", "j")])
+        output += b"\x20" + uleb(sign) + b"\x52"
+        output += b"\x20" + uleb(lhs_val) + b"\x10" + uleb(self.host_indices[("i", "k")])
+        output += b"\x20" + uleb(sign) + b"\x52\x72"
+        output += b"\x04\x40\x00\x0b"
+        output += b"\x20" + uleb(lhs_val) + b"\x10" + uleb(self.host_indices[("i", "m")])
+        output += b"\x21" + uleb(dividend)
+        output += b"\x20" + uleb(product) + b"\x20" + uleb(dividend)
         output += b"\x10" + uleb(self.host_indices[("i", "6")])
         return bytes(output)
 
@@ -1287,9 +1341,12 @@ def _service_imports(contract: ir.Contract):
             add(("i", "p", 2))
         if (ValueType.U128, "div") in wide:
             add(("i", "q", 2))
-    if (ValueType.I128, "mul") in wide:
+    if (ValueType.I128, "mul") in wide or (ValueType.I128, "div") in wide:
         for item in (("i", "g", 4), ("i", "x", 2), ("i", "j", 1), ("i", "k", 1), ("i", "l", 1), ("i", "m", 1), ("i", "6", 2)):
             add(item)
+    if (ValueType.I128, "div") in wide:
+        add(("i", "y", 2))
+        add(("i", "w", 2))
     return imports
 
 

@@ -64,7 +64,7 @@ not short-circuiting Python operators.
 | `u32` | wrap modulo `2^32` | unsigned floor division | trap | wrap |
 | `i64` | wrap modulo `2^64`, then interpret as signed | rejected | — | wrap |
 | `u64` | wrap modulo `2^64` | unsigned floor division | trap | wrap |
-| `i128` | checked `+`, `-`, and `*` | rejected | — | trap |
+| `i128` | checked `+`, `-`, and `*` | checked floor division | trap | trap |
 | `u128` | checked `+`, `-`, and `*` | checked unsigned floor division | trap | trap |
 
 Unary minus is defined for `i32` and `i64` and uses the same wrapping
@@ -81,8 +81,11 @@ protocol-25 host (`i.p`), and traps when either high 128-bit half is nonzero.
 `u128` floor division uses the same widening and the host divide (`i.q`), which
 traps on a zero divisor. `i128` multiplication sign-extends into `i256`,
 multiplies with `i.x`, and traps unless the high half is the sign extension of
-bit 127. `i128` floor division stays rejected (`E0511`): the host `i256` divide
-truncates toward zero, which is not Python floor division for negative values.
+bit 127. `i128` floor division sign-extends into `i256` and divides with
+`i.y`, which truncates toward zero and traps on a zero divisor. When that
+quotient is inexact and the operand signs differ, the compiler subtracts one
+with `i.w`, matching Python `//`. The quotient is then narrowed like `i128`
+multiplication, so `i128` minimum divided by `-1` traps.
 
 `u128.mul_div_floor(left, right, denominator)` computes
 `floor((left * right) / denominator)` with a `u256` intermediate using the

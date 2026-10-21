@@ -172,6 +172,18 @@ class MiniSorobanHost {
       kind: "i256",
       value: this.get(left).value * this.get(right).value,
     });
+    if (key === "i.w") return (left, right) => this.put({
+      kind: "i256",
+      value: this.get(left).value - this.get(right).value,
+    });
+    if (key === "i.y") return (left, right) => {
+      const denominator = this.get(right).value;
+      if (denominator === 0n) throw new WebAssembly.RuntimeError("unreachable: division by zero");
+      const numerator = this.get(left).value;
+      // Host i256 division truncates toward zero.
+      const quotient = numerator / denominator;
+      return this.put({ kind: "i256", value: quotient });
+    };
     if (["i.j", "i.k", "i.l", "i.m"].includes(key)) return (value) => {
       const shifts = { "i.j": 192n, "i.k": 128n, "i.l": 64n, "i.m": 0n };
       const bits = this.get(value).value >> shifts[key];
