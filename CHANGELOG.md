@@ -2,8 +2,102 @@
 
 All notable changes to PySoroban are documented here.
 
-## Unreleased
+## 0.18.0a1 — 2026-10-21
 
+- Pass protocol-25 BLS12-381 and BN254 host functions through `crypto`.
+  The test host returns a queued `allow_host_result` and does not evaluate
+  the curve. Protocol 26 scalar and on-curve checks stay unwired.
+- Verify ed25519 with `cryptography` when `allow_signature` did not list the
+  triple. `BytesN` lengths run through 1024. `Vec[Bytes]` accepts `BytesN`.
+- `ledger.max_live_until()` reads host `x.8`. `ContractTest.enforce_ttl`
+  expires an entry after its recorded live-until ledger.
+- Port `bls_signature`. `groth16_verifier` and `privacy-pools` stay out: the
+  circuits and the LeanIMT are not the host calls.
+
+## 0.17.0a1 — 2026-10-21
+
+- Run `__check_auth` from `require_auth` when a test calls `authorize_account`.
+  A direct cross-contract caller is authorized only for that call.
+- Add `auth.as_current_contract` for one deeper invocation, `Vec[Val]`, and
+  `from_val` on integers and `Address`. `ed25519_verify` accepts `BytesN`.
+- Port `simple_account`, `multisig_1_of_n_account`, `account`, and
+  `deep_contract_auth`. `modular_account` stays out: delegated signers are
+  protocol 27.
+
+## 0.16.0a1 — 2026-10-21
+
+- Add `Option`, `Result[T, u32]`, `Tuple`, `Val`, and `@union`. A union case
+  carries one payload. `try_*` calls protocol `try_call` and returns that
+  `Result`. The test host rolls a caught `fail` back.
+- Allow nested `Vec` and `Map` values. Map keys stay scalar.
+- `atomic_multiswap` uses `try_void`. `other_custom_types` echoes the new
+  types. `i256` and multi-field enum variants are still absent.
+
+## 0.15.0a1 — 2026-10-21
+
+- Add `BytesN[N]`, `to_xdr`, byte ordering, `u256.to_be_bytes` /
+  `from_be_bytes`, and `Address.to_strkey`.
+- The test host encodes `to_xdr` as ScVal XDR. A non-StrKey address is the
+  contract id SHA-256 of that string. Generated Wasm calls the host.
+- Port `merkle_distribution`.
+
+## 0.14.0a1 — 2026-10-21
+
+- Add the `u256` contract type. Literals, comparisons, storage, vectors, and
+  cross-contract returns use the protocol object. Checked `+`, `-`, `*`, and
+  `//` call the host `u256` operations and trap on overflow or division by zero.
+
+## 0.13.0a1 — 2026-10-21
+
+- Check `i128` floor division. The protocol `i256` divide truncates toward
+  zero; an inexact mixed-sign quotient is decreased by one so the result
+  matches Python `//`. Division by zero traps in the host. A quotient that
+  does not fit in `i128`, including the minimum divided by `-1`, traps.
+
+## 0.12.0a1 — 2026-10-21
+
+- Document Stellar CLI and stellar-sdk invocation in `docs/INVOKE.md`. The
+  compiler still does not submit transactions or speak RPC.
+- Load compiler 0.12.0a1 in the browser demo.
+
+- Port the stellar/soroban-examples tree under `examples/soroban/`. Each
+  example is a Python contract with tests, or a README that names the missing
+  host or language feature.
+- Add a tokenized constant-product pool, atomic swap, timelock, single-offer
+  exchange, and mint limiter on the SEP-41 style token.
+- Direct cross-contract calls in the test host authorize the caller and keep
+  the invocation's address list, so a contract can spend its own balance.
+- Keep a Wasm local for a name declared in only one branch of `if`.
+
+## 0.11.0a1 — 2026-10-21
+
+- Check `u128` multiplication and floor division through a `u256`
+  intermediate. A product that does not fit in `u128`, or a zero divisor,
+  traps. Check `i128` multiplication the same way through `i256`. `i128`
+  floor division stays rejected because the host divide truncates.
+- Add `ledger.sequence`, `timestamp`, `version`, and `network_id`, plus
+  `env.current_contract_address()`.
+- Add `crypto.sha256`, `keccak256`, and `ed25519_verify`, `log(String)`,
+  `prng.bytes` and `prng.u64`, and `String` / `Bytes` conversions, slicing,
+  and append.
+- Add `address.require_auth_for(...)`.
+- Add `deploy.upload`, `deploy.contract`, `deploy.with_constructor`,
+  `deploy.upgrade`, and `deploy.asset`.
+- Add `examples/token_contract.py`, a contract-owned SEP-41 style token with
+  checked `u128` balances. It is not the Stellar Asset Contract.
+- The test host records these calls without reproducing the real curve, PRNG,
+  TTL expiry, or contract-address derivation. See `docs/LANGUAGE.md`.
+
+## 0.10.0a1 — 2026-10-21
+
+- Add `@struct` and `@enum`, written into `contractspecv0` as Soroban UDT
+  struct and enum entries. Structs are maps of field symbols. Enums are
+  `u32` values.
+- Add `storage.persistent` and `storage.temporary`, `get(key, Type)`,
+  `get_address`, `remove`, and TTL extension. Instance storage keeps its
+  previous Wasm for contracts that do not use the new methods.
+- Add statement updates for `Vec` (`push`, `set`, `insert`, `remove`, `pop`)
+  and `Map` (`set`, `remove`), plus empty `Vec()` and `Map()` constructors.
 - Specify the current language, including integer wrapping and checked
   overflow, in `docs/LANGUAGE.md`.
 - Give `CompileError` stable `E####` codes alongside line and column.

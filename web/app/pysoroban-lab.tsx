@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 const PYODIDE_URL =
   "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.mjs";
 const COMPILER_WHEEL =
-  "/compiler/pysoroban_compiler-0.9.0a2-py3-none-any.whl";
+  "/compiler/pysoroban_compiler-0.12.0a1-py3-none-any.whl";
 const RPC_URL = "https://soroban-testnet.stellar.org";
 const SOURCE_ACCOUNT =
   "GBTZVQRXWUTOBJZU5VEZZVNOQIEP7TIHORJFG26FVAHJGCUPDC22BULU";
@@ -604,7 +604,7 @@ export function PySorobanLab() {
       <section className="proof-strip" aria-label="Project facts">
         <div><strong>0</strong><span>Rust artifacts</span></div>
         <div><strong>726 B</strong><span>Map Wasm</span></div>
-        <div><strong>78/78</strong><span>Compiler tests</span></div>
+        <div><strong>122/122</strong><span>Compiler tests</span></div>
         <div><strong>6</strong><span>Featured contracts</span></div>
       </section>
 
@@ -713,7 +713,8 @@ export function PySorobanLab() {
               <span aria-hidden="true">↓</span>
             </button>
             <p className="build-note">
-              First build loads the Python runtime. Later builds are instant.
+              In-browser compiler 0.12.0a1. First build loads the Python runtime.
+              Later builds are instant.
             </p>
           </aside>
         </div>
@@ -744,7 +745,7 @@ assert contract.storage["total"] == result
 assert contract.last_events == (Event(("updated", "alice"), result),)`}</code></pre>
           <div className="test-result-card">
             <span className="test-status">● all checks passed</span>
-            <strong>78 / 78</strong>
+            <strong>122 / 122</strong>
             <p>Compiler, Typed IR, CLI, auth, storage, events, vectors, maps, and numeric boundaries.</p>
             <small>Deterministic IR simulator · network integration remains on testnet</small>
           </div>

@@ -38,8 +38,12 @@ jobs:
         run: |
           artifact_dir="$RUNNER_TEMP/pysoroban-wasm"
           mkdir -p "$artifact_dir"
-          for source in examples/*_contract.py; do
-            artifact="$artifact_dir/$(basename "${source%.py}").wasm"
+          shopt -s nullglob
+          for source in examples/*_contract.py examples/soroban/*/*.py examples/soroban/*/*/*.py examples/soroban/*/*/*/*.py; do
+            if [[ "$source" != *.py ]]; then
+              continue
+            fi
+            artifact="$artifact_dir/$(basename "${source%.py}")-$(echo "$source" | tr '/' '-').wasm"
             pysoroban build "$source" --output "$artifact"
             pysoroban validate "$artifact"
             pysoroban verify "$source" --wasm "$artifact"

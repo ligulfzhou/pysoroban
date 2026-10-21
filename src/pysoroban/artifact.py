@@ -58,10 +58,12 @@ SPEC_TYPE_NAMES = {
     7: "i64",
     10: "u128",
     11: "i128",
+    12: "u256",
     14: "Bytes",
     16: "String",
     17: "Symbol",
     19: "Address",
+    0: "Val",
 }
 
 
@@ -188,16 +190,29 @@ def _read_spec_type(reader: _XdrReader) -> str:
         return "Vec[{}]".format(_read_spec_type(reader))
     if kind == 1004:
         return "Map[{}, {}]".format(_read_spec_type(reader), _read_spec_type(reader))
+    if kind == 1000:
+        return "Option[{}]".format(_read_spec_type(reader))
+    if kind == 1001:
+        return "Result[{}, {}]".format(_read_spec_type(reader), _read_spec_type(reader))
+    if kind == 1005:
+        count = reader.u32()
+        return "Tuple[" + ", ".join(_read_spec_type(reader) for _ in range(count)) + "]"
+    if kind == 1006:
+        return "BytesN[{}]".format(reader.u32())
+    if kind == 2000:
+        return reader.string()
     if kind not in SPEC_TYPE_NAMES:
         raise ArtifactError(f"unsupported contract spec type {kind}")
     return SPEC_TYPE_NAMES[kind]
 
 
-def _contract_spec(data: bytes) -> Tuple[List[dict], List[dict], List[dict]]:
+def _contract_spec(data: bytes):
     reader = _XdrReader(data)
     functions = []
     events = []
     errors = []
+    structs = []
+    enums = []
     while reader.remaining:
         entry_kind = reader.u32()
         if entry_kind == 0:
@@ -246,8 +261,45 @@ def _contract_spec(data: bytes) -> Tuple[List[dict], List[dict], List[dict]]:
                 cases.append({"doc": case_doc, "name": case_name, "value": reader.u32()})
             errors.append({"name": name, "doc": doc, "cases": cases})
             continue
+        if entry_kind == 2:
+            doc = reader.string()
+            reader.string()
+            name = reader.string()
+            for _ in range(reader.u32()):
+                case_kind = reader.u32()
+                reader.string()
+                reader.string()
+                if case_kind == 1:
+                    for _type_index in range(reader.u32()):
+                        _read_spec_type(reader)
+                elif case_kind != 0:
+                    raise ArtifactError(f"unsupported union case {case_kind}")
+            enums.append({"name": name, "doc": doc, "cases": []})
+            continue
+        if entry_kind == 1:
+            doc = reader.string()
+            reader.string()  # library
+            name = reader.string()
+            fields = []
+            for _ in range(reader.u32()):
+                field_doc = reader.string()
+                field_name = reader.string()
+                fields.append({"doc": field_doc, "name": field_name, "type": _read_spec_type(reader)})
+            structs.append({"name": name, "doc": doc, "fields": fields})
+            continue
+        if entry_kind == 3:
+            doc = reader.string()
+            reader.string()  # library
+            name = reader.string()
+            cases = []
+            for _ in range(reader.u32()):
+                case_doc = reader.string()
+                case_name = reader.string()
+                cases.append({"doc": case_doc, "name": case_name, "value": reader.u32()})
+            enums.append({"name": name, "doc": doc, "cases": cases})
+            continue
         raise ArtifactError(f"unsupported contract spec entry {entry_kind}")
-    return functions, events, errors
+    return functions, events, errors, structs, enums
 
 
 def _environment_protocol(data: bytes) -> int:
@@ -348,7 +400,7 @@ def inspect_wasm(data: bytes) -> dict:
             + ", ".join(SECTION_NAMES[section_id] for section_id in missing_ids)
         )
     custom = _custom_sections(sections)
-    functions, events, errors = _contract_spec(custom["contractspecv0"])
+    functions, events, errors, structs, enums = _contract_spec(custom["contractspecv0"])
     metadata = _contract_metadata(custom["contractmetav0"])
     if not metadata.get("name"):
         raise ArtifactError("contract metadata does not contain a name")
@@ -379,6 +431,8 @@ def inspect_wasm(data: bytes) -> dict:
         "functions": functions,
         "events": events,
         "errors": errors,
+        "structs": structs,
+        "enums": enums,
         "imports": imports,
         "exports": exports,
         "custom_sections": [
