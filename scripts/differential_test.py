@@ -147,6 +147,90 @@ SUITES = (
         ),
     ),
     (
+        "wide-mul-div",
+        """
+from pysoroban import boolean, contract, i128, public, u128, u256
+
+@contract
+class WideMul:
+    @public
+    def multiply_u128(self, left: u128, right: u128) -> u128:
+        return left * right
+
+    @public
+    def divide_u128(self, left: u128, right: u128) -> u128:
+        return left // right
+
+    @public
+    def multiply_i128(self, left: i128, right: i128) -> i128:
+        return left * right
+
+    @public
+    def divide_i128(self, left: i128, right: i128) -> i128:
+        return left // right
+""",
+        (
+            ("u128-mul", "multiply_u128", (2**100, 2**20)),
+            ("u128-div", "divide_u128", (2**100, 2**20)),
+            ("u128-mul-overflow", "multiply_u128", (2**128 - 1, 2), "unreachable"),
+            ("u128-div-zero", "divide_u128", (1, 0), "unreachable"),
+            ("i128-mul", "multiply_i128", (-(2**60), 2**40)),
+            ("i128-mul-negative", "multiply_i128", (-(2**50), -(2**20))),
+            ("i128-mul-overflow", "multiply_i128", (2**127 - 1, 2), "unreachable"),
+            ("i128-div-exact", "divide_i128", (-(2**80), -(2**20))),
+            ("i128-div-floor-neg-pos", "divide_i128", (-7, 3)),
+            ("i128-div-floor-pos-neg", "divide_i128", (7, -3)),
+            ("i128-div-floor-neg-neg", "divide_i128", (-7, -3)),
+            ("i128-div-min", "divide_i128", (-(2**127), 1)),
+            ("i128-div-zero", "divide_i128", (1, 0), "unreachable"),
+            ("i128-div-overflow", "divide_i128", (-(2**127), -1), "unreachable"),
+        ),
+    ),
+    (
+        "u256",
+        """
+from pysoroban import boolean, contract, public, u256
+
+@contract
+class Wide256:
+    @public
+    def add(self, left: u256, right: u256) -> u256:
+        return left + right
+
+    @public
+    def sub(self, left: u256, right: u256) -> u256:
+        return left - right
+
+    @public
+    def mul(self, left: u256, right: u256) -> u256:
+        return left * right
+
+    @public
+    def div(self, left: u256, right: u256) -> u256:
+        return left // right
+
+    @public
+    def less(self, left: u256, right: u256) -> boolean:
+        return left < right
+
+    @public
+    def maximum(self) -> u256:
+        return u256(2 ** 256 - 1)
+""",
+        (
+            ("u256-add", "add", (2**200, 2**200)),
+            ("u256-sub", "sub", (2**256 - 1, 1)),
+            ("u256-mul", "mul", (2**100, 2**100)),
+            ("u256-div", "div", (2**256 - 1, 3)),
+            ("u256-less", "less", (1, 2**255)),
+            ("u256-max", "maximum", ()),
+            ("u256-add-overflow", "add", (2**256 - 1, 1), "unreachable"),
+            ("u256-sub-underflow", "sub", (0, 1), "unreachable"),
+            ("u256-mul-overflow", "mul", (2**200, 2**200), "unreachable"),
+            ("u256-div-zero", "div", (1, 0), "unreachable"),
+        ),
+    ),
+    (
         "amm-u128-quotes",
         ROOT / "examples" / "amm_kernel_contract.py",
         (

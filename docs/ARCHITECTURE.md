@@ -60,7 +60,7 @@ parsed as data, validated, lowered into typed operations, and encoded.
 
 ## Type and value model
 
-Supported scalar types are `i32`, `u32`, `i64`, `u64`, `i128`, `u128`,
+Supported scalar types are `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `u256`,
 `boolean`, `Address`, `Symbol`, `String`, and `Bytes`. Homogeneous `Vec[T]` and scalar
 `Map[K, V]` types are also represented in the contract model and Soroban XDR
 specification.
@@ -184,24 +184,47 @@ calls are recorded in `deployments/testnet.json`.
 - Only the documented restricted Python subset is accepted.
 - Recursion, exceptions, floating point, reflection, dynamic imports, and
   arbitrary Python objects are excluded.
-- Collection mutation and nested collection types are not yet supported.
-- User-defined contract structs and enums are not yet supported.
-- Signed floor division is not supported; `//` currently has explicit unsigned
-  `u32` and `u64` semantics only.
+- `BytesN[N]`, `to_xdr`, byte ordering, and `u256` big-endian bytes are
+  supported. The test host's `to_xdr` matches ScVal XDR; a non-StrKey address
+  is the contract id SHA-256 of the string. Wasm calls `serialize_to_bytes`.
+- Nested `Vec` and `Map` values are supported. Map keys stay scalar.
+  Collection updates reassign the local through the host's functional
+  collection interface.
+- `@struct`, `@enum`, and `@union` are supported. Structs are Soroban maps of
+  field symbols. Enums are `u32` discriminants. A union case is a symbol, or
+  a vector of that symbol plus one payload. Recursive fields are rejected.
+- `//` is defined for `u32`, `u64`, checked `u128`, and checked `i128`.
+  `i32` and `i64` floor division stay rejected. Host `i256` division truncates
+  toward zero; the compiler adjusts an inexact mixed-sign quotient by one so
+  `i128 //` matches Python floor division, and traps when the result is not
+  an `i128` (`i128` minimum divided by `-1`).
 - `i128` and `u128` support ABI pass-through, checked literals, comparisons,
-  checked addition/subtraction, storage, events, collections, and
-  cross-contract results. `u128.mul_div_floor()` widens both operands into
-  `u256`, multiplies and divides through checked protocol host functions, and
-  traps unless the quotient narrows to `u128`. General multiplication and
-  division are not yet supported. Exact integer rules are in
+  checked addition, subtraction, multiplication, and floor division, storage,
+  events, collections, and cross-contract results.
+  `u128.mul_div_floor()` widens both operands into `u256` and traps
+  unless the quotient narrows to `u128`. Exact integer rules are in
   [LANGUAGE.md](LANGUAGE.md).
+- Ledger context, hashing, ed25519 verification, protocol-25 BLS12-381 and
+  BN254 host functions, PRNG, logging, byte and string operations,
+  `require_auth_for`, and deploy or upgrade call the protocol host. The
+  Python test host records them with the limits in `LANGUAGE.md`. It verifies
+  ed25519 when `cryptography` is installed, can expire TTL entries, and
+  returns scripted curve results. It does not replace network execution.
 - Contract errors are `@error` enums plus `fail(Error.CASE)`. They trap
   through protocol-25 `fail_with_error` (`x.5`). The test environment rolls
   the invocation back, including linked contracts in that call. Numeric `0`
   is not an error sentinel.
 - Existing 32- and 64-bit arithmetic wraps at its integer width. Asset
-  accounting should use checked `u128` operations; additional checked formulas
-  are still required for the liquidity lifecycle of a tokenized AMM.
+  accounting should use checked `u128` operations. `examples/soroban/liquidity_pool`
+  is a tokenized constant-product pool on that arithmetic.
+- `try_*` calls the protocol `try_call` import. The test host turns a callee
+  `fail` into `Result` and rolls that callee back. It does not turn every host
+  error into a `Result`.
+- `__check_auth` runs in the test host when `authorize_account` recorded a
+  signature for a registered account. `auth.as_current_contract` emits one
+  `InvokerContractAuthEntry` and authorizes that subcall. There is still no
+  `__constructor`. Create-contract contexts and protocol-27 delegated signers
+  are not modeled.
 - The compiler currently targets a single declared Stellar protocol version.
 - The project has not completed an independent security audit.
 

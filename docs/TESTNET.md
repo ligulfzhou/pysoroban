@@ -277,3 +277,8 @@ no token contract transfer occurs.
   preserves its constant-product invariant, and publishes a typed swap event.
 
 It does not constitute a security audit or production-readiness claim.
+Contracts added after those deployments, including the token and the
+`examples/soroban/` ports, are covered by `ContractTest` and the IR/Wasm
+differential suite. Invoking them on a network uses the same CLI flow; see
+[INVOKE.md](INVOKE.md) for the stellar-sdk equivalent. That document does not
+add a second RPC stack.

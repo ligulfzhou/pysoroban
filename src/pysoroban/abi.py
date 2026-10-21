@@ -46,4 +46,26 @@ def contract_abi(contract: Contract) -> dict:
             }
             for error in contract.errors
         ],
+        "structs": [
+            {
+                "name": struct.name,
+                "doc": struct.doc,
+                "fields": [
+                    {"doc": field.doc, "name": field.name, "type": field.type.value}
+                    for field in struct.fields
+                ],
+            }
+            for struct in contract.structs
+        ],
+        "enums": [
+            {
+                "name": enum.name,
+                "doc": enum.doc,
+                "cases": [
+                    {"doc": case.doc, "name": case.name, "value": case.value}
+                    for case in enum.cases
+                ],
+            }
+            for enum in contract.enums
+        ],
     }

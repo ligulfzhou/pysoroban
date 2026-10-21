@@ -32,7 +32,7 @@ class DifferentialTests(unittest.TestCase):
         )
         self.assertEqual(completed.returncode, 0, completed.stderr)
         result = json.loads(completed.stdout)
-        self.assertEqual(result, {"failed": [], "matched": 60, "total": 60})
+        self.assertEqual(result, {"failed": [], "matched": 84, "total": 84})
 
 
 if __name__ == "__main__":

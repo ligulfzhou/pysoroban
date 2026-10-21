@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
-from .model import ContractType, ErrorEnum, Event, Parameter, ValueType
+from .model import ContractType, EnumType, ErrorEnum, Event, Parameter, StructType, UnionType, ValueType
 
 
 @dataclass(frozen=True)
@@ -92,7 +92,15 @@ class Fail:
     case: str
 
 
-Statement = Union[Return, SetLocal, If, ForRange, Drop, Fail]
+@dataclass(frozen=True)
+class PopBack:
+    """Remove the last element of a local Vec and bind that element."""
+
+    collection: str
+    target: str
+
+
+Statement = Union[Return, SetLocal, If, ForRange, Drop, Fail, PopBack]
 
 
 @dataclass(frozen=True)
@@ -111,4 +119,7 @@ class Contract:
     functions: Tuple[Function, ...]
     events: Tuple[Event, ...] = ()
     errors: Tuple[ErrorEnum, ...] = ()
+    structs: Tuple[StructType, ...] = ()
+    enums: Tuple[EnumType, ...] = ()
+    unions: Tuple[UnionType, ...] = ()
     source_name: Optional[str] = None

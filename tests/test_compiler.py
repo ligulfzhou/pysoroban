@@ -82,7 +82,7 @@ class Bad:
     def value(self, x: i32) -> i32:
         return x // 2
 """
-        with self.assertRaisesRegex(CompileError, "only for u32 and u64"):
+        with self.assertRaisesRegex(CompileError, "floor division is supported for u32, u64, checked u128, checked i128, and checked u256"):
             compile_source(source)
 
     def test_compiles_storage_and_auth_imports(self):
@@ -253,20 +253,35 @@ class Wide:
         self.assertIn(b"\x01i\x016", result.wasm)
         self.assertIn(b"\x01i\x013", result.wasm)
 
-    def test_compiles_checked_wide_addition_and_rejects_multiplication(self):
+    def test_compiles_checked_wide_multiplication_and_i128_floor_division(self):
         source = '''
+from pysoroban import contract, i128, public, u128
+@contract
+class Wide:
+    @public
+    def multiply_i128(self, left: i128, right: i128) -> i128:
+        return left * right
+    @public
+    def multiply_u128(self, left: u128, right: u128) -> u128:
+        return left * right
+    @public
+    def divide_u128(self, left: u128, right: u128) -> u128:
+        return left // right
+'''
+        result = compile_source(source)
+        self.assertIn(b"\x01i\x01x", result.wasm)
+        self.assertIn(b"\x01i\x01p", result.wasm)
+        self.assertIn(b"\x01i\x01q", result.wasm)
+        signed = compile_source('''
 from pysoroban import contract, i128, public
 @contract
 class Wide:
     @public
-    def add(self, left: i128, right: i128) -> i128:
-        return left + right
-    @public
-    def multiply(self, left: i128, right: i128) -> i128:
-        return left * right
-'''
-        with self.assertRaisesRegex(CompileError, "supports only checked \\+ and -"):
-            compile_source(source)
+    def divide(self, left: i128, right: i128) -> i128:
+        return left // right
+''')
+        self.assertIn(b"\x01i\x01y", signed.wasm)
+        self.assertIn(b"\x01i\x01w", signed.wasm)
 
     def test_compiles_u128_mul_div_floor_with_u256_host_arithmetic(self):
         source = '''
@@ -451,7 +466,7 @@ class Lookup:
     def test_rejects_invalid_vec_annotations_and_indexing(self):
         cases = [
             ("Vec[None]", "None is not valid"),
-            ("Vec[Vec[i32]]", "unsupported Vec element type"),
+            ("Option[None]", r"Option\[None\] is not supported"),
         ]
         for annotation, message in cases:
             with self.subTest(annotation=annotation):

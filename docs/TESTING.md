@@ -98,9 +98,10 @@ remains an integration-test concern.
 The interpreter validates `i32`, `u32`, `i64`, `u64`, `i128`, and `u128`
 argument ranges. Arithmetic follows the current Wasm backend and wraps at the
 corresponding 32- or 64-bit boundary. Wide integer addition and subtraction are
-checked and fail on overflow; multiplication and division remain deliberately
-unsupported except for `u128.mul_div_floor()`, whose product is widened to
-`u256`, rounded down, and checked when narrowed. Unsigned `u32` and `u64` floor division uses Wasm's
+checked and fail on overflow. `u128` and `i128` multiplication and floor
+division are checked too: `i128 //` matches Python floor division, and a
+quotient outside `i128` fails. `u128.mul_div_floor()` widens its product to
+`u256`, rounds down, and checks the narrow. Unsigned `u32` and `u64` floor division uses Wasm's
 unsigned division semantics; a zero divisor raises `InvocationError` in this
 environment and traps in generated Wasm.
 
@@ -120,11 +121,10 @@ assert vectors.invoke("sum", [3, 5, 8]) == 16
 
 - It runs Typed IR, not the compiled Wasm binary.
 - It does not meter CPU, memory, ledger I/O, or fees.
-- It does not reproduce ledger TTL, sequence, timestamp, or network state.
+- TTL expiry is off unless `enforce_ttl` is set. Sequence, timestamp, and
+  network id are values the test assigns.
 - Address values are represented as Python strings and are not StrKey-decoded.
-- Nested collections and mutable collection operations are not implemented yet.
-- `fail` traps the call. It does not return a value the caller can catch;
-  PySoroban has no `try`.
+- `fail` traps the call. `try_*` is the way a caller observes that failure.
 
 Every new host operation should have both interpreter tests and a Stellar
 integration test before it is treated as supported.
@@ -139,8 +139,8 @@ PYTHONPATH=src python scripts/differential_test.py
 ```
 
 The current cases cover signed and unsigned integer wrapping, unsigned
-division, `i128`/`u128` boundaries, ordering, checked add/subtract, and widened
-`u128.mul_div_floor`, boolean branches, comparisons,
+division, `i128`/`u128` boundaries, ordering, checked add/subtract/multiply,
+`i128` floor division, and widened `u128.mul_div_floor`, boolean branches, comparisons,
 parameter-bounded loops, vectors, and maps. A small Node-based host implements
 only the object operations needed by those cases.
 
