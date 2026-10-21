@@ -215,7 +215,14 @@ class FunctionLowerer:
         if path == ["len"]:
             value = node.args[0]
             collection = ir.Local(value.id, self.types[value.id])
-            op = "map_len" if isinstance(collection.type, MapType) else "vec_len"
+            if isinstance(collection.type, MapType):
+                op = "map_len"
+            elif collection.type is ValueType.STRING:
+                op = "string_len"
+            elif collection.type is ValueType.BYTES:
+                op = "bytes_len"
+            else:
+                op = "vec_len"
             return ir.HostCall(op, (collection,), ValueType.I32)
         if len(path) == 1 and path[0] in self.structs:
             struct = self.structs[path[0]]
@@ -250,6 +257,9 @@ class FunctionLowerer:
             return ir.HostCall("contract_call", args, CONTRACT_CALL_TYPES[path[1]])
         if path[:1] == ["storage"] and len(path) == 3:
             return self._storage(node, path[1], path[2])
+        service = self._service(node, path)
+        if service is not None:
+            return service
         if path == ["events", "publish"]:
             if len(node.args) == 1 and isinstance(node.args[0], ast.Call):
                 constructor = node.args[0]
@@ -294,6 +304,8 @@ class FunctionLowerer:
         value_type = self.types.get(node.func.value.id)
         if is_vec_type(value_type) and node.func.attr in {"push", "set", "insert", "remove"}:
             return True
+        if value_type is ValueType.BYTES and node.func.attr == "append":
+            return True
         return isinstance(value_type, MapType) and node.func.attr in {"set", "remove"}
 
     def _mutation(self, node: ast.Call) -> ir.SetLocal:
@@ -304,6 +316,8 @@ class FunctionLowerer:
         args = tuple(self.expression(value) for value in node.args)
         if is_vec_type(value_type):
             op = {"push": "vec_push", "set": "vec_put", "insert": "vec_insert", "remove": "vec_del"}[method]
+        elif value_type is ValueType.BYTES:
+            op = "bytes_append"
         else:
             op = "map_put" if method == "set" else "map_del"
         return ir.SetLocal(name, ir.HostCall(op, (local,) + args, value_type))
@@ -362,6 +376,48 @@ class FunctionLowerer:
             result = _annotation(node.args[1], self.user_types)
             return ir.HostCall(f"{prefix}_get", (self.expression(node.args[0]),), result)
         return ir.HostCall(f"{prefix}_get", (self.expression(node.args[0]),), getters[method])
+
+    def _service(self, node: ast.Call, path):
+        operations = {
+            ("ledger", "sequence"): ("ledger_sequence", ValueType.U32),
+            ("ledger", "timestamp"): ("ledger_timestamp", ValueType.U64),
+            ("ledger", "version"): ("ledger_version", ValueType.U32),
+            ("ledger", "network_id"): ("ledger_network", ValueType.BYTES),
+            ("env", "current_contract_address"): ("current_contract", ValueType.ADDRESS),
+            ("crypto", "sha256"): ("sha256", ValueType.BYTES),
+            ("crypto", "keccak256"): ("keccak256", ValueType.BYTES),
+            ("crypto", "ed25519_verify"): ("ed25519_verify", ValueType.VOID),
+            ("log",): ("log", ValueType.VOID),
+            ("prng", "bytes"): ("prng_bytes", ValueType.BYTES),
+            ("prng", "u64"): ("prng_u64", ValueType.U64),
+            ("deploy", "contract"): ("deploy", ValueType.ADDRESS),
+            ("deploy", "with_constructor"): ("deploy_constructor", ValueType.ADDRESS),
+            ("deploy", "upload"): ("upload_wasm", ValueType.BYTES),
+            ("deploy", "upgrade"): ("upgrade", ValueType.VOID),
+            ("deploy", "asset"): ("deploy_asset", ValueType.ADDRESS),
+        }
+        if tuple(path) in operations:
+            op, result = operations[tuple(path)]
+            args = tuple(self.expression(value) for value in node.args)
+            return ir.HostCall(op, args, result)
+        if len(path) == 2 and path[1] == "require_auth_for":
+            args = tuple(self.expression(value) for value in node.args)
+            return ir.HostCall(
+                "require_auth_for",
+                (ir.Local(path[0], ValueType.ADDRESS),) + args,
+                ValueType.VOID,
+            )
+        if len(path) == 2 and path[1] in {"to_bytes", "to_string", "slice"}:
+            owner = ir.Local(path[0], self.types[path[0]])
+            result = {
+                "to_bytes": ValueType.BYTES,
+                "to_string": ValueType.STRING,
+                "slice": ValueType.BYTES,
+            }[path[1]]
+            op = {"to_bytes": "string_to_bytes", "to_string": "bytes_to_string", "slice": "bytes_slice"}[path[1]]
+            args = tuple(self.expression(value) for value in node.args)
+            return ir.HostCall(op, (owner,) + args, result)
+        return None
 
     def _fail(self, node: ast.Call) -> ir.Fail:
         error_name, case_name = _attribute_path(node.args[0])

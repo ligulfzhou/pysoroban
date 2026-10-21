@@ -5,7 +5,7 @@ support. The compiler reads the source as an AST; contracts are never executed
 by the Python runtime.
 """
 
-__version__ = "0.10.0a1"
+__version__ = "0.11.0a1"
 
 from .compiler import CompilationResult, check_file, check_source, compile_file, compile_source
 from .abi import contract_abi
@@ -48,6 +48,9 @@ class Address:
     """A Stellar account or contract address host object."""
 
     def require_auth(self) -> None:
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def require_auth_for(self, *args) -> None:
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
     def call_void(self, function, *args) -> None:
@@ -94,9 +97,21 @@ class Symbol:
 class String:
     """Soroban UTF-8 string object."""
 
+    def to_bytes(self):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
 
 class Bytes:
     """Soroban byte sequence object."""
+
+    def to_string(self):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def slice(self, start, end):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def append(self, other) -> None:
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
 
 class Topic:
@@ -190,6 +205,72 @@ class _Events:
 events = _Events()
 
 
+class _Ledger:
+    def sequence(self):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def timestamp(self):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def version(self):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def network_id(self):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+
+class _Env:
+    def current_contract_address(self):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+
+class _Crypto:
+    def sha256(self, value):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def keccak256(self, value):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def ed25519_verify(self, key, message, signature):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+
+class _Prng:
+    def bytes(self, length):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def u64(self, low, high):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+
+class _Deploy:
+    def contract(self, wasm_hash, salt):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def with_constructor(self, wasm_hash, salt, *args):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def upload(self, wasm):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def upgrade(self, wasm_hash):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def asset(self, serialized_asset):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+
+ledger = _Ledger()
+env = _Env()
+crypto = _Crypto()
+prng = _Prng()
+deploy = _Deploy()
+
+
+def log(message):
+    raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+
 def contract(cls):
     return cls
 
@@ -233,6 +314,12 @@ __all__ = [
     "check_source",
     "compile_file",
     "compile_source",
+    "crypto",
+    "deploy",
+    "env",
+    "ledger",
+    "log",
+    "prng",
     "contract",
     "contract_abi",
     "enum",

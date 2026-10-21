@@ -430,6 +430,12 @@ class FunctionEmitter:
     def _wide_binary(self, node: ir.Binary) -> bytes:
         scratch = self._claim_wide_scratch()
         try:
+            if node.op == "mul" and node.type is ValueType.U128:
+                return self._u128_mul(node, scratch)
+            if node.op == "div" and node.type is ValueType.U128:
+                return self._u128_div(node, scratch)
+            if node.op == "mul" and node.type is ValueType.I128:
+                return self._i128_mul(node, scratch)
             return self._wide_binary_with_scratch(node, scratch)
         finally:
             self._release_wide_scratch()
@@ -568,6 +574,19 @@ class FunctionEmitter:
             ])
         if node.op == "struct_new":
             return self._struct_new(node)
+        if node.op in {
+            "ledger_sequence", "ledger_version", "ledger_timestamp", "ledger_network",
+            "current_contract", "sha256", "keccak256", "ed25519_verify", "log",
+            "prng_bytes", "prng_u64", "string_len", "bytes_len", "string_to_bytes",
+            "bytes_to_string", "bytes_slice", "bytes_append", "upload_wasm", "upgrade",
+            "deploy_asset",
+        }:
+            return self._simple_host(node)
+        if node.op == "require_auth_for":
+            address, *args = node.args
+            return self.expression(address) + self._pack_values(args) + b"\x10" + uleb(self.host_indices[("a", "_")])
+        if node.op in {"deploy", "deploy_constructor"}:
+            return self._deploy(node)
         if node.op == "struct_field":
             owner, field = node.args
             raw = b"".join([
@@ -684,6 +703,162 @@ class FunctionEmitter:
         finally:
             self._release_wide_scratch()
 
+    def _simple_host(self, node: ir.HostCall) -> bytes:
+        if node.op == "log":
+            return self._log(node.args[0])
+        if node.op == "prng_u64":
+            return (
+                self.expression(node.args[0])
+                + self.expression(node.args[1])
+                + b"\x10" + uleb(self.host_indices[("p", "1")])
+            )
+        direct = {
+            "ledger_sequence": ("x", "3"),
+            "ledger_version": ("x", "2"),
+            "ledger_timestamp": ("x", "4"),
+            "ledger_network": ("x", "6"),
+            "current_contract": ("x", "7"),
+            "sha256": ("c", "_"),
+            "keccak256": ("c", "1"),
+            "ed25519_verify": ("c", "0"),
+            "string_len": ("b", "k"),
+            "bytes_len": ("b", "8"),
+            "string_to_bytes": ("b", "n"),
+            "bytes_to_string": ("b", "o"),
+            "bytes_append": ("b", "e"),
+            "bytes_slice": ("b", "f"),
+            "prng_bytes": ("p", "0"),
+            "upload_wasm": ("l", "5"),
+            "upgrade": ("l", "6"),
+            "deploy_asset": ("l", "4"),
+        }
+        output = bytearray()
+        for argument in node.args:
+            output += self.expression(argument)
+            if not (node.op == "bytes_slice" and argument.type is ValueType.U32):
+                output += self.encode_val(argument.type)
+            else:
+                output += self.encode_val(ValueType.U32)
+        if node.op == "bytes_slice":
+            output = bytearray()
+            value, start, end = node.args
+            output += self.expression(value)
+            output += self.expression(start) + self.encode_val(ValueType.U32)
+            output += self.expression(end) + self.encode_val(ValueType.U32)
+        output += b"\x10" + uleb(self.host_indices[direct[node.op]])
+        output += self._decode_call_result(node.type)
+        return bytes(output)
+
+    def _log(self, value: ir.Expression) -> bytes:
+        if isinstance(value, ir.Constant) and isinstance(value.value, str):
+            raw = value.value.encode("utf-8")
+            offset = self.literals.intern(raw)
+            return b"".join([
+                self._u32_val(offset), self._u32_val(len(raw)),
+                self._u32_val(0), self._u32_val(0),
+                b"\x10", uleb(self.host_indices[("x", "_")]),
+            ])
+        string_slot, length_slot = self._claim_wide_scratch()[:2]
+        try:
+            return b"".join([
+                self.expression(value), b"\x21", uleb(string_slot),
+                b"\x20", uleb(string_slot),
+                b"\x10", uleb(self.host_indices[("b", "k")]),
+                b"\x21", uleb(length_slot),
+                b"\x20", uleb(string_slot),
+                self._u32_val(0), self._u32_val(0),
+                b"\x20", uleb(length_slot),
+                b"\x10", uleb(self.host_indices[("b", "g")]),
+                b"\x1a",
+                self._u32_val(0), b"\x20", uleb(length_slot),
+                self._u32_val(0), self._u32_val(0),
+                b"\x10", uleb(self.host_indices[("x", "_")]),
+            ])
+        finally:
+            self._release_wide_scratch()
+
+    def _pack_values(self, args) -> bytes:
+        stored = bytearray()
+        for index, argument in enumerate(args):
+            stored += b"\x41" + sleb(index * 8, 32)
+            stored += self.expression(argument) + self.encode_val(argument.type)
+            stored += b"\x37\x03\x00"
+        return bytes(stored) + self._u32_val(0) + self._u32_val(len(args)) + b"\x10" + uleb(VEC_FROM_MEMORY)
+
+    def _deploy(self, node: ir.HostCall) -> bytes:
+        addr, wasm_hash, salt = self._claim_wide_scratch()[:3]
+        try:
+            wasm_arg, salt_arg, *rest = node.args
+            output = bytearray()
+            output += self.expression(wasm_arg) + b"\x21" + uleb(wasm_hash)
+            output += self.expression(salt_arg) + b"\x21" + uleb(salt)
+            output += b"\x10" + uleb(self.host_indices[("x", "7")]) + b"\x21" + uleb(addr)
+            output += b"\x20" + uleb(addr) + b"\x20" + uleb(wasm_hash) + b"\x20" + uleb(salt)
+            if node.op == "deploy_constructor":
+                output += self._pack_values(rest)
+            export = "e" if node.op == "deploy_constructor" else "3"
+            output += b"\x10" + uleb(self.host_indices[("l", export)])
+            return bytes(output)
+        finally:
+            self._release_wide_scratch()
+
+    def _u128_product(self, node: ir.Binary, scratch: Tuple[int, ...], *, divide: bool) -> bytes:
+        lhs_val, rhs_val, lhs_hi, lhs_lo, rhs_hi, rhs_lo, result_hi, result_lo, _result_val = scratch
+        output = self._normalized_wide_values(node.left, node.right, scratch)
+        for value_local, hi_local, lo_local in ((lhs_val, lhs_hi, lhs_lo), (rhs_val, rhs_hi, rhs_lo)):
+            output += b"\x42\x00\x42\x00\x20" + uleb(hi_local) + b"\x20" + uleb(lo_local)
+            output += b"\x10" + uleb(self.host_indices[("i", "9")]) + b"\x21" + uleb(value_local)
+        output += b"\x20" + uleb(lhs_val) + b"\x20" + uleb(rhs_val)
+        output += b"\x10" + uleb(self.host_indices[("i", "q" if divide else "p")])
+        output += b"\x21" + uleb(lhs_val)
+        if not divide:
+            output += self._u256_part(lhs_val, 0) + b"\x21" + uleb(result_hi)
+            output += self._u256_part(lhs_val, 1) + b"\x21" + uleb(result_lo)
+            output += b"\x20" + uleb(result_hi) + b"\x20" + uleb(result_lo) + b"\x84\x50\x45"
+            output += b"\x04\x40\x00\x0b"
+        output += self._u256_part(lhs_val, 2) + b"\x21" + uleb(result_hi)
+        output += self._u256_part(lhs_val, 3) + b"\x21" + uleb(result_lo)
+        output += b"\x20" + uleb(result_hi) + b"\x20" + uleb(result_lo)
+        output += b"\x10" + uleb(self.host_indices[("i", "3")])
+        return bytes(output)
+
+    def _u128_mul(self, node: ir.Binary, scratch: Tuple[int, ...]) -> bytes:
+        return self._u128_product(node, scratch, divide=False)
+
+    def _u128_div(self, node: ir.Binary, scratch: Tuple[int, ...]) -> bytes:
+        return self._u128_product(node, scratch, divide=True)
+
+    def _i128_mul(self, node: ir.Binary, scratch: Tuple[int, ...]) -> bytes:
+        lhs_val, rhs_val, lhs_hi, lhs_lo, rhs_hi, rhs_lo, result_hi, result_lo, sign = scratch
+        output = self._normalized_wide_values(node.left, node.right, scratch)
+
+        def widen(value_local: int, hi_local: int, lo_local: int) -> bytes:
+            return b"".join([
+                b"\x20", uleb(hi_local), b"\x42", sleb(63), b"\x87", b"\x21", uleb(sign),
+                b"\x20", uleb(sign), b"\x20", uleb(sign),
+                b"\x20", uleb(hi_local), b"\x20", uleb(lo_local),
+                b"\x10", uleb(self.host_indices[("i", "g")]),
+                b"\x21", uleb(value_local),
+            ])
+
+        output += widen(lhs_val, lhs_hi, lhs_lo)
+        output += widen(rhs_val, rhs_hi, rhs_lo)
+        output += b"\x20" + uleb(lhs_val) + b"\x20" + uleb(rhs_val)
+        output += b"\x10" + uleb(self.host_indices[("i", "x")]) + b"\x21" + uleb(lhs_val)
+        output += b"\x20" + uleb(lhs_val) + b"\x10" + uleb(self.host_indices[("i", "l")])
+        output += b"\x21" + uleb(result_lo)
+        output += b"\x20" + uleb(result_lo) + b"\x42" + sleb(63) + b"\x87" + b"\x21" + uleb(sign)
+        output += b"\x20" + uleb(lhs_val) + b"\x10" + uleb(self.host_indices[("i", "j")])
+        output += b"\x20" + uleb(sign) + b"\x52"
+        output += b"\x20" + uleb(lhs_val) + b"\x10" + uleb(self.host_indices[("i", "k")])
+        output += b"\x20" + uleb(sign) + b"\x52\x72"
+        output += b"\x04\x40\x00\x0b"
+        output += b"\x20" + uleb(lhs_val) + b"\x10" + uleb(self.host_indices[("i", "m")])
+        output += b"\x21" + uleb(result_hi)
+        output += b"\x20" + uleb(result_lo) + b"\x20" + uleb(result_hi)
+        output += b"\x10" + uleb(self.host_indices[("i", "6")])
+        return bytes(output)
+
     def _u256_part(self, value_local: int, part: int) -> bytes:
         object_export = ("c", "d", "e", "f")[part]
         small_value = (
@@ -783,7 +958,9 @@ def _wide_expression_depth(function: ir.Function) -> int:
     def expression(node: ir.Expression) -> int:
         if isinstance(node, ir.HostCall):
             child = max((expression(arg) for arg in node.args), default=0)
-            return child + (1 if node.op in {"u128_mul_div_floor", "struct_new"} else 0)
+            return child + (1 if node.op in {
+                "u128_mul_div_floor", "struct_new", "log", "deploy", "deploy_constructor",
+            } else 0)
         if isinstance(node, ir.Unary):
             return expression(node.operand)
         if isinstance(node, (ir.Binary, ir.Compare)):
@@ -855,6 +1032,8 @@ def emit_module(contract: ir.Contract, protocol: int = 25) -> bytes:
             optional(host_import)
     for host_import in _collection_imports(contract):
         optional(host_import)
+    for host_import in _service_imports(contract):
+        optional(host_import)
     host_imports = HOST_IMPORTS + tuple(optional_imports)
     host_indices = {(module, field): index for index, (module, field, _) in enumerate(host_imports)}
     emitters = [FunctionEmitter(function, literals, host_indices) for function in contract.functions]
@@ -916,6 +1095,10 @@ def _max_linear_values(contract: ir.Contract) -> int:
                 maximum = max(maximum, len(node.args) - 1)
             elif node.op == "contract_call":
                 maximum = max(maximum, len(node.args) - 2)
+            elif node.op == "require_auth_for":
+                maximum = max(maximum, len(node.args) - 1)
+            elif node.op == "deploy_constructor":
+                maximum = max(maximum, max(0, len(node.args) - 2))
             for arg in node.args:
                 expression(arg)
         elif isinstance(node, ir.Unary):
@@ -1017,6 +1200,96 @@ def _collection_imports(contract: ir.Contract):
         for op in ("map_new", "map_put"):
             if needed[op] not in imports:
                 imports.append(needed[op])
+    return imports
+
+
+def _service_imports(contract: ir.Contract):
+    needed = {
+        "ledger_sequence": ("x", "3", 0),
+        "ledger_version": ("x", "2", 0),
+        "ledger_timestamp": ("x", "4", 0),
+        "ledger_network": ("x", "6", 0),
+        "current_contract": ("x", "7", 0),
+        "sha256": ("c", "_", 1),
+        "keccak256": ("c", "1", 1),
+        "ed25519_verify": ("c", "0", 3),
+        "log": ("x", "_", 4),
+        "string_len": ("b", "k", 1),
+        "bytes_len": ("b", "8", 1),
+        "string_to_bytes": ("b", "n", 1),
+        "bytes_to_string": ("b", "o", 1),
+        "bytes_slice": ("b", "f", 3),
+        "bytes_append": ("b", "e", 2),
+        "prng_bytes": ("p", "0", 1),
+        "prng_u64": ("p", "1", 2),
+        "upload_wasm": ("l", "5", 1),
+        "upgrade": ("l", "6", 1),
+        "deploy_asset": ("l", "4", 1),
+        "require_auth_for": ("a", "_", 2),
+        "deploy": ("l", "3", 3),
+        "deploy_constructor": ("l", "e", 4),
+    }
+    found = set()
+    dynamic_log = False
+    wide = set()
+
+    def expression(node: ir.Expression):
+        nonlocal dynamic_log
+        if isinstance(node, ir.Binary) and node.type in WIDE_INTEGER_TYPES and node.op in {"mul", "div"}:
+            wide.add((node.type, node.op))
+        if isinstance(node, ir.HostCall):
+            if node.op in needed:
+                found.add(node.op)
+            if node.op == "log" and not isinstance(node.args[0], ir.Constant):
+                dynamic_log = True
+            for arg in node.args:
+                expression(arg)
+        elif isinstance(node, ir.Unary):
+            expression(node.operand)
+        elif isinstance(node, (ir.Binary, ir.Compare)):
+            expression(node.left)
+            expression(node.right)
+
+    def statement(node: ir.Statement):
+        if isinstance(node, (ir.Return, ir.SetLocal, ir.Drop)):
+            expression(node.value)
+        elif isinstance(node, ir.If):
+            expression(node.test)
+            for child in node.body + node.otherwise:
+                statement(child)
+        elif isinstance(node, ir.ForRange):
+            expression(node.start)
+            expression(node.stop)
+            for child in node.body:
+                statement(child)
+
+    for function in contract.functions:
+        for item in function.body:
+            statement(item)
+    imports = []
+
+    def add(item):
+        if item not in imports:
+            imports.append(item)
+
+    for op in needed:
+        if op in found:
+            add(needed[op])
+    if dynamic_log:
+        add(("b", "k", 1))
+        add(("b", "g", 4))
+    if "deploy" in found or "deploy_constructor" in found:
+        add(("x", "7", 0))
+    if (ValueType.U128, "mul") in wide or (ValueType.U128, "div") in wide:
+        for item in (("i", "9", 4), ("i", "c", 1), ("i", "d", 1), ("i", "e", 1), ("i", "f", 1), ("i", "3", 2)):
+            add(item)
+        if (ValueType.U128, "mul") in wide:
+            add(("i", "p", 2))
+        if (ValueType.U128, "div") in wide:
+            add(("i", "q", 2))
+    if (ValueType.I128, "mul") in wide:
+        for item in (("i", "g", 4), ("i", "x", 2), ("i", "j", 1), ("i", "k", 1), ("i", "l", 1), ("i", "m", 1), ("i", "6", 2)):
+            add(item)
     return imports
 
 

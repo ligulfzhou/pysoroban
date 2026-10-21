@@ -9,6 +9,7 @@ integration testing.
 """
 
 import copy
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
@@ -74,6 +75,17 @@ class ContractTest:
         self._persistent = {}
         self._temporary = {}
         self._ttl = []
+        self.ledger_sequence = 1
+        self.ledger_timestamp = 0
+        self.ledger_version = 25
+        self.network_id = bytes(32)
+        self.contract_address = "CSELF"
+        self.logs = []
+        self.deployments = []
+        self.uploads = []
+        self.upgraded = None
+        self._signatures = set()
+        self._prng = 0x123456789ABCDEF
         self._events = []
         self._last_events = []
         self._authorized = set()
@@ -112,6 +124,10 @@ class ContractTest:
     @property
     def last_events(self) -> Tuple[Event, ...]:
         return tuple(self._last_events)
+
+    def allow_signature(self, key: bytes, message: bytes, signature: bytes) -> None:
+        """Accept one ed25519 triple. The test host does not implement the curve."""
+        self._signatures.add((key, message, signature))
 
     def clear_events(self) -> None:
         self._events.clear()
@@ -172,6 +188,10 @@ class ContractTest:
             list(self._ttl),
             list(self._events),
             list(self._last_events),
+            list(self.logs),
+            list(self.deployments),
+            list(self.uploads),
+            self.upgraded,
         ))
         try:
             try:
@@ -275,31 +295,32 @@ class ContractTest:
                 raise AuthorizationError(f"missing authorization for {values[0]!r}")
             return None
         if call.op == "storage_set":
-            self._storage[values[0]] = (values[1], call.args[1].type)
+            self._storage[_storage_key(values[0])] = (values[1], call.args[1].type)
             return None
         if call.op == "storage_has":
-            return values[0] in self._storage
+            return _storage_key(values[0]) in self._storage
         if call.op.startswith("storage_get"):
-            return self._storage_get(self._storage, values[0], call.type, "instance")
+            return self._storage_get(self._storage, _storage_key(values[0]), call.type, "instance")
         if call.op == "storage_del":
-            return self._storage_delete(self._storage, values[0], "instance")
+            return self._storage_delete(self._storage, _storage_key(values[0]), "instance")
         tier = _storage_tier(call.op)
         if tier is not None:
             bucket, label, action = tier
             bucket = {"persistent": self._persistent, "temporary": self._temporary}[label]
+            key = _storage_key(values[0])
             if action == "set":
-                bucket[values[0]] = (values[1], call.args[1].type)
+                bucket[key] = (values[1], call.args[1].type)
                 return None
             if action == "has":
-                return values[0] in bucket
+                return key in bucket
             if action == "get":
-                return self._storage_get(bucket, values[0], call.type, label)
+                return self._storage_get(bucket, key, call.type, label)
             if action == "del":
-                return self._storage_delete(bucket, values[0], label)
+                return self._storage_delete(bucket, key, label)
             if action == "extend":
                 self._ttl.append({
                     "tier": label,
-                    "key": values[0],
+                    "key": key,
                     "threshold": values[1],
                     "extend_to": values[2],
                 })
@@ -338,9 +359,10 @@ class ContractTest:
         if call.op == "map_len":
             return len(values[0])
         if call.op == "map_has":
-            return values[1] in values[0]
+            return _storage_key(values[1]) in values[0]
         if call.op == "map_get":
             map_value, key = values
+            key = _storage_key(key)
             if key not in map_value:
                 raise InvocationError(f"Map key {key!r} was not found")
             return map_value[key]
@@ -376,13 +398,14 @@ class ContractTest:
             return updated
         if call.op == "map_put":
             updated = dict(values[0])
-            updated[values[1]] = values[2]
+            updated[_storage_key(values[1])] = values[2]
             return updated
         if call.op == "map_del":
-            if values[1] not in values[0]:
-                raise InvocationError(f"Map key {values[1]!r} was not found")
+            key = _storage_key(values[1])
+            if key not in values[0]:
+                raise InvocationError(f"Map key {key!r} was not found")
             updated = dict(values[0])
-            del updated[values[1]]
+            del updated[key]
             return updated
         if call.op == "struct_new":
             struct = call.type
@@ -392,6 +415,74 @@ class ContractTest:
             if field_name not in values[0]:
                 raise InvocationError(f"missing struct field {field_name!r}")
             return values[0][field_name]
+        if call.op == "ledger_sequence":
+            return self.ledger_sequence
+        if call.op == "ledger_timestamp":
+            return self.ledger_timestamp
+        if call.op == "ledger_version":
+            return self.ledger_version
+        if call.op == "ledger_network":
+            return self.network_id
+        if call.op == "current_contract":
+            return self.contract_address
+        if call.op == "sha256":
+            return hashlib.sha256(values[0]).digest()
+        if call.op == "keccak256":
+            return _keccak256(values[0])
+        if call.op == "ed25519_verify":
+            if tuple(values) not in self._signatures:
+                raise InvocationError("ed25519 signature was not accepted by the test host")
+            return None
+        if call.op == "log":
+            self.logs.append(values[0])
+            return None
+        if call.op == "string_len":
+            return len(values[0].encode("utf-8"))
+        if call.op == "bytes_len":
+            return len(values[0])
+        if call.op == "string_to_bytes":
+            return values[0].encode("utf-8")
+        if call.op == "bytes_to_string":
+            try:
+                return values[0].decode("utf-8")
+            except UnicodeDecodeError as exc:
+                raise InvocationError("Bytes.to_string() received invalid UTF-8") from exc
+        if call.op == "bytes_slice":
+            start, end = values[1], values[2]
+            if start < 0 or end < start or end > len(values[0]):
+                raise InvocationError("Bytes.slice() range is invalid")
+            return values[0][start:end]
+        if call.op == "bytes_append":
+            return values[0] + values[1]
+        if call.op == "prng_bytes":
+            length = values[0]
+            if length < 0 or length > 256:
+                raise InvocationError("prng.bytes() length is out of range")
+            return bytes(_next_prng(self) & 0xFF for _ in range(length))
+        if call.op == "prng_u64":
+            low, high = values
+            if low > high:
+                raise InvocationError("prng.u64() range is empty")
+            return low + (_next_prng(self) % (high - low + 1))
+        if call.op == "require_auth_for":
+            if values[0] not in self._authorized:
+                raise AuthorizationError(f"missing authorization for {values[0]!r}")
+            return None
+        if call.op in {"deploy", "deploy_constructor"}:
+            address = "C" + hashlib.sha256(repr(values).encode("utf-8")).hexdigest()[:16]
+            self.deployments.append({"address": address, "wasm_hash": values[0], "salt": values[1], "args": values[2:]})
+            return address
+        if call.op == "upload_wasm":
+            digest = hashlib.sha256(values[0]).digest()
+            self.uploads.append(digest)
+            return digest
+        if call.op == "upgrade":
+            self.upgraded = values[0]
+            return None
+        if call.op == "deploy_asset":
+            address = "A" + hashlib.sha256(values[0]).hexdigest()[:16]
+            self.deployments.append({"address": address, "asset": values[0]})
+            return address
         raise AssertionError(call.op)
 
     def _storage_get(self, bucket, key, value_type, label: str):
@@ -412,6 +503,84 @@ class ContractTest:
         return None
 
 
+def _storage_key(value):
+    """Make struct and collection values usable as storage and map keys.
+
+    The test host compares those keys by value. Dicts and lists are not
+    hashable, so they are stored as nested tuples. Scalars stay unchanged,
+    which keeps Address, Symbol, and integer keys identical for callers.
+    """
+    if isinstance(value, dict):
+        return ("struct", tuple(sorted((name, _storage_key(item)) for name, item in value.items())))
+    if isinstance(value, list):
+        return ("vec", tuple(_storage_key(item) for item in value))
+    return value
+
+
+def _next_prng(contract: ContractTest) -> int:
+    value = contract._prng & ((1 << 64) - 1)
+    value ^= (value << 13) & ((1 << 64) - 1)
+    value ^= value >> 7
+    value ^= (value << 17) & ((1 << 64) - 1)
+    contract._prng = value
+    return value
+
+
+def _keccak256(data: bytes) -> bytes:
+    """Keccak-256, the function Soroban exposes as compute_hash_keccak256."""
+    state = [0] * 25
+    rate = 136
+    padded = bytearray(data)
+    padded.append(0x01)
+    while (len(padded) % rate) != rate - 1:
+        padded.append(0)
+    padded.append(0x80)
+    rotations = [
+        [0, 36, 3, 41, 18],
+        [1, 44, 10, 45, 2],
+        [62, 6, 43, 15, 61],
+        [28, 55, 25, 21, 56],
+        [27, 20, 39, 8, 14],
+    ]
+    constants = [
+        0x0000000000000001, 0x0000000000008082, 0x800000000000808A, 0x8000000080008000,
+        0x000000000000808B, 0x0000000080000001, 0x8000000080008081, 0x8000000000008009,
+        0x000000000000008A, 0x0000000000000088, 0x0000000080008009, 0x000000008000000A,
+        0x000000008000808B, 0x800000000000008B, 0x8000000000008089, 0x8000000000008003,
+        0x8000000000008002, 0x8000000000000080, 0x000000000000800A, 0x800000008000000A,
+        0x8000000080008081, 0x8000000000008080, 0x0000000080000001, 0x8000000080008008,
+    ]
+    mask = (1 << 64) - 1
+
+    def rotate(value: int, shift: int) -> int:
+        value &= mask
+        return ((value << shift) | (value >> (64 - shift))) & mask if shift else value
+
+    for offset in range(0, len(padded), rate):
+        block = padded[offset:offset + rate]
+        for index in range(rate // 8):
+            state[index] ^= int.from_bytes(block[index * 8:(index + 1) * 8], "little")
+        for constant in constants:
+            columns = [state[lane] ^ state[lane + 5] ^ state[lane + 10] ^ state[lane + 15] ^ state[lane + 20] for lane in range(5)]
+            rotated = [columns[(lane - 1) % 5] ^ rotate(columns[(lane + 1) % 5], 1) for lane in range(5)]
+            for lane in range(25):
+                state[lane] ^= rotated[lane % 5]
+            lanes = [rotate(state[x + 5 * y], rotations[x][y]) for y in range(5) for x in range(5)]
+            permuted = [0] * 25
+            for y in range(5):
+                for x in range(5):
+                    permuted[y + 5 * ((2 * x + 3 * y) % 5)] = lanes[x + 5 * y]
+            for y in range(5):
+                for x in range(5):
+                    current = permuted[x + 5 * y]
+                    state[x + 5 * y] = current ^ ((~permuted[((x + 1) % 5) + 5 * y]) & permuted[((x + 2) % 5) + 5 * y])
+            state[0] ^= constant
+    output = bytearray()
+    for lane in state[: rate // 8]:
+        output += lane.to_bytes(8, "little")
+    return bytes(output[:32])
+
+
 def _storage_tier(op: str):
     if op.startswith("pstorage_"):
         return "persistent", "persistent", op[len("pstorage_"):]
@@ -421,13 +590,17 @@ def _storage_tier(op: str):
 
 
 def _restore_transaction(transaction: List[tuple]) -> None:
-    for contract, storage, persistent, temporary, ttl, events, last_events in reversed(transaction):
+    for contract, storage, persistent, temporary, ttl, events, last_events, logs, deployments, uploads, upgraded in reversed(transaction):
         contract._storage = storage
         contract._persistent = persistent
         contract._temporary = temporary
         contract._ttl = ttl
         contract._events = events
         contract._last_events = last_events
+        contract.logs = logs
+        contract.deployments = deployments
+        contract.uploads = uploads
+        contract.upgraded = upgraded
 
 
 def _wrap_integer(value: int, value_type: ValueType) -> int:

@@ -147,6 +147,35 @@ SUITES = (
         ),
     ),
     (
+        "wide-mul-div",
+        """
+from pysoroban import contract, i128, public, u128
+
+@contract
+class WideMul:
+    @public
+    def multiply_u128(self, left: u128, right: u128) -> u128:
+        return left * right
+
+    @public
+    def divide_u128(self, left: u128, right: u128) -> u128:
+        return left // right
+
+    @public
+    def multiply_i128(self, left: i128, right: i128) -> i128:
+        return left * right
+""",
+        (
+            ("u128-mul", "multiply_u128", (2**100, 2**20)),
+            ("u128-div", "divide_u128", (2**100, 2**20)),
+            ("u128-mul-overflow", "multiply_u128", (2**128 - 1, 2), "unreachable"),
+            ("u128-div-zero", "divide_u128", (1, 0), "unreachable"),
+            ("i128-mul", "multiply_i128", (-(2**60), 2**40)),
+            ("i128-mul-negative", "multiply_i128", (-(2**50), -(2**20))),
+            ("i128-mul-overflow", "multiply_i128", (2**127 - 1, 2), "unreachable"),
+        ),
+    ),
+    (
         "amm-u128-quotes",
         ROOT / "examples" / "amm_kernel_contract.py",
         (

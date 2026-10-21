@@ -64,8 +64,8 @@ not short-circuiting Python operators.
 | `u32` | wrap modulo `2^32` | unsigned floor division | trap | wrap |
 | `i64` | wrap modulo `2^64`, then interpret as signed | rejected | — | wrap |
 | `u64` | wrap modulo `2^64` | unsigned floor division | trap | wrap |
-| `i128` | checked `+` and `-` only; `*` rejected | rejected | — | trap |
-| `u128` | checked `+` and `-` only; `*` rejected | rejected | — | trap |
+| `i128` | checked `+`, `-`, and `*` | rejected | — | trap |
+| `u128` | checked `+`, `-`, and `*` | checked unsigned floor division | trap | trap |
 
 Unary minus is defined for `i32` and `i64` and uses the same wrapping
 subtraction from zero. It is rejected for unsigned types and for `i128`.
@@ -76,13 +76,19 @@ Checked addition and subtraction trap by executing Wasm `unreachable` when the
 signed `i128` sign bit disagrees with the operands, or when a `u128` result
 would wrap. That trap is a Wasm trap, not a contract-error code.
 
+`u128` multiplication widens both operands to `u256`, multiplies with the
+protocol-25 host (`i.p`), and traps when either high 128-bit half is nonzero.
+`u128` floor division uses the same widening and the host divide (`i.q`), which
+traps on a zero divisor. `i128` multiplication sign-extends into `i256`,
+multiplies with `i.x`, and traps unless the high half is the sign extension of
+bit 127. `i128` floor division stays rejected (`E0511`): the host `i256` divide
+truncates toward zero, which is not Python floor division for negative values.
+
 `u128.mul_div_floor(left, right, denominator)` computes
 `floor((left * right) / denominator)` with a `u256` intermediate using the
-protocol-25 checked `u256` host multiply and divide (`i.p`, `i.q`). A zero
-denominator traps inside that host divide. If the quotient does not fit in
-`u128`, the compiler emits `unreachable`. Rounding is toward zero, which is
-floor for unsigned values. General `i128` / `u128` multiplication and division
-remain rejected (`E0510`, `E0511`).
+same host multiply and divide. A zero denominator traps inside that host
+divide. If the quotient does not fit in `u128`, the compiler emits
+`unreachable`. Rounding is toward zero, which is floor for unsigned values.
 
 Asset accounting must use the checked `u128` operations. Wrapping `i32` /
 `u32` / `i64` / `u64` arithmetic is intentional and is not a contract error.
@@ -109,16 +115,15 @@ method on `storage.temporary` call `extend_contract_data_ttl`.
 contract instance and code. The test environment records those requests on
 `ttl_extensions` and does not simulate ledger expiry.
 
-`address.require_auth()` traps unless that address authorized the invocation.
-The test environment grants authorization only for the current call.
-
 Cross-contract calls are `call_void`, `call_i32`, `call_u32`, `call_i64`,
 `call_u64`, `call_i128`, `call_u128`, `call_bool`, `call_address`,
 `call_symbol`, `call_string`, and `call_bytes`. The first argument is a
 `Symbol` function name. There is no `call_vec` or `call_map`.
 
-`Vec` supports `len` and `values[index]` with an `i32` index. `Map` supports
-`len`, `has`, and indexing. Slicing is rejected. Empty collections are
+`len(values)` returns `i32` for `Vec`, `Map`, `String`, and `Bytes`. The host
+length is a `u32`; values above `2^31 - 1` are not representable as that
+`i32`. `Vec` supports `values[index]` with an `i32` index. `Map` supports
+`has` and indexing. Slicing a `Vec` or `Map` is rejected. Empty collections are
 `values: Vec[T] = Vec()` and `mapping: Map[K, V] = Map()`. Updates are
 statements that replace the local: `values.push(item)`,
 `values.set(index, item)`, `values.insert(index, item)`,
@@ -126,6 +131,40 @@ statements that replace the local: `values.push(item)`,
 `item = values.pop()` removes the last element and binds it. These methods
 are not expressions. The host operations return a new collection; the
 compiler writes that handle back to the local.
+
+`String.to_bytes()` and `Bytes.to_string()` convert UTF-8. Invalid UTF-8 traps.
+`Bytes.slice(start, end)` takes `u32` bounds and excludes `end`. A range outside
+the buffer traps. `value.append(other)` is a statement, like `Vec.push`.
+
+`ledger.sequence()` and `ledger.version()` return `u32`. `ledger.timestamp()`
+returns `u64`. `ledger.network_id()` returns `Bytes`.
+`env.current_contract_address()` returns `Address`.
+
+`crypto.sha256(value)` and `crypto.keccak256(value)` hash `Bytes` and return
+`Bytes`. `crypto.ed25519_verify(key, message, signature)` takes three `Bytes`
+values and returns `None`; a rejected signature traps. `log(message)` writes
+one `String`. `prng.bytes(length)` takes a `u32` and returns `Bytes`.
+`prng.u64(low, high)` takes an inclusive `u64` range and returns `u64`.
+
+`address.require_auth()` traps unless that address authorized the invocation.
+`address.require_auth_for(*args)` does the same and passes the authorized
+argument vector to the host. The test environment checks only that the address
+is in the call's `auth` list.
+
+`deploy.upload(wasm)` returns the `Bytes` hash of a Wasm payload.
+`deploy.contract(wasm_hash, salt)` and
+`deploy.with_constructor(wasm_hash, salt, *args)` return the new `Address`.
+`deploy.upgrade(wasm_hash)` replaces the current contract Wasm.
+`deploy.asset(serialized_asset)` creates a Stellar Asset Contract from the
+serialized asset bytes and returns its `Address`. The compiler does not build
+that asset XDR.
+
+The test environment is not the Soroban host. It records TTL extensions
+without expiring entries. `ed25519_verify` succeeds only after
+`ContractTest.allow_signature(key, message, signature)`. `prng` is a local
+xorshift, not the host PRNG. Deployed addresses are synthetic, while
+`deploy.upload` returns a real SHA-256 digest. `authorize_as_curr_contract`
+and custom-account auth entries are not modeled.
 
 Typed events use `@event`, exactly one data field, and `Topic[T]` fields
 before that data field. `events.publish` also accepts a raw `Symbol` topic

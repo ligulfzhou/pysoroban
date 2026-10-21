@@ -188,15 +188,19 @@ calls are recorded in `deployments/testnet.json`.
   reassign the local through the host's functional collection interface.
 - `@struct` and `@enum` are supported. Structs are Soroban maps of field
   symbols. Enums are `u32` discriminants. Recursive struct fields are rejected.
-- Signed floor division is not supported; `//` currently has explicit unsigned
-  `u32` and `u64` semantics only.
+- Signed floor division is not supported. `//` is defined for `u32`, `u64`,
+  and checked `u128`. `i128` division stays rejected because the host divide
+  truncates toward zero.
 - `i128` and `u128` support ABI pass-through, checked literals, comparisons,
-  checked addition/subtraction, storage, events, collections, and
-  cross-contract results. `u128.mul_div_floor()` widens both operands into
-  `u256`, multiplies and divides through checked protocol host functions, and
-  traps unless the quotient narrows to `u128`. General multiplication and
-  division are not yet supported. Exact integer rules are in
+  checked addition, subtraction, and multiplication, storage, events,
+  collections, and cross-contract results. `u128` also has checked floor
+  division. `u128.mul_div_floor()` widens both operands into `u256` and traps
+  unless the quotient narrows to `u128`. Exact integer rules are in
   [LANGUAGE.md](LANGUAGE.md).
+- Ledger context, hashing, ed25519 verification, PRNG, logging, byte and
+  string operations, `require_auth_for`, and deploy or upgrade call the
+  protocol host. The Python test host records them with the limits in
+  `LANGUAGE.md`; it does not replace network execution.
 - Contract errors are `@error` enums plus `fail(Error.CASE)`. They trap
   through protocol-25 `fail_with_error` (`x.5`). The test environment rolls
   the invocation back, including linked contracts in that call. Numeric `0`
