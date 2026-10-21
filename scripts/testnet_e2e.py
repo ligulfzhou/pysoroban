@@ -102,7 +102,7 @@ def render_manifest(source_account: str, contracts: dict) -> str:
 
 
 def _catalog() -> list[dict]:
-    i128s = json.dumps([I128_MIN, "0", I128_MAX])
+    i128s = json.dumps([I128_MIN, "0", I128_MAX], separators=(",", ":"))
     return [
         {
             "key": "math",
@@ -226,7 +226,7 @@ def _catalog() -> list[dict]:
                     "label": "echo_i128s([i128::MIN, 0, i128::MAX])",
                     "fn": "echo_i128s",
                     "args": ["--values", i128s],
-                    "expect": json.dumps([I128_MIN, "0", I128_MAX]),
+                    "expect": i128s,
                 },
                 {
                     "label": "subtract_u128(0, 1)",
@@ -394,12 +394,16 @@ def deploy_one(stellar: str, identity: str, wasm: Path) -> dict:
     deploy_text = deployed.stdout + deployed.stderr
     upload_ids = transaction_hashes(upload_text)
     deploy_ids = transaction_hashes(deploy_text)
-    return {
+    record = {
         "wasm_hash": wasm_hash(uploaded.stdout),
-        "upload_transaction": upload_ids[-1] if upload_ids else "",
         "contract_id": contract_id(deployed.stdout),
         "deploy_transaction": deploy_ids[-1] if deploy_ids else "",
     }
+    if upload_ids:
+        record["upload_transaction"] = upload_ids[-1]
+    elif "already installed" in upload_text:
+        record["wasm_already_installed"] = True
+    return record
 
 
 def substitute(args: list[str], env: dict[str, str]) -> list[str]:
