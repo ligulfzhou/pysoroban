@@ -5,7 +5,8 @@ All notable changes to PySoroban are documented here.
 ## 0.18.0a2 — 2026-10-21
 
 - Build the sdist and wheel with `SOURCE_DATE_EPOCH` set to the commit
-  timestamp so a second build of the same commit matches.
+  timestamp. `scripts/normalize_sdist.py` then fixes the sdist gzip header
+  and tar timestamps, which still follow the clock, so a second build matches.
 - Publish through the existing GitHub Actions workflow when a GitHub Release
   is published. The workflow uses PyPI trusted publishing and does not store
   an API token. See [docs/RELEASING.md](docs/RELEASING.md).

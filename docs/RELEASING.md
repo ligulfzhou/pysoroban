@@ -31,10 +31,15 @@ From a clean checkout of the commit you intend to tag:
 python -m pip install build
 export SOURCE_DATE_EPOCH="$(git log -1 --pretty=%ct)"
 python -m build
+python scripts/normalize_sdist.py dist/*.tar.gz
 ```
 
-Run that twice. The two files in `dist/` must have the same SHA-256. The
-workflow sets the same `SOURCE_DATE_EPOCH` from the tagged commit.
+Run that twice. The wheel is reproducible from `SOURCE_DATE_EPOCH` alone.
+The sdist's gzip header and tar timestamps still follow the clock, so
+`scripts/normalize_sdist.py` rewrites them to the same epoch. After that
+pass, both files in `dist/` must have the same SHA-256 as the previous run.
+The workflow sets the same epoch from the tagged commit and runs the same
+normalizer.
 
 ## Publish
 
