@@ -3,6 +3,12 @@
 The package name is `pysoroban-compiler`. Publishing is a maintainer action.
 This repository does not upload a release by itself.
 
+This release is `0.19.0a2`. Merge pull request #13 first. That pull request is
+`0.19.0a1` and adds `__constructor`. This branch does not contain that
+compiler change; the version is already `0.19.0a2` so the upload sorts after
+it. Do not publish until #13 is on main and this pull request has been
+updated onto that tip.
+
 `.github/workflows/publish.yml` builds an sdist and a wheel when a GitHub
 Release is published, then uploads them with
 [PyPI trusted publishing](https://docs.pypi.org/trusted-publishers/). The
@@ -45,7 +51,8 @@ normalizer.
 
 1. Merge the release commit to `main`. The version in `pyproject.toml` is the
    version that will be uploaded.
-2. Push a tag whose name is `v` plus that version, for example `v0.18.0a2`.
+2. Push a tag whose name is `v` plus that version, for example `v0.19.0a2`.
+   Only do this after pull request #13 is merged.
 3. Publish a GitHub Release from that tag. The workflow starts on
    `release: published`. Pushing the tag alone does not upload to PyPI.
 4. Confirm the new files on
