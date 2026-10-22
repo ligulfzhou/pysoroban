@@ -2,6 +2,14 @@
 
 All notable changes to PySoroban are documented here.
 
+## 0.19.0a1 — 2026-10-21
+
+- Export `__constructor` as the protocol constructor. It returns `None`,
+  appears first in the contract spec, and cannot be called with `call_*` or
+  `try_*`. The test host runs it once and rejects entrypoints before that.
+- Soroban examples that construct in Rust now use `__constructor` instead of
+  `initialize`. `deploy.with_constructor` still does not execute the new Wasm.
+
 ## 0.18.0a1 — 2026-10-21
 
 - Pass protocol-25 BLS12-381 and BN254 host functions through `crypto`.

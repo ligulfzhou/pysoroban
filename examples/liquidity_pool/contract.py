@@ -51,7 +51,7 @@ class LiquidityPool:
     """
 
     @public
-    def initialize(self, token_a: Address, token_b: Address) -> None:
+    def __constructor(self, token_a: Address, token_b: Address) -> None:
         if token_a == token_b:
             fail(PoolError.TOKEN_ORDER)
         storage.instance.set(Symbol("token_a"), token_a)

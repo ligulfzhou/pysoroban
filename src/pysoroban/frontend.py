@@ -489,6 +489,18 @@ def _is_fail_call(node: ast.expr) -> bool:
     return isinstance(node, ast.Call) and _attribute_path(node.func) == ["fail"]
 
 
+def _reject_constructor_invocation(node: ast.expr) -> None:
+    """The host runs ``__constructor`` only while creating the contract."""
+    if (
+        isinstance(node, ast.Call)
+        and _attribute_path(node.func) == ["Symbol"]
+        and node.args
+        and isinstance(node.args[0], ast.Constant)
+        and node.args[0].value == "__constructor"
+    ):
+        fail(node, "__constructor runs only at contract creation", "E0112")
+
+
 def parse_contract(source: str, source_name: Optional[str] = None) -> Contract:
     try:
         module = ast.parse(source, filename=source_name or "<contract>")
@@ -540,6 +552,8 @@ def parse_contract(source: str, source_name: Optional[str] = None) -> Contract:
         if node.args.defaults:
             fail(node, "default parameter values are not supported", "E0107")
         result = _annotation(node.returns, user_types, allow_void=True)
+        if node.name == "__constructor" and result is not ValueType.VOID:
+            fail(node, "__constructor must return None", "E0111")
         functions.append(Function(node.name, tuple(params), result, node, ast.get_docstring(node) or ""))
 
     if not functions:
@@ -889,6 +903,7 @@ class TypeChecker:
                 fail(node, f"{path[1]}() requires a Symbol function name", "E0617")
             if self.check_expr(node.args[0]) is not ValueType.SYMBOL:
                 fail(node.args[0], "cross-contract function name must be a Symbol", "E0618")
+            _reject_constructor_invocation(node.args[0])
             for argument in node.args[1:]:
                 if self.check_expr(argument) is ValueType.VOID:
                     fail(argument, "cross-contract arguments cannot be None", "E0619")
@@ -1214,6 +1229,7 @@ class TypeChecker:
             fail(node, f"{path[1]}() is only available on Address values", "E0614")
         if not node.args or self.check_expr(node.args[0]) is not ValueType.SYMBOL:
             fail(node, f"{path[1]}() takes a Symbol and arguments", "E0616")
+        _reject_constructor_invocation(node.args[0])
         for argument in node.args[1:]:
             if self.check_expr(argument) is ValueType.VOID:
                 fail(argument, "cross-contract arguments cannot be None", "E0619")

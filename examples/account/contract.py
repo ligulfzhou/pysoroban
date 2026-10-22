@@ -64,12 +64,12 @@ class AccountContract:
     """Multisig account with a per-token spend limit.
 
     Signer count is i32 because len() is i32. Amounts are i128. The test host
-    does not build Context values; authorize_account supplies them. initialize
-    replaces __constructor.
+    does not build Context values; authorize_account supplies them.
+    ``__constructor`` installs the signers.
     """
 
     @public
-    def initialize(self, signers: Vec[BytesN[32]]) -> None:
+    def __constructor(self, signers: Vec[BytesN[32]]) -> None:
         signer: BytesN[32] = signers[0]
         index: i32 = 0
         for index in range(len(signers)):

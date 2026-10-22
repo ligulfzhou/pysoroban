@@ -10,7 +10,7 @@ class Deployer:
     """
 
     @public
-    def initialize(self, admin: Address) -> None:
+    def __constructor(self, admin: Address) -> None:
         storage.instance.set(Symbol("admin"), admin)
 
     @public

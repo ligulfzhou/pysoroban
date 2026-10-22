@@ -23,7 +23,7 @@ when the parser has a node. Codes are grouped as follows:
 | Range | Meaning |
 | --- | --- |
 | `E0001`–`E0002` | Python syntax, or not exactly one `@contract` class |
-| `E0101`–`E0110` | Function shape and return checking |
+| `E0101`–`E0112` | Function shape and return checking |
 | `E0201`–`E0211` | Type annotations |
 | `E0301`–`E0309` | Events |
 | `E0401`–`E0412` | Statements |
@@ -155,7 +155,16 @@ contract instance and code. The test environment records those requests on
 Cross-contract calls are `call_void`, `call_i32`, `call_u32`, `call_i64`,
 `call_u64`, `call_i128`, `call_u128`, `call_u256`, `call_bool`, `call_address`,
 `call_symbol`, `call_string`, and `call_bytes`. The first argument is a
-`Symbol` function name. There is no `call_vec` or `call_map`.
+`Symbol` function name. There is no `call_vec` or `call_map`. A call or
+`try_*` whose function symbol is `__constructor` is rejected. The host runs
+that export only while creating the contract.
+
+`@public def __constructor(...) -> None` is the protocol-22 constructor.
+The Wasm export and the spec entry use that name, and the spec entry is
+emitted before the other functions. The return type is `None`. The test host
+runs it through `invoke("__constructor", ...)`, once. A second call, or any
+other call before it, raises `InvocationError`. `deploy.with_constructor`
+still only records the new address and arguments.
 
 `try_void`, `try_i32`, `try_u32`, `try_i64`, `try_u64`, `try_i128`,
 `try_u128`, `try_u256`, `try_bool`, `try_address`, `try_symbol`, `try_string`,

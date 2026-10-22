@@ -11,7 +11,7 @@ class UpgradeableContract:
     """
 
     @public
-    def initialize(self, admin: Address) -> None:
+    def __constructor(self, admin: Address) -> None:
         storage.instance.set(Symbol("Admin"), admin)
         storage.instance.set(Symbol("NewAdmin"), admin)
 

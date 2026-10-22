@@ -2,7 +2,7 @@
 
 The leaf is the XDR of a `Receiver` struct, hashed with SHA-256. Proof
 siblings are ordered by raw bytes before they are concatenated. Differences
-from the Rust example: `initialize` instead of a constructor, checked `u128`
+from the Rust example: checked `u128`
 amounts, and `fail` instead of `Result`. Claimed indexes are stored as `u32`
 keys. The test host encodes a non-StrKey address as the contract id
 SHA-256(address).
@@ -45,7 +45,7 @@ class Receiver:
 @contract
 class MerkleDistribution:
     @public
-    def initialize(
+    def __constructor(
         self,
         root_hash: BytesN[32],
         token: Address,

@@ -7,7 +7,7 @@ class TokenTests(unittest.TestCase):
     def setUp(self):
         self.token = ContractTest.from_file("examples/token/contract.py")
         self.token.invoke(
-            "initialize",
+            "__constructor",
             "GADMIN",
             7,
             "Example",

@@ -29,7 +29,7 @@ def load(name: str) -> ContractTest:
 def make_token(address: str) -> ContractTest:
     token = ContractTest.from_file(SOROBAN / "token" / "contract.py")
     token.contract_address = address
-    token.invoke("initialize", "GADMIN", 7, "Example", auth=["GADMIN"])
+    token.invoke("__constructor", "GADMIN", 7, "Example", auth=["GADMIN"])
     return token
 
 
@@ -96,7 +96,7 @@ class SorobanExampleBehaviorTests(unittest.TestCase):
         gate = load("increment_with_pause")
         pause.contract_address = "CPAUSE"
         gate.register_contract("CPAUSE", pause)
-        gate.invoke("initialize", "CPAUSE")
+        gate.invoke("__constructor", "CPAUSE")
         self.assertEqual(gate.invoke("increment"), 1)
         pause.invoke("set", True)
         with self.assertRaises(ContractError):
@@ -153,7 +153,7 @@ class SorobanExampleBehaviorTests(unittest.TestCase):
         self.assertEqual(ttl.temporary["MyKey"], 2)
 
         factory = ContractTest.from_file(SOROBAN / "deployer" / "deployer" / "contract.py")
-        factory.invoke("initialize", "GADMIN")
+        factory.invoke("__constructor", "GADMIN")
         with self.assertRaises(AuthorizationError):
             factory.invoke("deploy", b"hash", b"salt", 7)
         address = factory.invoke("deploy", b"hash", b"salt", 7, auth=["GADMIN"])
@@ -161,13 +161,13 @@ class SorobanExampleBehaviorTests(unittest.TestCase):
         self.assertEqual(factory.deployments[-1]["args"], (7,))
 
         upgraded = ContractTest.from_file(SOROBAN / "upgradeable_contract" / "old_contract" / "contract.py")
-        upgraded.invoke("initialize", "GADMIN")
+        upgraded.invoke("__constructor", "GADMIN")
         self.assertEqual(upgraded.invoke("version"), 1)
         upgraded.invoke("upgrade", b"wasm-v2", auth=["GADMIN"])
         self.assertEqual(upgraded.upgraded, b"wasm-v2")
 
         migrated = ContractTest.from_file(SOROBAN / "upgradeable_contract" / "new_contract" / "contract.py")
-        migrated.invoke("initialize", "GADMIN")
+        migrated.invoke("__constructor", "GADMIN")
         migrated.invoke("handle_upgrade", auth=["GADMIN"])
         self.assertEqual(migrated.invoke("version"), 2)
         self.assertEqual(migrated.invoke("new_v2_fn"), 1010101)
@@ -245,12 +245,12 @@ class SorobanExampleBehaviorTests(unittest.TestCase):
         token = ContractTest.from_file(SOROBAN / "token" / "contract.py")
         token.contract_address = "CTOKEN"
         # The token admin is the mint-lock contract, so its direct mint call is authorized.
-        token.invoke("initialize", "CMINTER", 7, "Limited", auth=["CMINTER"])
+        token.invoke("__constructor", "CMINTER", 7, "Limited", auth=["CMINTER"])
         locker = load("mint-lock")
         locker.contract_address = "CMINTER"
         locker.register_contract("CTOKEN", token)
         locker.ledger_sequence = 25
-        locker.invoke("initialize", "GADMIN")
+        locker.invoke("__constructor", "GADMIN")
         config = {"limit": 100, "epoch_length": 10}
         locker.invoke("set_minter", "CTOKEN", "GMINER", config, auth=["GADMIN"])
         info = locker.invoke("minter", "CTOKEN", "GMINER")
@@ -271,7 +271,7 @@ class SorobanExampleBehaviorTests(unittest.TestCase):
         pool.contract_address = "CPOOL"
         pool.register_contract("CTA", token_a)
         pool.register_contract("CTB", token_b)
-        pool.invoke("initialize", "CTA", "CTB")
+        pool.invoke("__constructor", "CTA", "CTB")
         pool.invoke("deposit", "GALICE", 1000, 0, 1000, 0, auth=["GALICE"])
         self.assertEqual(pool.invoke("balance_shares", "GALICE"), 1000)
         self.assertEqual(pool.invoke("get_rsrvs"), {"a": 1000, "b": 1000})
@@ -288,15 +288,19 @@ class SorobanExampleBehaviorTests(unittest.TestCase):
         import hashlib
 
         token = make_token("CTOKEN")
-        token.invoke("mint", "GFUNDER", 100, auth=["GADMIN"])
+        token.invoke("mint", "GFUNDER", 101, auth=["GADMIN"])
+        helper = load("merkle_distribution")
+        helper.contract_address = "CHELPER"
+        helper.register_contract("CTOKEN", token)
+        helper.invoke("__constructor", b"\x00" * 32, "CTOKEN", 1, "GFUNDER", auth=["GFUNDER"])
+        first = helper.invoke("leaf_hash", 0, "GALICE", 40)
+        second = helper.invoke("leaf_hash", 1, "GBOB", 60)
         merkle = load("merkle_distribution")
         merkle.contract_address = "CMERKLE"
         merkle.register_contract("CTOKEN", token)
-        first = merkle.invoke("leaf_hash", 0, "GALICE", 40)
-        second = merkle.invoke("leaf_hash", 1, "GBOB", 60)
         left, right = (first, second) if first < second else (second, first)
         root = hashlib.sha256(left + right).digest()
-        merkle.invoke("initialize", root, "CTOKEN", 100, "GFUNDER", auth=["GFUNDER"])
+        merkle.invoke("__constructor", root, "CTOKEN", 100, "GFUNDER", auth=["GFUNDER"])
         self.assertEqual(token.invoke("balance", "CMERKLE"), 100)
         merkle.invoke("claim", 0, "GALICE", 40, [second], auth=["GALICE"])
         self.assertEqual(token.invoke("balance", "GALICE"), 40)

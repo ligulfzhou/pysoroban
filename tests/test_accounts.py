@@ -2,7 +2,7 @@
 
 import unittest
 
-from pysoroban.testing import AuthorizationError, ContractError, ContractTest
+from pysoroban.testing import AuthorizationError, ContractError, ContractTest, InvocationError
 
 
 ROOT = "examples"
@@ -35,9 +35,9 @@ class AccountTests(unittest.TestCase):
     def test_simple_account_verifies_the_owner_signature(self):
         account = ContractTest.from_file(f"{ROOT}/simple_account/contract.py")
         account.contract_address = "CACCOUNT"
-        account.invoke("initialize", KEY_A)
-        with self.assertRaises(ContractError):
-            account.invoke("initialize", KEY_B)
+        account.invoke("__constructor", KEY_A)
+        with self.assertRaises(InvocationError):
+            account.invoke("__constructor", KEY_B)
         account.allow_signature(KEY_A, PAYLOAD, SIG_A)
         spender = ContractTest.from_source(SPENDER)
         spender.register_contract("CACCOUNT", account)
@@ -50,7 +50,7 @@ class AccountTests(unittest.TestCase):
     def test_multisig_accepts_one_configured_signer(self):
         account = ContractTest.from_file(f"{ROOT}/multisig_1_of_n_account/contract.py")
         account.contract_address = "CACCOUNT"
-        account.invoke("initialize", [KEY_A, KEY_B])
+        account.invoke("__constructor", [KEY_A, KEY_B])
         account.allow_signature(KEY_B, PAYLOAD, SIG_B)
         spender = ContractTest.from_source(SPENDER)
         spender.register_contract("CACCOUNT", account)
@@ -65,7 +65,7 @@ class AccountTests(unittest.TestCase):
     def test_account_spend_limit_uses_the_supplied_context(self):
         account = ContractTest.from_file(f"{ROOT}/account/contract.py")
         account.contract_address = "CACCOUNT"
-        account.invoke("initialize", [KEY_A, KEY_B])
+        account.invoke("__constructor", [KEY_A, KEY_B])
         account.allow_signature(KEY_A, PAYLOAD, SIG_A)
         account.allow_signature(KEY_B, PAYLOAD, SIG_B)
         both = [

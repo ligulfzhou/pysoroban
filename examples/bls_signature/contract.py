@@ -46,13 +46,13 @@ class Context:
 class IncrementContract:
     """BLS12-381 aggregate account.
 
-    Call initialize instead of __constructor. The test host does not evaluate
+    ``__constructor`` stores the aggregated key. The test host does not evaluate
     the pairing. Queue hash_to_g2 bytes and a pairing boolean with
     allow_host_result before authorize_account.
     """
 
     @public
-    def initialize(self, agg_pk: BytesN[96]) -> None:
+    def __constructor(self, agg_pk: BytesN[96]) -> None:
         storage.persistent.set(DataKey.Owners(), agg_pk)
         storage.instance.set(
             DataKey.Dst(),

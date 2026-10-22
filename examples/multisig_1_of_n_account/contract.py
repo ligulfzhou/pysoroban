@@ -48,11 +48,11 @@ class Context:
 class MultisigAccount:
     """Any one configured ed25519 key may sign.
 
-    The signature context is not consulted. initialize replaces __constructor.
+    The signature context is not consulted. ``__constructor`` installs the signers.
     """
 
     @public
-    def initialize(self, signers: Vec[BytesN[32]]) -> None:
+    def __constructor(self, signers: Vec[BytesN[32]]) -> None:
         signer: BytesN[32] = signers[0]
         index: i32 = 0
         for index in range(len(signers)):

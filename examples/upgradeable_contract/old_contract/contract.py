@@ -4,7 +4,7 @@ from pysoroban import Address, Bytes, Symbol, contract, deploy, public, storage,
 @contract
 class UpgradeableContract:
     @public
-    def initialize(self, admin: Address) -> None:
+    def __constructor(self, admin: Address) -> None:
         storage.instance.set(Symbol("Admin"), admin)
 
     @public

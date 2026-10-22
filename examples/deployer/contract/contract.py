@@ -5,12 +5,13 @@ from pysoroban import Symbol, contract, public, storage, u32
 class Contract:
     """Child contract deployed by the factory.
 
-    Upstream sets the value in __constructor. The test host records constructor
-    arguments and does not invoke this contract, so tests call initialize.
+    Upstream sets the value in ``__constructor``. The factory's
+    ``deploy.with_constructor`` records the arguments and does not run this
+    Wasm, so tests invoke ``__constructor`` directly.
     """
 
     @public
-    def initialize(self, value: u32) -> None:
+    def __constructor(self, value: u32) -> None:
         storage.instance.set(Symbol("value"), value)
 
     @public

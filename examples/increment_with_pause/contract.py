@@ -10,12 +10,12 @@ class Error:
 class IncrementContract:
     """Counter gated by a pause contract.
 
-    Upstream uses __constructor. Call initialize before increment. Result is
-    expressed with fail because the language has no Result type.
+    ``__constructor`` stores the pause contract. Result is expressed with
+    fail because this counter does not return Result.
     """
 
     @public
-    def initialize(self, pause: Address) -> None:
+    def __constructor(self, pause: Address) -> None:
         storage.instance.set(Symbol("PAUSE"), pause)
 
     @public
