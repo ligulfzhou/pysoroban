@@ -4,6 +4,10 @@ Hashes were captured from compiler 0.9.0a2 before contract errors existed.
 Contracts whose source did not change must keep those bytes. The AMM kernel
 is omitted here because its source now fails instead of returning zero; its
 new bytes are covered by the deterministic build test.
+
+The locked sources used to live as flat files under examples/. They now live
+in tests/fixtures/compiler_suite/ so examples/ is only the soroban-examples
+ports. The bytes stay locked because the fixture text is unchanged.
 """
 
 import hashlib
@@ -78,7 +82,7 @@ class T:
 class BytecodeLockTests(unittest.TestCase):
     def test_unchanged_examples_keep_their_wasm(self):
         for name, expected in EXAMPLE_SHA256.items():
-            wasm = compile_file(ROOT / "examples" / name).wasm
+            wasm = compile_file(ROOT / "tests" / "fixtures" / "compiler_suite" / name).wasm
             actual = hashlib.sha256(wasm).hexdigest()
             self.assertEqual(actual, expected, name)
 

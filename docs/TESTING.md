@@ -14,7 +14,7 @@ tests.
 ```python
 from pysoroban.testing import ContractTest
 
-contract = ContractTest.from_file("examples/counter_contract.py")
+contract = ContractTest.from_file("examples/auth/contract.py")
 ```
 
 For generated or inline contracts, use `ContractTest.from_source(source)`.
@@ -24,8 +24,8 @@ For generated or inline contracts, use `ContractTest.from_source(source)`.
 Positional and keyword arguments are supported:
 
 ```python
-assert contract.invoke("value", "alice") == 0
-assert contract.invoke("increment", user="alice", amount=5, auth={"alice"}) == 5
+assert contract.invoke("increment", "alice", 0, auth={"alice"}) == 0
+assert contract.invoke("increment", user="alice", value=5, auth={"alice"}) == 5
 ```
 
 Arguments are checked against the contract interface. Mixing positional and
@@ -66,12 +66,12 @@ Events are available cumulatively and for the latest invocation:
 ```python
 from pysoroban.testing import Event
 
-typed = ContractTest.from_file("examples/typed_events_contract.py")
-typed.invoke("record", "alice", 9, auth={"alice"})
+events = ContractTest.from_file("examples/events/contract.py")
+events.invoke("increment")
 
-assert typed.storage["total"] == 9
-assert typed.last_events == (Event(("updated", "alice"), 9),)
-assert typed.events[-1].data == 9
+assert events.storage["COUNTER"] == 1
+assert events.last_events == (Event(("increment",), 1),)
+assert events.events[-1].data == 1
 ```
 
 `clear_events()` removes captured events without clearing contract storage.
@@ -82,8 +82,8 @@ A typed get of a missing key raises `StorageMissingError`.
 Link deterministic test environments by address before invoking a caller:
 
 ```python
-math = ContractTest.from_file("examples/math_contract.py")
-proxy = ContractTest.from_file("examples/cross_contract.py")
+math = ContractTest.from_file("examples/cross_contract/contract_a/contract.py")
+proxy = ContractTest.from_file("examples/cross_contract/contract_b/contract.py")
 proxy.register_contract("math", math)
 
 assert proxy.invoke("add_with", "math", 5, 7) == 12
@@ -113,8 +113,8 @@ validated recursively before invocation, and invalid indexes raise
 `InvocationError`:
 
 ```python
-vectors = ContractTest.from_file("examples/vector_contract.py")
-assert vectors.invoke("sum", [3, 5, 8]) == 16
+hello = ContractTest.from_file("examples/hello_world/contract.py")
+assert hello.invoke("hello", "Ada") == ["Hello", "Ada"]
 ```
 
 ## Limitations

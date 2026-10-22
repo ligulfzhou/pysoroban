@@ -7,7 +7,7 @@ manage keys, or talk to RPC. Upload, deploy, and invoke with Stellar CLI or
 Build the artifact first:
 
 ```bash
-pysoroban build examples/soroban/hello_world/contract.py -o dist/hello.wasm
+pysoroban build examples/hello_world/contract.py -o dist/hello.wasm
 pysoroban validate dist/hello.wasm
 ```
 
@@ -97,4 +97,4 @@ is set. It accepts an ed25519 triple from `allow_signature` or, when
 `allow_host_result`. It uses a local PRNG and invents deploy addresses. Those
 calls still need a network run before they are treated as host-accurate.
 `__check_auth` runs when `authorize_account` recorded the signature. See
-[LANGUAGE.md](LANGUAGE.md) and [examples/soroban/README.md](../examples/soroban/README.md).
+[LANGUAGE.md](LANGUAGE.md) and [examples/README.md](../examples/README.md).

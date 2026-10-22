@@ -177,7 +177,7 @@ the repository's compiler rather than a TypeScript reimplementation.
 
 Generated artifacts can be inspected, uploaded, deployed, and invoked with the
 standard Stellar CLI. Deployment IDs, Wasm hashes, transactions, and verified
-calls are recorded in `deployments/testnet.json`.
+calls are recorded in `deployments/testnet.json`. That file is the September 2026 compiler-suite record. The current examples are the ports under `examples/`.
 
 ## Current limitations
 
@@ -215,7 +215,7 @@ calls are recorded in `deployments/testnet.json`.
   the invocation back, including linked contracts in that call. Numeric `0`
   is not an error sentinel.
 - Existing 32- and 64-bit arithmetic wraps at its integer width. Asset
-  accounting should use checked `u128` operations. `examples/soroban/liquidity_pool`
+  accounting should use checked `u128` operations. `examples/liquidity_pool`
   is a tokenized constant-product pool on that arithmetic.
 - `try_*` calls the protocol `try_call` import. The test host turns a callee
   `fail` into `Result` and rolls that callee back. It does not turn every host

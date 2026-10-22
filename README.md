@@ -11,8 +11,10 @@ embed a Python runtime in the contract.
 > Status: compiler MVP. The current release is intended for language and
 > toolchain validation, not production funds.
 
-Eight Python-generated reference contracts, including the checked `u128` AMM
-accounting kernel, have been deployed and invoked on Stellar testnet. See
+The September 2026 compiler suite, including the checked `u128` AMM
+accounting kernel, was deployed and invoked on Stellar testnet. Those sources
+now live in `tests/fixtures/compiler_suite/`. The contracts under `examples/`
+are the soroban-examples ports. See
 [the reproducible testnet verification](https://github.com/ligulfzhou/pysoroban/blob/main/docs/TESTNET.md).
 
 The [PySoroban Live Proof](https://pysoroban.xyz)
@@ -72,21 +74,21 @@ run it locally with `cd web && npm install && npm run dev`.
 - `String` / `Bytes` conversion and slicing, and `Bytes.append`
 - `deploy.upload`, `deploy.contract`, `deploy.with_constructor`,
   `deploy.upgrade`, and `deploy.asset`
-- `examples/token_contract.py`, a contract-owned SEP-41 style token
-- `examples/soroban/`, a Python mirror of stellar/soroban-examples, including
+- `examples/token/contract.py`, a contract-owned SEP-41 style token
+- `examples/`, a Python mirror of stellar/soroban-examples, including
   a tokenized constant-product pool. Gaps such as custom accounts, Groth16,
-  and `try_call` are documented in that directory's README
+  and `try_call` are documented in [examples/README.md](examples/README.md)
 
 `i128` floor division, nested collections, custom-account authorization, and
 the Stellar Asset Contract XDR builder are still absent. The Python test host
 does not reproduce ed25519, the host PRNG, TTL expiry, or deployed addresses.
 
-`examples/amm_kernel_contract.py` is the first composed DeFi workload. It
-implements constant-product quoting, authorized reserve accounting, slippage
-checks, checked `u128` arithmetic, and typed events. It is deliberately not
-tokenized yet; see the
+`examples/liquidity_pool/contract.py` is the tokenized constant-product pool.
+The earlier accounting kernel remains in
+`tests/fixtures/compiler_suite/amm_kernel_contract.py` for compiler tests. It
+is not an example to deploy. See the
 [AMM reference design](https://github.com/ligulfzhou/pysoroban/blob/main/docs/AMM_DESIGN.md)
-for the safety boundary and the gates to a testnet AMM.
+for the safety boundary and the gates that kernel was written to expose.
 
 ## Quick start
 
@@ -130,8 +132,8 @@ stellar contract info env-meta --wasm dist/contract.wasm
 For editor hooks and CI, validate source without producing a Wasm artifact:
 
 ```bash
-pysoroban check examples/counter_contract.py
-pysoroban check examples/counter_contract.py --json
+pysoroban check examples/hello_world/contract.py
+pysoroban check examples/hello_world/contract.py --json
 ```
 
 Inspect a stable, machine-readable ABI, inspect or validate the compiled Wasm
@@ -139,11 +141,11 @@ without its source, and verify that an artifact is the exact deterministic
 output of its source:
 
 ```bash
-pysoroban inspect examples/typed_events_contract.py --json
-pysoroban inspect dist/math_contract.wasm
-pysoroban validate dist/math_contract.wasm --json
-pysoroban verify examples/typed_events_contract.py \
-  --wasm dist/typed-events-testnet.wasm
+pysoroban inspect examples/events/contract.py --json
+pysoroban inspect dist/hello.wasm
+pysoroban validate dist/hello.wasm --json
+pysoroban verify examples/hello_world/contract.py \
+  --wasm dist/hello.wasm
 ```
 
 Artifact inspection decodes the Soroban protocol metadata, contract functions,
@@ -157,8 +159,8 @@ for the exact validation boundary.
 `pysoroban build --json` also reports the artifact SHA-256, protocol, functions,
 and typed events for CI and deployment manifests.
 
-`examples/counter_contract.py` demonstrates address authorization and isolated
-instance-storage values keyed by each authorized user.
+`examples/auth/contract.py` demonstrates address authorization and persistent
+storage keyed by the authorized address.
 
 ## Test contracts in Python
 
@@ -168,17 +170,12 @@ network or Rust toolchain:
 ```python
 from pysoroban.testing import ContractTest, Event
 
-contract = ContractTest.from_file("examples/typed_events_contract.py")
-result = contract.invoke(
-    "record",
-    "alice",
-    100_000_000_000_000_000,
-    auth={"alice"},
-)
+contract = ContractTest.from_file("examples/events/contract.py")
+result = contract.invoke("increment")
 
-assert result == 100_000_000_000_000_000
-assert contract.storage["total"] == result
-assert contract.last_events == (Event(("updated", "alice"), result),)
+assert result == 1
+assert contract.storage["COUNTER"] == result
+assert contract.last_events == (Event(("increment",), result),)
 ```
 
 This environment interprets the checked Typed IR. It is intended for fast unit
@@ -348,8 +345,8 @@ separate WebAssembly toolchain.
 
 ```bash
 PYTHONPATH=src python3 -m unittest discover -s tests -v
-PYTHONPATH=src python3 -m pysoroban build examples/math_contract.py
-PYTHONPATH=src python3 -m pysoroban validate dist/math_contract.wasm
+PYTHONPATH=src python3 -m pysoroban build examples/hello_world/contract.py
+PYTHONPATH=src python3 -m pysoroban validate dist/hello.wasm
 ```
 
 GitHub Actions runs the compiler suite on Python 3.9 and 3.13, validates every

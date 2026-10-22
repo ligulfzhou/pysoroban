@@ -2,6 +2,8 @@
   "network": "testnet",
   "network_passphrase": "Test SDF Network ; September 2015",
   "verified_at": "2026-09-07",
+  "status": "historical",
+  "note": "September 2026 record of the former flat compiler suite. Those sources now live in tests/fixtures/compiler_suite/ and are not the contracts under examples/. The soroban-examples ports were not deployed as these contract IDs.",
   "protocol": 25,
   "contracts": {
     "math": {

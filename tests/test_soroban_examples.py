@@ -8,7 +8,7 @@ from pysoroban.testing import AuthorizationError, ContractError, ContractTest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOROBAN = ROOT / "examples" / "soroban"
+SOROBAN = ROOT / "examples"
 
 UPSTREAM = [
     "account", "alloc", "assets", "atomic_multiswap", "atomic_swap", "auth",

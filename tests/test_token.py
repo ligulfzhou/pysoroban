@@ -5,7 +5,7 @@ from pysoroban.testing import AuthorizationError, ContractError, ContractTest
 
 class TokenTests(unittest.TestCase):
     def setUp(self):
-        self.token = ContractTest.from_file("examples/token_contract.py")
+        self.token = ContractTest.from_file("examples/token/contract.py")
         self.token.invoke(
             "initialize",
             "GADMIN",
