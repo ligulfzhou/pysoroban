@@ -7,7 +7,7 @@ correct.
 ## Source checking
 
 ```bash
-pysoroban check examples/math_contract.py
+pysoroban check examples/hello_world/contract.py
 ```
 
 This parses the supported Python subset and performs static type checking. It
@@ -16,8 +16,8 @@ does not produce an artifact.
 ## Artifact inspection and structural validation
 
 ```bash
-pysoroban inspect dist/math_contract.wasm
-pysoroban validate dist/math_contract.wasm
+pysoroban inspect dist/hello.wasm
+pysoroban validate dist/hello.wasm
 ```
 
 Both commands work without the Python source. The validator checks:
@@ -37,7 +37,7 @@ proposal or every contract-spec type another compiler may emit.
 ## Reproducibility verification
 
 ```bash
-pysoroban verify examples/math_contract.py --wasm dist/math_contract.wasm
+pysoroban verify examples/hello_world/contract.py --wasm dist/hello.wasm
 ```
 
 This rebuilds the source with the selected protocol and compares the result

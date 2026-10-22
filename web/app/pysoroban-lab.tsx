@@ -14,7 +14,7 @@ const SOURCE_ACCOUNT =
 const contracts = {
   math: {
     name: "Math",
-    file: "math_contract.py",
+    file: "tests/fixtures/compiler_suite/math_contract.py",
     id: "CB53RXQYMVPOLRG7UJHYWTXWIYI6C5CRHZ5O2WOFFN6A7LCBVXCIE3NL",
     hash: "330609a5…755fa2",
     transaction:
@@ -49,7 +49,7 @@ class Math:
   },
   counter: {
     name: "Counter",
-    file: "counter_contract.py",
+    file: "tests/fixtures/compiler_suite/counter_contract.py",
     id: "CBUIEGZBBVEITJGOINR2IGAD4QPDAFFSJHJNPZI5WPSCLX6L5F3UU6CT",
     hash: "ddeab1cc…907bfa",
     transaction:
@@ -78,7 +78,7 @@ class Counter:
   },
   typed: {
     name: "TypedEvents",
-    file: "typed_events_contract.py",
+    file: "tests/fixtures/compiler_suite/typed_events_contract.py",
     id: "CBL2NYIUMMVXWYRD4SDBJ6CLPWPBSDCMHXBFVKR2X74UPVSBAGHFBFXN",
     hash: "9f4da43c…e0393a7",
     transaction:
@@ -127,7 +127,7 @@ class TypedEvents:
   },
   proxy: {
     name: "MathProxy",
-    file: "cross_contract.py",
+    file: "tests/fixtures/compiler_suite/cross_contract.py",
     id: "CCLC6RU3HXIVIBWMMF6K6OEIDSMY7FBKLSDVI46A7Z3TKM65Z4P4OHEU",
     hash: "b9a714ac…c0b25a",
     transaction:
@@ -148,7 +148,7 @@ class MathProxy:
   },
   vectors: {
     name: "VectorMath",
-    file: "vector_contract.py",
+    file: "tests/fixtures/compiler_suite/vector_contract.py",
     id: "CABB6XS7ERQNYLJUKW2BCAPN7IZL4DNY3Q53RMC2GB72N2HLWSXFSOZX",
     hash: "fc9fc3c4…456f3f",
     transaction:
@@ -180,7 +180,7 @@ class VectorMath:
   },
   maps: {
     name: "Scores",
-    file: "map_contract.py",
+    file: "tests/fixtures/compiler_suite/map_contract.py",
     id: "CBBIUQP2T3LRIZFZQURB7XSXSJMZ6KLE6ONQZXRNST6LTA5CYHYKCIO3",
     hash: "40321305…18c9d2",
     transaction:
@@ -209,7 +209,122 @@ class Scores:
   },
 } as const;
 
+const examples = {
+  hello: {
+    name: "Hello",
+    file: "examples/hello_world/contract.py",
+    source: `from pysoroban import String, Vec, contract, public
+
+
+@contract
+class HelloContract:
+    @public
+    def hello(self, to: String) -> Vec[String]:
+        result: Vec[String] = Vec()
+        result.push(String("Hello"))
+        result.push(to)
+        return result
+`,
+  },
+  increment: {
+    name: "Increment",
+    file: "examples/increment/contract.py",
+    source: `from pysoroban import Symbol, contract, public, storage, u32
+
+
+@contract
+class IncrementContract:
+    @public
+    def increment(self) -> u32:
+        count: u32 = u32(0)
+        if storage.instance.has(Symbol("COUNTER")):
+            count = storage.instance.get_u32(Symbol("COUNTER"))
+        count = count + u32(1)
+        storage.instance.set(Symbol("COUNTER"), count)
+        storage.instance.extend_ttl(u32(50), u32(100))
+        return count
+`,
+  },
+  events: {
+    name: "Events",
+    file: "examples/events/contract.py",
+    source: `from pysoroban import Symbol, contract, events, public, storage, u32
+
+
+@contract
+class IncrementContract:
+    @public
+    def increment(self) -> u32:
+        count: u32 = u32(0)
+        if storage.instance.has(Symbol("COUNTER")):
+            count = storage.instance.get_u32(Symbol("COUNTER"))
+        count = count + u32(1)
+        storage.instance.set(Symbol("COUNTER"), count)
+        events.publish(Symbol("increment"), count)
+        return count
+`,
+  },
+  errors: {
+    name: "Errors",
+    file: "examples/errors/contract.py",
+    source: `from pysoroban import Symbol, contract, error, fail, public, storage, u32
+
+
+@error
+class Error:
+    LIMIT_REACHED = 1
+
+
+@contract
+class IncrementContract:
+    @public
+    def increment(self) -> u32:
+        count: u32 = u32(0)
+        if storage.instance.has(Symbol("COUNTER")):
+            count = storage.instance.get_u32(Symbol("COUNTER"))
+        count = count + u32(1)
+        if count <= u32(5):
+            storage.instance.set(Symbol("COUNTER"), count)
+            return count
+        fail(Error.LIMIT_REACHED)
+`,
+  },
+  auth: {
+    name: "Auth",
+    file: "examples/auth/contract.py",
+    source: `from pysoroban import Address, contract, public, storage, u32
+
+
+@contract
+class IncrementContract:
+    @public
+    def increment(self, user: Address, value: u32) -> u32:
+        user.require_auth_for(user, value)
+        count: u32 = u32(0)
+        if storage.persistent.has(user):
+            count = storage.persistent.get(user, u32)
+        count = count + value
+        storage.persistent.set(user, count)
+        return count
+`,
+  },
+  cross: {
+    name: "CrossContract",
+    file: "examples/cross_contract/contract_a/contract.py",
+    source: `from pysoroban import contract, public, u32
+
+
+@contract
+class ContractA:
+    @public
+    def add(self, x: u32, y: u32) -> u32:
+        return x + y
+`,
+  },
+} as const;
+
 type ContractKey = keyof typeof contracts;
+type ExampleKey = keyof typeof examples;
 
 // Keep the landing page focused as the deployment catalog grows. New
 // contracts can be promoted here without making the section indefinitely tall.
@@ -327,8 +442,8 @@ function truncate(value: string, start = 8, end = 6) {
 }
 
 export function PySorobanLab() {
-  const [selected, setSelected] = useState<ContractKey>("math");
-  const [source, setSource] = useState(contracts.math.source);
+  const [selected, setSelected] = useState<ExampleKey>("hello");
+  const [source, setSource] = useState(examples.hello.source);
   const [compileState, setCompileState] = useState<
     "idle" | "loading" | "success" | "error"
   >("idle");
@@ -357,13 +472,13 @@ export function PySorobanLab() {
     "idle",
   );
   const [callLedger, setCallLedger] = useState<number | null>(null);
-  const active = contracts[selected];
+  const active = examples[selected];
 
   const lineCount = useMemo(() => source.split("\n").length, [source]);
 
-  function selectContract(key: ContractKey) {
+  function selectContract(key: ExampleKey) {
     setSelected(key);
-    setSource(contracts[key].source);
+    setSource(examples[key].source);
     setCompileState("idle");
     setCompileResult(null);
     setCompileError("");
@@ -603,9 +718,9 @@ export function PySorobanLab() {
 
       <section className="proof-strip" aria-label="Project facts">
         <div><strong>0</strong><span>Rust artifacts</span></div>
-        <div><strong>726 B</strong><span>Map Wasm</span></div>
+        <div><strong>25</strong><span>Protocol</span></div>
         <div><strong>122/122</strong><span>Compiler tests</span></div>
-        <div><strong>6</strong><span>Featured contracts</span></div>
+        <div><strong>6</strong><span>Editor ports</span></div>
       </section>
 
       <section className="section compiler-section" id="compiler">
@@ -615,16 +730,17 @@ export function PySorobanLab() {
             <h2>Edit Python. Build Wasm.</h2>
           </div>
           <p>
-            Compilation runs locally in your browser using the actual PySoroban
-            Python package. Your source never leaves this page.
+            The editor loads Python ports of stellar/soroban-examples. Hello is
+            the default. Compilation runs locally in your browser using the
+            actual PySoroban package. Your source never leaves this page.
           </p>
         </div>
 
         <div className="workbench">
           <div className="editor-panel">
             <div className="panel-bar">
-              <div className="contract-tabs" role="tablist" aria-label="Example contracts">
-                {(Object.keys(contracts) as ContractKey[]).map((key) => (
+              <div className="contract-tabs" role="tablist" aria-label="Soroban example ports">
+                {(Object.keys(examples) as ExampleKey[]).map((key) => (
                   <button
                     key={key}
                     role="tab"
@@ -632,7 +748,7 @@ export function PySorobanLab() {
                     className={selected === key ? "active" : ""}
                     onClick={() => selectContract(key)}
                   >
-                    {contracts[key].name}
+                    {examples[key].name}
                   </button>
                 ))}
               </div>
@@ -735,14 +851,11 @@ export function PySorobanLab() {
         <div className="testing-workbench">
           <pre><code>{`from pysoroban.testing import ContractTest, Event
 
-contract = ContractTest.from_file("typed_events_contract.py")
-result = contract.invoke(
-    "record", "alice", 100_000_000_000_000_000,
-    auth={"alice"},
-)
+contract = ContractTest.from_file("examples/events/contract.py")
+result = contract.invoke("increment")
 
-assert contract.storage["total"] == result
-assert contract.last_events == (Event(("updated", "alice"), result),)`}</code></pre>
+assert contract.storage["COUNTER"] == result
+assert contract.last_events == (Event(("increment",), result),)`}</code></pre>
           <div className="test-result-card">
             <span className="test-status">● all checks passed</span>
             <strong>122 / 122</strong>
@@ -755,12 +868,44 @@ assert contract.last_events == (Event(("updated", "alice"), result),)`}</code></
       <section className="section deployments-section" id="deployments">
         <div className="section-heading light">
           <div>
-            <span className="section-kicker">03 / On-chain proof</span>
-            <h2>Deployed, not mocked.</h2>
+            <span className="section-kicker">03 / Example catalog</span>
+            <h2>Soroban example ports.</h2>
           </div>
           <p>
-            All six featured artifacts were uploaded with Stellar CLI and
-            accepted by testnet. Contract IDs and deployment transactions are public.
+            These six ports are the ones in the compiler above. The full catalog,
+            including token, liquidity pool, and accounts, is <code>examples/</code>.
+            They are not the September 2026 contract IDs below.
+          </p>
+        </div>
+        <div className="deployment-grid">
+          {(Object.keys(examples) as ExampleKey[]).map((key) => {
+            const item = examples[key];
+            return (
+              <article className="deployment-card" key={key}>
+                <div className="deployment-title">
+                  <span className="contract-icon">{item.name[0]}</span>
+                  <div>
+                    <h3>{item.name}</h3>
+                    <span>soroban-examples port</span>
+                  </div>
+                </div>
+                <dl>
+                  <div><dt>Source</dt><dd>{item.file}</dd></div>
+                  <div><dt>Network</dt><dd>compile locally</dd></div>
+                </dl>
+              </article>
+            );
+          })}
+        </div>
+        <div className="section-heading light">
+          <div>
+            <span className="section-kicker">Historical testnet record</span>
+            <h2>September 2026 deployments.</h2>
+          </div>
+          <p>
+            These six contracts are the former compiler suite. Their sources now
+            live in tests/fixtures/compiler_suite/. The IDs below are still the
+            public testnet deployments. They are not the ports in the editor.
           </p>
         </div>
         <p className="deployment-swipe-hint" aria-hidden="true">
@@ -809,11 +954,12 @@ assert contract.last_events == (Event(("updated", "alice"), result),)`}</code></
         <div className="section-heading">
           <div>
             <span className="section-kicker">04 / Live RPC</span>
-            <h2>Call the contracts yourself.</h2>
+            <h2>Call the September 2026 deployments.</h2>
           </div>
           <p>
-            These are real read-only simulations against the deployed testnet
-            contracts. No wallet or test XLM required.
+            These read-only simulations hit the historical compiler-suite
+            contracts, not the soroban-examples ports in the editor. No wallet
+            or test XLM required.
           </p>
         </div>
         <div className="call-grid">

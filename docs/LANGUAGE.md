@@ -4,8 +4,10 @@ This document freezes the behavior of the current compiler. It is the
 reference for integer semantics, overflow, and contract errors. A source
 program accepted by this specification must keep compiling to the same
 protocol-25 Wasm bytes until the specification itself changes. That lock is
-enforced by `tests/test_bytecode_lock.py` for every example whose source did
-not change, and for a small integer corpus.
+enforced by `tests/test_bytecode_lock.py` for the compiler-suite fixtures
+whose source did not change, and for a small integer corpus. The fixtures
+are the former flat examples, kept out of `examples/` after that directory
+became the soroban-examples ports.
 
 The compiler still targets Stellar protocol 25. Dynamic Python, including
 arbitrary objects, reflection, `eval`, floating point, exceptions, generators,

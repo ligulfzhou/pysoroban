@@ -63,7 +63,7 @@ class Numeric:
 SUITES = (
     (
         "math",
-        ROOT / "examples" / "math_contract.py",
+        ROOT / "tests" / "fixtures" / "compiler_suite" / "math_contract.py",
         (
             ("add-positive", "add", (7, 35)),
             ("add-i32-wrap", "add", (2**31 - 1, 1)),
@@ -78,7 +78,7 @@ SUITES = (
     ),
     (
         "vectors",
-        ROOT / "examples" / "vector_contract.py",
+        ROOT / "tests" / "fixtures" / "compiler_suite" / "vector_contract.py",
         (
             ("vec-count", "count", ([3, 5, 8],)),
             ("vec-first", "first", ([-7, 4],)),
@@ -88,7 +88,7 @@ SUITES = (
     ),
     (
         "maps",
-        ROOT / "examples" / "map_contract.py",
+        ROOT / "tests" / "fixtures" / "compiler_suite" / "map_contract.py",
         (
             ("map-score", "score", ({"alice": 9, "bob": 12}, "bob")),
             ("map-has", "contains", ({"alice": 9}, "alice")),
@@ -115,7 +115,7 @@ SUITES = (
     ),
     (
         "wide-integers",
-        ROOT / "examples" / "wide_integer_contract.py",
+        ROOT / "tests" / "fixtures" / "compiler_suite" / "wide_integer_contract.py",
         (
             ("i128-min-echo", "echo_i128", (-(2**127),)),
             ("i128-max-echo", "echo_i128", (2**127 - 1,)),
@@ -232,7 +232,7 @@ class Wide256:
     ),
     (
         "amm-u128-quotes",
-        ROOT / "examples" / "amm_kernel_contract.py",
+        ROOT / "tests" / "fixtures" / "compiler_suite" / "amm_kernel_contract.py",
         (
             ("amm-small-quote", "quote", (100, 1_000, 1_000)),
             ("amm-zero-quote", "quote", (0, 1_000, 1_000), "contract error 17179869187"),

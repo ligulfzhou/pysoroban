@@ -5,7 +5,7 @@ import unittest
 from pysoroban.testing import AuthorizationError, ContractError, ContractTest
 
 
-ROOT = "examples/soroban"
+ROOT = "examples"
 KEY_A = b"\x01" + b"\x00" * 31
 KEY_B = b"\x02" + b"\x00" * 31
 PAYLOAD = b"\x11" * 32

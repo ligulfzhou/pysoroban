@@ -2,9 +2,11 @@
 
 ## Status and purpose
 
-The current `examples/amm_kernel_contract.py` is an **experimental accounting
-kernel**, not a deployable exchange and not production financial software. It
-exists to turn a realistic DeFi workload into concrete compiler requirements.
+`tests/fixtures/compiler_suite/amm_kernel_contract.py` is an **experimental
+accounting kernel**, not a deployable exchange and not production financial
+software. It is no longer an example under `examples/`. The tokenized pool to
+read is `examples/liquidity_pool/contract.py`. The kernel exists to turn a
+realistic DeFi workload into concrete compiler requirements.
 
 The kernel already compiles directly from PySoroban source to Soroban Wasm and
 exercises:

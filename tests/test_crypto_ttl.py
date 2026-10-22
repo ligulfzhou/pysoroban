@@ -10,7 +10,7 @@ from pysoroban.errors import CompileError
 from pysoroban.testing import AuthorizationError, ContractError, ContractTest, InvocationError, StorageMissingError
 
 
-ROOT = "examples/soroban"
+ROOT = "examples"
 
 TTL = """
 from pysoroban import Symbol, boolean, contract, ledger, public, storage, u32

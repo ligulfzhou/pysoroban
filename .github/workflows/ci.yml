@@ -39,7 +39,7 @@ jobs:
           artifact_dir="$RUNNER_TEMP/pysoroban-wasm"
           mkdir -p "$artifact_dir"
           shopt -s nullglob
-          for source in examples/*_contract.py examples/soroban/*/*.py examples/soroban/*/*/*.py examples/soroban/*/*/*/*.py; do
+          for source in examples/*/*.py examples/*/*/*.py examples/*/*/*/*.py; do
             if [[ "$source" != *.py ]]; then
               continue
             fi

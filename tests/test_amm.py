@@ -6,7 +6,7 @@ from pysoroban.testing import AuthorizationError, ContractError, ContractTest, E
 
 
 ROOT = Path(__file__).resolve().parents[1]
-AMM = ROOT / "examples" / "amm_kernel_contract.py"
+AMM = ROOT / "tests" / "fixtures" / "compiler_suite" / "amm_kernel_contract.py"
 
 
 class AmmKernelTests(unittest.TestCase):

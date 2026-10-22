@@ -4,24 +4,28 @@ PySoroban-generated Wasm has been uploaded, deployed, and invoked on Stellar
 testnet protocol 25. The verification used `stellar-cli 25.2.0` and did not use
 generated Rust or a Rust contract build.
 
-The current deployment IDs and transaction hashes are recorded in
-`deployments/testnet.json`. Testnet contracts and ledger entries may eventually
-expire, so the commands below are the durable verification procedure.
+The September 2026 deployment IDs and transaction hashes are recorded in
+`deployments/testnet.json`. That record is historical. The sources it was
+built from are no longer under `examples/`. They are
+`tests/fixtures/compiler_suite/`. Current contracts to copy are the
+soroban-examples ports in `examples/<name>/contract.py`. Testnet contracts
+and ledger entries may eventually expire, so the commands below are the
+durable verification procedure for that historical suite.
 
 All recorded Wasm hashes can be reproduced locally before contacting testnet:
 
 ```bash
-pysoroban verify examples/math_contract.py --wasm dist/math-testnet.wasm
-pysoroban verify examples/counter_contract.py --wasm dist/counter-testnet.wasm
-pysoroban verify examples/typed_events_contract.py \
+pysoroban verify tests/fixtures/compiler_suite/math_contract.py --wasm dist/math-testnet.wasm
+pysoroban verify tests/fixtures/compiler_suite/counter_contract.py --wasm dist/counter-testnet.wasm
+pysoroban verify tests/fixtures/compiler_suite/typed_events_contract.py \
   --wasm dist/typed-events-testnet.wasm
-pysoroban verify examples/cross_contract.py \
+pysoroban verify tests/fixtures/compiler_suite/cross_contract.py \
   --wasm dist/cross-contract-testnet.wasm
-pysoroban verify examples/vector_contract.py --wasm dist/vector-testnet.wasm
-pysoroban verify examples/map_contract.py --wasm dist/map-testnet.wasm
-pysoroban verify examples/wide_integer_contract.py \
+pysoroban verify tests/fixtures/compiler_suite/vector_contract.py --wasm dist/vector-testnet.wasm
+pysoroban verify tests/fixtures/compiler_suite/map_contract.py --wasm dist/map-testnet.wasm
+pysoroban verify tests/fixtures/compiler_suite/wide_integer_contract.py \
   --wasm dist/wide-integer-testnet.wasm
-pysoroban verify examples/amm_kernel_contract.py \
+pysoroban verify tests/fixtures/compiler_suite/amm_kernel_contract.py \
   --wasm dist/amm-kernel-testnet.wasm
 ```
 
@@ -38,7 +42,7 @@ stellar keys address alice
 ## Build and deploy Math
 
 ```bash
-pysoroban build examples/math_contract.py -o dist/math-testnet.wasm
+pysoroban build tests/fixtures/compiler_suite/math_contract.py -o dist/math-testnet.wasm
 
 MATH_ID=$(stellar contract deploy \
   --wasm dist/math-testnet.wasm \
@@ -58,7 +62,7 @@ Wasm loop generated from Python `for value in range(stop)`.
 ## Build and deploy Counter
 
 ```bash
-pysoroban build examples/counter_contract.py -o dist/counter-testnet.wasm
+pysoroban build tests/fixtures/compiler_suite/counter_contract.py -o dist/counter-testnet.wasm
 
 COUNTER_ID=$(stellar contract deploy \
   --wasm dist/counter-testnet.wasm \
@@ -84,7 +88,7 @@ was committed to the ledger.
 ## Build and deploy typed values and events
 
 ```bash
-pysoroban build examples/typed_events_contract.py \
+pysoroban build tests/fixtures/compiler_suite/typed_events_contract.py \
   -o dist/typed-events-testnet.wasm
 
 TYPED_ID=$(stellar contract deploy \
@@ -110,7 +114,7 @@ and whose data is the `u64` value `100000000000000000`.
 ## Build and deploy the cross-contract proxy
 
 ```bash
-pysoroban build examples/cross_contract.py \
+pysoroban build tests/fixtures/compiler_suite/cross_contract.py \
   -o dist/cross-contract-testnet.wasm
 
 PROXY_ID=$(stellar contract deploy \
@@ -131,7 +135,7 @@ contract invocation on testnet.
 ## Build and deploy typed vectors
 
 ```bash
-pysoroban build examples/vector_contract.py -o dist/vector-testnet.wasm
+pysoroban build tests/fixtures/compiler_suite/vector_contract.py -o dist/vector-testnet.wasm
 
 VECTOR_ID=$(stellar contract deploy \
   --wasm dist/vector-testnet.wasm \
@@ -150,7 +154,7 @@ Expected results: `16` and `[3,5,8]`.
 ## Build and deploy typed maps
 
 ```bash
-pysoroban build examples/map_contract.py -o dist/map-testnet.wasm
+pysoroban build tests/fixtures/compiler_suite/map_contract.py -o dist/map-testnet.wasm
 
 MAP_ID=$(stellar contract deploy \
   --wasm dist/map-testnet.wasm \
@@ -175,7 +179,7 @@ Expected results: `12`, `false`, `2`, and `{"alice":9,"bob":-12}`.
 ## Build and deploy wide integers
 
 ```bash
-pysoroban build examples/wide_integer_contract.py \
+pysoroban build tests/fixtures/compiler_suite/wide_integer_contract.py \
   -o dist/wide-integer-testnet.wasm
 
 WIDE_ID=$(stellar contract deploy \
@@ -210,14 +214,14 @@ comparison, a `Map[Symbol, u128]` lookup, authorized instance storage, and an
 ## Build and deploy the checked AMM accounting kernel
 
 The deployment recorded in `deployments/testnet.json` was produced before
-rejected operations trapped. Current `examples/amm_kernel_contract.py` aborts
+rejected operations trapped. Current `tests/fixtures/compiler_suite/amm_kernel_contract.py` aborts
 with `KernelError` instead of returning zero, so `pysoroban verify` against
 `dist/amm-kernel-testnet.wasm` from that record will report a mismatch until
 the kernel is deployed again. The commands below are the procedure for the
 current source. A zero `quote` input now traps rather than returning zero.
 
 ```bash
-pysoroban build examples/amm_kernel_contract.py \
+pysoroban build tests/fixtures/compiler_suite/amm_kernel_contract.py \
   -o dist/amm-kernel-testnet.wasm
 
 AMM_ID=$(stellar contract deploy \
@@ -277,8 +281,9 @@ no token contract transfer occurs.
   preserves its constant-product invariant, and publishes a typed swap event.
 
 It does not constitute a security audit or production-readiness claim.
-Contracts added after those deployments, including the token and the
-`examples/soroban/` ports, are covered by `ContractTest` and the IR/Wasm
+Contracts added after those deployments, including `examples/token/` and the
+other ports under `examples/`, are covered by `ContractTest` and the IR/Wasm
 differential suite. Invoking them on a network uses the same CLI flow; see
 [INVOKE.md](INVOKE.md) for the stellar-sdk equivalent. That document does not
-add a second RPC stack.
+add a second RPC stack. The September 2026 IDs were not redeployed from the
+ports.
