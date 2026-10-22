@@ -10,9 +10,6 @@ All notable changes to PySoroban are documented here.
 - Publish through the existing GitHub Actions workflow when a GitHub Release
   is published. The workflow uses PyPI trusted publishing and does not store
   an API token. See [docs/RELEASING.md](docs/RELEASING.md).
-- Merge this after pull request #13. That change is 0.19.0a1 and adds
-  `__constructor`. This number is the next alpha so the upload comes after
-  constructor support is on main. Do not publish this tag before that merge.
 
 ## 0.19.0a1 — 2026-10-21
 
