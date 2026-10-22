@@ -1,147 +1,194 @@
 {
   "network": "testnet",
   "network_passphrase": "Test SDF Network ; September 2015",
-  "verified_at": "2026-09-07",
-  "status": "historical",
-  "note": "September 2026 record of the former flat compiler suite. Those sources now live in tests/fixtures/compiler_suite/ and are not the contracts under examples/. The soroban-examples ports were not deployed as these contract IDs.",
+  "verified_at": "2026-10-21",
+  "status": "scripted",
+  "note": "2026-10-21 scripted deploy. Compiler-suite sources are tests/fixtures/compiler_suite/. errors and deep_contract_auth are examples/errors and examples/deep_contract_auth. The other soroban-examples ports were not deployed as these IDs.",
   "protocol": 25,
+  "cli": "stellar 25.2.0 (28484880988199233a7e8e87c97cb12dac323cb3)",
+  "source_account": "GDPGEPQVJTLUG5NAOIBMFRQWFIY2GTYKYO7WG7H4QZ25OXRQXS3X7SQE",
   "contracts": {
     "math": {
-      "contract_id": "CB53RXQYMVPOLRG7UJHYWTXWIYI6C5CRHZ5O2WOFFN6A7LCBVXCIE3NL",
-      "wasm_hash": "330609a5120d05942f49d4c0717fe12a2652c6890ae658ee532b3087dc755fa2",
-      "upload_transaction": "98d34dbc0bfac3822bb85c5cd062aaf52d9450419b97f405746d0f29b7fb9d92",
-      "deploy_transaction": "eced9c472f941f19e6ede81a675ab8a07fe3265d5e0ee28ac91f130ee63a34b2",
+      "wasm_hash": "bafa5a29c0ea41043364778d70e13b3059230166971758f25a031f1ab3ddd879",
+      "contract_id": "CBC326TLYBZZVH7OANMSOJC42YGHBGBP23TSVCKNXKDZJOFMYUP6ASDP",
+      "deploy_transaction": "bc148d6966828ad0c3035c75758c3018b981a3ca57c3ca0257db6d8fd8276792",
+      "wasm_already_installed": true,
+      "source": "tests/fixtures/compiler_suite/math_contract.py",
       "verified_calls": {
-        "add(7, 35)": 42,
-        "max(-9, 4)": 4,
-        "is_positive(-1)": false,
-        "sum_to(10)": 45,
-        "sum_to(0)": 0
+        "add(7, 35)": "42",
+        "sum_to(10)": "45"
       }
     },
     "counter": {
-      "contract_id": "CBUIEGZBBVEITJGOINR2IGAD4QPDAFFSJHJNPZI5WPSCLX6L5F3UU6CT",
-      "wasm_hash": "ddeab1ccce86b4c1c37be725076e3b1afecc0049ad626b71da36b8c375907bfa",
-      "upload_transaction": "a989acfa93eb93a36859299667980ff09af44f83a7d1383c303bc985ece2fa8b",
-      "deploy_transaction": "451139d86340174eb41db7b21212e6d02ad7bc40221d499d02edb9bb8ba2a6c0",
-      "increment_transactions": [
-        "b886d1f2963df01d6fd29b46ee5e3eaf0913ecf61387d53bd3369e5507ac382d"
-      ],
-      "verified_sequence": [5]
-    },
-    "typed_events": {
-      "contract_id": "CBL2NYIUMMVXWYRD4SDBJ6CLPWPBSDCMHXBFVKR2X74UPVSBAGHFBFXN",
-      "wasm_hash": "9f4da43ce2f50ef3ff98fe2b6736a82b2de37a1fa966bf6fc1e19c406e0393a7",
-      "upload_transaction": "a40799a1087029f2ab659585b5f74c5e880b5422319ed125c053368fa6634440",
-      "deploy_transaction": "48d4fdaa7d7a72175ba44edb3a44164c348415bd3a685ef38920c460b72b5ead",
-      "record_transaction": "93033bbcaae2c1ade56f0e92a6dd6295cba0aed7edacd7bdc78cef4b3f6a1918",
+      "wasm_hash": "28e4105e5398a847d60f08aab26c9bdeadd3387c8e7d50ba6244076d50aeb01b",
+      "contract_id": "CBNL76CYMTPKXZVDSDJDB5Z6NEFSE5J4KCY357E7ZVDANJK73MVEKV22",
+      "deploy_transaction": "e4acc21cb16f97e102d5b54aaafdfe2d26142f29768fad746477713ff944a272",
+      "wasm_already_installed": true,
+      "source": "tests/fixtures/compiler_suite/counter_contract.py",
       "verified_calls": {
-        "generation()": 2,
-        "offset(-40000000000000000)": -40000000000000007,
-        "label()": "PySoroban",
-        "fingerprint()": "70792d736f726f62616e",
-        "record(owner, 100000000000000000)": 100000000000000000
-      },
-      "verified_event": {
-        "name": "Updated",
-        "topics": [
-          {"symbol": "updated"},
-          {"address": "GBTZVQRXWUTOBJZU5VEZZVNOQIEP7TIHORJFG26FVAHJGCUPDC22BULU"}
-        ],
-        "data": {"u64": "100000000000000000"}
+        "value(user) before": "0",
+        "increment(user, 5)": "5",
+        "increment(user, 5) transaction": "83ff0c7c7ae5ee9731324638b0f366b1c0d27e88866cba562a9c70aa8d8d8800",
+        "value(user) after": "5"
       }
     },
-    "math_proxy": {
-      "contract_id": "CCLC6RU3HXIVIBWMMF6K6OEIDSMY7FBKLSDVI46A7Z3TKM65Z4P4OHEU",
-      "wasm_hash": "b9a714ac7eca068ffab8a5189f05e548414429d7081970118a591fa5cfc0b25a",
-      "upload_transaction": "25eaa22051f2b3956f5327de9555bfce9f1db42def13cea48ff61af302fdfe62",
-      "deploy_transaction": "3e49995bca6152c603846a711fcde6e8ccc2b02c9773592b8e3c8428ddc65553",
-      "target_contract": "CB53RXQYMVPOLRG7UJHYWTXWIYI6C5CRHZ5O2WOFFN6A7LCBVXCIE3NL",
+    "typed_events": {
+      "wasm_hash": "47fdf85ed49b0842eeebeca73f1dd4cd057a4d0ab2f56b63e42961852e3b08d3",
+      "contract_id": "CAHJB4F3FYF3OPVBIHRMYGTHFWYPMUIZWWRG232TJXKYZFLMVFDPL4ZQ",
+      "deploy_transaction": "d9564a1e372d16b0108e75115a9efbd407d3d68a469148274f1c71cd8d171d86",
+      "wasm_already_installed": true,
+      "source": "tests/fixtures/compiler_suite/typed_events_contract.py",
       "verified_calls": {
-        "add_with(math, 5, 7)": 12,
-        "sum_with(math, 10)": 45
+        "offset(-40000000000000000)": "-40000000000000007",
+        "label()": "\"PySoroban\"",
+        "fingerprint()": "\"70792d736f726f62616e\"",
+        "record(owner, 100000000000000000)": "100000000000000000",
+        "record(owner, 100000000000000000) transaction": "65ad5150bdf203122a1aca52adfc9a6075ab416ebdeb3e213d0d64b9e816b642"
+      },
+      "verified_events": [
+        {
+          "call": "record(owner, 100000000000000000)",
+          "match": "Event: Updated"
+        }
+      ]
+    },
+    "math_proxy": {
+      "wasm_hash": "3d4cb2df0d1df69bceccf4579fb51566dd5cfe190437837722b7b959d59731a2",
+      "contract_id": "CB6U3U56FHUUG6SERNA5PPNUJETYAW3KS4QYPJPENGKIYT3Z3TFULPFP",
+      "deploy_transaction": "1628e253371aa8416510bff704032affc8708afdd6c024c475c88532a3998b0c",
+      "wasm_already_installed": true,
+      "source": "tests/fixtures/compiler_suite/cross_contract.py",
+      "verified_calls": {
+        "add_with(math, 5, 7)": "12",
+        "sum_with(math, 10)": "45"
       }
     },
     "vector_math": {
-      "contract_id": "CABB6XS7ERQNYLJUKW2BCAPN7IZL4DNY3Q53RMC2GB72N2HLWSXFSOZX",
-      "wasm_hash": "fc9fc3c47b93ca9ed7991de0c52af4a4e6a18302f10dca15336ed45436456f3f",
-      "upload_transaction": "4c366b16a1159ed6a482a45ddadb5fe7eafae1d96d63f590a7b2ba1af2c72c3e",
-      "deploy_transaction": "5b44dba312e5a3de3663e8dc2df770c955347325e0b541d1b962b33a4880b0b5",
+      "wasm_hash": "f82806d9bd358c58e0ff59751145c0ad9998631f59c2c2b4ef9bd4c294067c3d",
+      "contract_id": "CBHT7VKEE64HPX672LZG3QU4F5DZF5W2SCSUQGO4OCG4ASX6L76BWTNG",
+      "deploy_transaction": "c7cc761269bafa58cc3dbab4e282b49101425c45848a0b137451e71492c57981",
+      "wasm_already_installed": true,
+      "source": "tests/fixtures/compiler_suite/vector_contract.py",
       "verified_calls": {
-        "count([3,5,8])": 3,
-        "first([3,5,8])": 3,
-        "sum([3,5,8])": 16,
-        "echo([3,5,8])": [3,5,8]
+        "sum([3,5,8])": "16",
+        "echo([3,5,8])": "[3,5,8]"
       }
     },
     "scores": {
-      "contract_id": "CBBIUQP2T3LRIZFZQURB7XSXSJMZ6KLE6ONQZXRNST6LTA5CYHYKCIO3",
-      "wasm_hash": "40321305f22c5229d98e3eac59dc1b116a006b7a7fca9369a131943bc618c9d2",
-      "upload_transaction": "78ed5fa51a99172a72a534ab414eb68df70595848e3251e7ebfda2385617e5c4",
-      "deploy_transaction": "3896c98adee9e640a9f1ac9e5a635da048c8998faf923705f4d9117478d0d960",
+      "wasm_hash": "a369c4bd3cd81840a1f01d601f48d975f8d222179e3dd41abebb7101d184da02",
+      "contract_id": "CAL6LR53JQEBQFQBZIOOGDWS6UPPBW3Z4N3ZY6YTFW5MCJHIOGVQTQYY",
+      "deploy_transaction": "6679e0c47fb78620129ca3a07f8dbeff7159ecea4c779a6aefdfe998d986b895",
+      "wasm_already_installed": true,
+      "source": "tests/fixtures/compiler_suite/map_contract.py",
       "verified_calls": {
-        "score({alice:9,bob:12}, bob)": 12,
-        "contains({alice:9}, bob)": false,
-        "count({alice:9,bob:12})": 2,
-        "echo({alice:9,bob:-12})": {"alice":9,"bob":-12}
+        "score({alice:9,bob:12}, bob)": "12",
+        "contains({alice:9}, bob)": "false",
+        "count({alice:9,bob:12})": "2",
+        "echo({alice:9,bob:-12})": "{\"alice\":9,\"bob\":-12}"
       }
     },
     "wide_integers": {
-      "contract_id": "CDZ3AXYALQMIRSEHYFNI6TNNN5DJTF62AKQ3ZOEPJLQPETJN2JO24OW5",
       "wasm_hash": "23b68120596540110facef4969e6830c838b94bf9429c12e034a4a0a3bd05759",
-      "upload_transaction": "2f18b35a4b434cc41b569a0f5d3e96709b9414e90fcc7a5344f7a519ec9875e1",
-      "deploy_transaction": "10cffdcacdcc147a7e0253910d61445bdd08206c6c4cd261d7357e7abf07e13e",
-      "record_transaction": "ff011077b88c1de55cdaad3ff9998804259b7bc0c74967828c3e1ad30ffb63dc",
+      "contract_id": "CDS6C5C66QI725TIMZAGKJXDMVPRLWVGHYLBZDOQSYW3B5J7LFTDIV54",
+      "deploy_transaction": "0e07b21160f63ce64c440b05cbd6533acac4c6c834807cbefdca0600dee2d39c",
+      "wasm_already_installed": true,
+      "source": "tests/fixtures/compiler_suite/wide_integer_contract.py",
       "verified_calls": {
-        "minimum_i128()": "-170141183460469231731687303715884105728",
-        "maximum_u128()": "340282366920938463463374607431768211455",
-        "echo_i128(i128::MIN)": "-170141183460469231731687303715884105728",
-        "echo_u128(u128::MAX)": "340282366920938463463374607431768211455",
-        "less_i128(i128::MIN, i128::MAX)": true,
-        "less_u128(2**64, u128::MAX)": true,
-        "add_i128(5, -8)": "-3",
-        "add_u128(2**100, 2**99)": "1901475900342344102245054808064",
-        "subtract_u128(0, 1)": "trap: arithmetic underflow",
-        "mul_div_floor(2**120, 2**120, 2**116)": "21267647932558653966460912964485513216",
-        "mul_div_floor(10, 7, 6)": "11",
-        "mul_div_floor(8 + 2, 7, 6)": "11",
-        "mul_div_floor(u128::MAX, u128::MAX, u128::MAX)": "340282366920938463463374607431768211455",
-        "mul_div_floor(1, 1, 0)": "trap: division by zero",
-        "mul_div_floor(u128::MAX, 2, 1)": "trap: result overflow",
-        "echo_i128s([i128::MIN, 0, i128::MAX])": [
-          "-170141183460469231731687303715884105728",
-          "0",
-          "170141183460469231731687303715884105727"
-        ],
-        "lookup_u128({maximum:u128::MAX}, maximum)": "340282366920938463463374607431768211455",
-        "record(owner, -2**100)": "-1267650600228229401496703205376"
+        "minimum_i128()": "\"-170141183460469231731687303715884105728\"",
+        "maximum_u128()": "\"340282366920938463463374607431768211455\"",
+        "mul_div_floor(10, 7, 6)": "\"11\"",
+        "echo_i128s([i128::MIN, 0, i128::MAX])": "[\"-170141183460469231731687303715884105728\",\"0\",\"170141183460469231731687303715884105727\"]"
       },
-      "verified_event": {
-        "name": "AmountRecorded",
-        "topics": [
-          {"symbol": "amount_recorded"},
-          {"address": "GBTZVQRXWUTOBJZU5VEZZVNOQIEP7TIHORJFG26FVAHJGCUPDC22BULU"}
-        ],
-        "data": {"i128": "-1267650600228229401496703205376"}
-      }
+      "verified_errors": [
+        {
+          "call": "subtract_u128(0, 1)",
+          "error": "UnreachableCodeReached"
+        }
+      ]
     },
     "amm_u128_kernel": {
-      "contract_id": "CBA5MSOHQY46V5LHSZBKJPB3YHUA5HX4AMQPAWF7OVC4JBECMU6GS4TB",
-      "wasm_hash": "362159586bac5064dd31c3a112240511f1d8c3d36987deed153680d267adb932",
-      "upload_transaction": "1267177b81273e649ddebf4127466255810d784f818e1e2d6956ec6132d317b1",
-      "deploy_transaction": "0702bdaa9d2aea2b4979c3afe8a58934d9f8782596d706802069adf82045736d",
-      "initialize_transaction": "703a53a381bdbef9518a45637d3ca4f14f5c8d971a305dbdd040b0c401dcb3fc",
-      "swap_transaction": "59ddf7debdf4866bbc86d4bfedc2925e6efcc74eb6ddab061c3555a3cccebd29",
+      "wasm_hash": "2ae8da44a0e302dc1a6b2603e21905bd78dab27a2f73aaadeeadb5da5357ac2f",
+      "contract_id": "CDD4XNSTTOJJPREJB2QLUWPD2T24XSJGR6DV2WIHHOONAM4HHY4UGAKZ",
+      "deploy_transaction": "f9dc04e4c5d91a5594c82341148faa8359d78b0239a1a4bc1bcfc3e62045628a",
+      "upload_transaction": "3e2612ba411cb2740ca8f2ba43fb392ea0581811dd1fd6a1b88cffbe27c2cfba",
+      "source": "tests/fixtures/compiler_suite/amm_kernel_contract.py",
       "verified_calls": {
-        "quote(2**80, 2**100, 2**100)": "1205297896142523059078906",
-        "initialize(owner, 2**100, 2**100)": "1267650600228229401496703205376",
-        "swap_a_for_b(owner, 2**80, quote)": "1205297896142523059078906",
-        "reserve_a() after swap": "1267651809154049016125877911552",
-        "reserve_b() after swap": "1267649394930333258973644126470"
+        "initialize(provider, 2**100, 2**100)": "\"1267650600228229401496703205376\"",
+        "initialize(provider, 2**100, 2**100) transaction": "d734110876aacedccd77166787e513b1c11d10fc73d1d00496a3e04a232156ae",
+        "quote(2**80, 2**100, 2**100)": "\"1205297896142523059078906\"",
+        "swap_a_for_b(provider, 2**80, quote)": "\"1205297896142523059078906\"",
+        "swap_a_for_b(provider, 2**80, quote) transaction": "19b3e56934c60426d1a2a4b9015ab1144d800e3a7df07e9cd0190884e1c72952",
+        "reserve_a() after swap": "\"1267651809154049016125877911552\"",
+        "reserve_b() after swap": "\"1267649394930333258973644126470\""
       },
       "verified_events": [
-        {"name": "PoolInitialized", "data": {"u128": "1267650600228229401496703205376"}},
-        {"name": "Swapped", "data": {"u128": "1205297896142523059078906"}}
+        {
+          "call": "swap_a_for_b(provider, 2**80, quote)",
+          "match": "Event: Swapped"
+        }
+      ],
+      "verified_errors": [
+        {
+          "call": "quote(0, 1, 1)",
+          "error": "Error(Contract, #4)"
+        }
+      ]
+    },
+    "errors": {
+      "wasm_hash": "7f6616461989254de3826a015e4ba8fe4acd7fb1d28b75d501b6bd84c5d27cc9",
+      "contract_id": "CAKPIGCHNF2U2UAXITXQTAUGPUTMIDI2IU6SCM4E5Y2GOWW2FUKIDN66",
+      "deploy_transaction": "77033e88384df29ac5533e7d8dc655ed7a8cb165aca4a3f1889299b8a6fa87f1",
+      "wasm_already_installed": true,
+      "source": "examples/errors/contract.py",
+      "verified_calls": {
+        "increment() -> 1": "1",
+        "increment() -> 1 transaction": "831f42b703b218fb56dfefc35558ae5f116cc6f7cb2c48432a8e2b4504a94526",
+        "increment() -> 2": "2",
+        "increment() -> 2 transaction": "a24c087f1edb1740735caa9dc35ce4e1b2cfd40d2b6b8577844a635f2c042ee7",
+        "increment() -> 3": "3",
+        "increment() -> 3 transaction": "60b9d2332a20b749230b20c13783f9168b0040f6d6e4613975d580907ab8caaa",
+        "increment() -> 4": "4",
+        "increment() -> 4 transaction": "0a8550708baf05e119baa829a9f4c7276ebc664ea3953eb05a12cd1a5cdb59e4",
+        "increment() -> 5": "5",
+        "increment() -> 5 transaction": "adfa32cfee6defca53339a17cb4aa74d82ecf2aecda1500ec43a401492b70e53"
+      },
+      "verified_errors": [
+        {
+          "call": "increment() past limit",
+          "error": "Error(Contract, #1)"
+        }
+      ]
+    },
+    "deep_contract_c": {
+      "wasm_hash": "ee6228bb048280dfcea685852e1ab2e5ecd69b261713683260d8ba8502aad6be",
+      "contract_id": "CDDTHRTOQD7OBIVPSH4UYHHQWVWLQKLBSQIBLLMPYX5ZRHGNHS76TKQE",
+      "deploy_transaction": "d33ba4225e8f081e2bdfed525d8f6fb6fd5cd0e083263cfef692a486b7764138",
+      "wasm_already_installed": true,
+      "source": "examples/deep_contract_auth/contract_c/contract.py",
+      "verified_calls": {}
+    },
+    "deep_contract_b": {
+      "wasm_hash": "89edd394281f65f25690b1acd19b91aacee17b7e51fa2b76b242c5940d20c17e",
+      "contract_id": "CB2YLGN55YYGNOZRMPWB3W6SWQZ6WW2Y75WJWS7D2BAYHA2GH342KDFA",
+      "deploy_transaction": "3fe35de03c1ae25cbeee2e5588fb7b3922e1feaa5e150b2cee6e64b911eb6134",
+      "wasm_already_installed": true,
+      "source": "examples/deep_contract_auth/contract_b/contract.py",
+      "verified_calls": {}
+    },
+    "deep_contract_a": {
+      "wasm_hash": "63914b6c3d477c7c88c42f379975c681bddbca1c6c48ba3a7577a958cb684228",
+      "contract_id": "CAPDNTP3GL2TEMXB5C6AKHDTXHEVWL24N5DFENFJXTWHTWA7FA4OYXRQ",
+      "deploy_transaction": "5ecc0f0ff5c8091a3b64224881371159abead8b78508fd0703a7f48f0edb4c01",
+      "wasm_already_installed": true,
+      "source": "examples/deep_contract_auth/contract_a/contract.py",
+      "verified_calls": {
+        "call_b(b, c) transaction": "d25360a1850e3d6e8389faff9fb919c8a3549da3d2346dabc33d022f6a85e16e"
+      },
+      "verified_errors": [
+        {
+          "call": "authorized_fn_c without subauth",
+          "error": "Missing signing key"
+        }
       ]
     }
   }

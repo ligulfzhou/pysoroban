@@ -29,17 +29,17 @@ test("renders the PySoroban live proof", async () => {
   assert.match(html, /Compile in browser/);
   assert.match(html, /Download \.wasm/);
   assert.match(html, /Test before testnet/);
-  assert.match(html, /125 \/ 125/);
+  assert.match(html, /127 \/ 127/);
   assert.match(html, /In-browser compiler 0\.12\.0a1/);
   assert.match(html, /examples\/hello_world\/contract\.py/);
   assert.match(html, /examples\/events\/contract\.py/);
   assert.match(html, /Soroban example ports\./);
-  assert.match(html, /September 2026 deployments\./);
+  assert.match(html, /Scripted testnet deployments\./);
   assert.match(html, /Run nested call/);
   assert.match(html, /Sum live vector/);
   assert.match(html, /Look up live map/);
   assert.match(html, /Swipe to explore/);
-  assert.match(html, /Call the September 2026 deployments\./);
+  assert.match(html, /Call the scripted deployments\./);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
 });
 

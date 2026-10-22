@@ -3,22 +3,22 @@
 import Image from "next/image";
 import { useMemo, useState } from "react";
 
+import { SOURCE_ACCOUNT, testnetContracts } from "./testnet-manifest";
+
 const PYODIDE_URL =
   "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.mjs";
 const COMPILER_WHEEL =
   "/compiler/pysoroban_compiler-0.12.0a1-py3-none-any.whl";
+
 const RPC_URL = "https://soroban-testnet.stellar.org";
-const SOURCE_ACCOUNT =
-  "GBTZVQRXWUTOBJZU5VEZZVNOQIEP7TIHORJFG26FVAHJGCUPDC22BULU";
 
 const contracts = {
   math: {
     name: "Math",
     file: "tests/fixtures/compiler_suite/math_contract.py",
-    id: "CB53RXQYMVPOLRG7UJHYWTXWIYI6C5CRHZ5O2WOFFN6A7LCBVXCIE3NL",
-    hash: "330609a5…755fa2",
-    transaction:
-      "eced9c472f941f19e6ede81a675ab8a07fe3265d5e0ee28ac91f130ee63a34b2",
+    id: testnetContracts.math.id,
+    hash: testnetContracts.math.hash,
+    transaction: testnetContracts.math.transaction,
     source: `from pysoroban import boolean, contract, i32, public
 
 
@@ -50,10 +50,9 @@ class Math:
   counter: {
     name: "Counter",
     file: "tests/fixtures/compiler_suite/counter_contract.py",
-    id: "CBUIEGZBBVEITJGOINR2IGAD4QPDAFFSJHJNPZI5WPSCLX6L5F3UU6CT",
-    hash: "ddeab1cc…907bfa",
-    transaction:
-      "451139d86340174eb41db7b21212e6d02ad7bc40221d499d02edb9bb8ba2a6c0",
+    id: testnetContracts.counter.id,
+    hash: testnetContracts.counter.hash,
+    transaction: testnetContracts.counter.transaction,
     source: `from pysoroban import Address, contract, i32, public, storage
 
 
@@ -79,10 +78,9 @@ class Counter:
   typed: {
     name: "TypedEvents",
     file: "tests/fixtures/compiler_suite/typed_events_contract.py",
-    id: "CBL2NYIUMMVXWYRD4SDBJ6CLPWPBSDCMHXBFVKR2X74UPVSBAGHFBFXN",
-    hash: "9f4da43c…e0393a7",
-    transaction:
-      "48d4fdaa7d7a72175ba44edb3a44164c348415bd3a685ef38920c460b72b5ead",
+    id: testnetContracts.typed.id,
+    hash: testnetContracts.typed.hash,
+    transaction: testnetContracts.typed.transaction,
     source: `from pysoroban import Address, Bytes, String, Symbol, Topic, contract, event, events, i64, public, storage, u32, u64
 
 
@@ -128,10 +126,9 @@ class TypedEvents:
   proxy: {
     name: "MathProxy",
     file: "tests/fixtures/compiler_suite/cross_contract.py",
-    id: "CCLC6RU3HXIVIBWMMF6K6OEIDSMY7FBKLSDVI46A7Z3TKM65Z4P4OHEU",
-    hash: "b9a714ac…c0b25a",
-    transaction:
-      "3e49995bca6152c603846a711fcde6e8ccc2b02c9773592b8e3c8428ddc65553",
+    id: testnetContracts.proxy.id,
+    hash: testnetContracts.proxy.hash,
+    transaction: testnetContracts.proxy.transaction,
     source: `from pysoroban import Address, Symbol, contract, i32, public
 
 
@@ -149,10 +146,9 @@ class MathProxy:
   vectors: {
     name: "VectorMath",
     file: "tests/fixtures/compiler_suite/vector_contract.py",
-    id: "CABB6XS7ERQNYLJUKW2BCAPN7IZL4DNY3Q53RMC2GB72N2HLWSXFSOZX",
-    hash: "fc9fc3c4…456f3f",
-    transaction:
-      "5b44dba312e5a3de3663e8dc2df770c955347325e0b541d1b962b33a4880b0b5",
+    id: testnetContracts.vectors.id,
+    hash: testnetContracts.vectors.hash,
+    transaction: testnetContracts.vectors.transaction,
     source: `from pysoroban import Vec, contract, i32, public
 
 
@@ -181,10 +177,9 @@ class VectorMath:
   maps: {
     name: "Scores",
     file: "tests/fixtures/compiler_suite/map_contract.py",
-    id: "CBBIUQP2T3LRIZFZQURB7XSXSJMZ6KLE6ONQZXRNST6LTA5CYHYKCIO3",
-    hash: "40321305…18c9d2",
-    transaction:
-      "3896c98adee9e640a9f1ac9e5a635da048c8998faf923705f4d9117478d0d960",
+    id: testnetContracts.maps.id,
+    hash: testnetContracts.maps.hash,
+    transaction: testnetContracts.maps.transaction,
     source: `from pysoroban import Map, Symbol, boolean, contract, i32, public
 
 
@@ -719,7 +714,7 @@ export function PySorobanLab() {
       <section className="proof-strip" aria-label="Project facts">
         <div><strong>0</strong><span>Rust artifacts</span></div>
         <div><strong>25</strong><span>Protocol</span></div>
-        <div><strong>125/125</strong><span>Compiler tests</span></div>
+        <div><strong>127/127</strong><span>Compiler tests</span></div>
         <div><strong>6</strong><span>Editor ports</span></div>
       </section>
 
@@ -858,7 +853,7 @@ assert contract.storage["COUNTER"] == result
 assert contract.last_events == (Event(("increment",), result),)`}</code></pre>
           <div className="test-result-card">
             <span className="test-status">● all checks passed</span>
-            <strong>125 / 125</strong>
+            <strong>127 / 127</strong>
             <p>Compiler, Typed IR, CLI, auth, storage, events, vectors, maps, and numeric boundaries.</p>
             <small>Deterministic IR simulator · network integration remains on testnet</small>
           </div>
@@ -874,7 +869,7 @@ assert contract.last_events == (Event(("increment",), result),)`}</code></pre>
           <p>
             These six ports are the ones in the compiler above. The full catalog,
             including token, liquidity pool, and accounts, is <code>examples/</code>.
-            They are not the September 2026 contract IDs below.
+            They are not the scripted testnet contract IDs below.
           </p>
         </div>
         <div className="deployment-grid">
@@ -900,12 +895,12 @@ assert contract.last_events == (Event(("increment",), result),)`}</code></pre>
         <div className="section-heading light">
           <div>
             <span className="section-kicker">Historical testnet record</span>
-            <h2>September 2026 deployments.</h2>
+            <h2>Scripted testnet deployments.</h2>
           </div>
           <p>
-            These six contracts are the former compiler suite. Their sources now
-            live in tests/fixtures/compiler_suite/. The IDs below are still the
-            public testnet deployments. They are not the ports in the editor.
+            These six contracts are the compiler suite from the scripted testnet
+            run. Their sources live in tests/fixtures/compiler_suite/. The IDs
+            come from web/app/testnet-manifest.ts. They are not the ports in the editor.
           </p>
         </div>
         <p className="deployment-swipe-hint" aria-hidden="true">
@@ -954,11 +949,11 @@ assert contract.last_events == (Event(("increment",), result),)`}</code></pre>
         <div className="section-heading">
           <div>
             <span className="section-kicker">04 / Live RPC</span>
-            <h2>Call the September 2026 deployments.</h2>
+            <h2>Call the scripted deployments.</h2>
           </div>
           <p>
-            These read-only simulations hit the historical compiler-suite
-            contracts, not the soroban-examples ports in the editor. No wallet
+            These read-only simulations hit the scripted compiler-suite
+            deployments, not the soroban-examples ports in the editor. No wallet
             or test XLM required.
           </p>
         </div>
