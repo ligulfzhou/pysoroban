@@ -177,7 +177,7 @@ the repository's compiler rather than a TypeScript reimplementation.
 
 Generated artifacts can be inspected, uploaded, deployed, and invoked with the
 standard Stellar CLI. Deployment IDs, Wasm hashes, transactions, and verified
-calls are recorded in `deployments/testnet.json`. That file is the September 2026 compiler-suite record. The current examples are the ports under `examples/`.
+calls are recorded in `deployments/testnet.json`. That file is the latest scripted testnet record, and its `historical` entry keeps the previous one. The current examples are the ports under `examples/`.
 
 ## Current limitations
 

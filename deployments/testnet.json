@@ -1,17 +1,17 @@
 {
   "network": "testnet",
   "network_passphrase": "Test SDF Network ; September 2015",
-  "verified_at": "2026-10-21",
+  "verified_at": "2026-10-23",
   "status": "scripted",
-  "note": "2026-10-21 scripted deploy. Compiler-suite sources are tests/fixtures/compiler_suite/. errors and deep_contract_auth are examples/errors and examples/deep_contract_auth. The other soroban-examples ports were not deployed as these IDs.",
+  "note": "2026-10-23 scripted deploy of the compiler-suite fixtures, errors, deep auth, and constructor ports (token, liquidity pool, pause, accounts, mint-lock, deployer child, upgradeable, bls). The previous record is historical.",
   "protocol": 25,
   "cli": "stellar 25.2.0 (28484880988199233a7e8e87c97cb12dac323cb3)",
   "source_account": "GDPGEPQVJTLUG5NAOIBMFRQWFIY2GTYKYO7WG7H4QZ25OXRQXS3X7SQE",
   "contracts": {
     "math": {
       "wasm_hash": "bafa5a29c0ea41043364778d70e13b3059230166971758f25a031f1ab3ddd879",
-      "contract_id": "CBC326TLYBZZVH7OANMSOJC42YGHBGBP23TSVCKNXKDZJOFMYUP6ASDP",
-      "deploy_transaction": "bc148d6966828ad0c3035c75758c3018b981a3ca57c3ca0257db6d8fd8276792",
+      "contract_id": "CC5QVT3FK3OVE7TRDITYBXBXMYERQPEH2J5NQSNAZOPMTABIJY76GCQU",
+      "deploy_transaction": "7fd9b047ce1345168bd6d55baef9d865f521642cec4abd59044347334fa88b0d",
       "wasm_already_installed": true,
       "source": "tests/fixtures/compiler_suite/math_contract.py",
       "verified_calls": {
@@ -21,21 +21,21 @@
     },
     "counter": {
       "wasm_hash": "28e4105e5398a847d60f08aab26c9bdeadd3387c8e7d50ba6244076d50aeb01b",
-      "contract_id": "CBNL76CYMTPKXZVDSDJDB5Z6NEFSE5J4KCY357E7ZVDANJK73MVEKV22",
-      "deploy_transaction": "e4acc21cb16f97e102d5b54aaafdfe2d26142f29768fad746477713ff944a272",
+      "contract_id": "CC26J3S2BIGXC76KDYEBRRMCXYGUWLDCURJOTVBTSY43PSBM7RKCMYKZ",
+      "deploy_transaction": "44af36fefa8d30c4e92eca3366ab033444e92e92f36ec999aa2363e513c85c5f",
       "wasm_already_installed": true,
       "source": "tests/fixtures/compiler_suite/counter_contract.py",
       "verified_calls": {
         "value(user) before": "0",
         "increment(user, 5)": "5",
-        "increment(user, 5) transaction": "83ff0c7c7ae5ee9731324638b0f366b1c0d27e88866cba562a9c70aa8d8d8800",
+        "increment(user, 5) transaction": "c541d77e3a03335c824c3b0ab66005c3e3ab29f8c3e023ead99a53b3619a701f",
         "value(user) after": "5"
       }
     },
     "typed_events": {
       "wasm_hash": "47fdf85ed49b0842eeebeca73f1dd4cd057a4d0ab2f56b63e42961852e3b08d3",
-      "contract_id": "CAHJB4F3FYF3OPVBIHRMYGTHFWYPMUIZWWRG232TJXKYZFLMVFDPL4ZQ",
-      "deploy_transaction": "d9564a1e372d16b0108e75115a9efbd407d3d68a469148274f1c71cd8d171d86",
+      "contract_id": "CBN4WS737EV7AWZX63IIDP2EJ7A6A47EQQ62WLWB5NRN5CVWEPD3U6ED",
+      "deploy_transaction": "bffcf43c011df9fc4110c19435dee61aae81220b5c82415f79efaae4c67d637e",
       "wasm_already_installed": true,
       "source": "tests/fixtures/compiler_suite/typed_events_contract.py",
       "verified_calls": {
@@ -43,7 +43,7 @@
         "label()": "\"PySoroban\"",
         "fingerprint()": "\"70792d736f726f62616e\"",
         "record(owner, 100000000000000000)": "100000000000000000",
-        "record(owner, 100000000000000000) transaction": "65ad5150bdf203122a1aca52adfc9a6075ab416ebdeb3e213d0d64b9e816b642"
+        "record(owner, 100000000000000000) transaction": "87ea2800ea585bc3d580496136d8fd6ec42c83e4eb1ef0b7e794f864eaa2ac85"
       },
       "verified_events": [
         {
@@ -54,8 +54,8 @@
     },
     "math_proxy": {
       "wasm_hash": "3d4cb2df0d1df69bceccf4579fb51566dd5cfe190437837722b7b959d59731a2",
-      "contract_id": "CB6U3U56FHUUG6SERNA5PPNUJETYAW3KS4QYPJPENGKIYT3Z3TFULPFP",
-      "deploy_transaction": "1628e253371aa8416510bff704032affc8708afdd6c024c475c88532a3998b0c",
+      "contract_id": "CDPCPUF3SPH3UKXONS44L7R7TFNJCKE73Q6FLNS2KD5N2EM3ZHIF42CX",
+      "deploy_transaction": "f1b6255178daaf1d0c2bba12a24663453160c2aae388368a5f5820412ef0b232",
       "wasm_already_installed": true,
       "source": "tests/fixtures/compiler_suite/cross_contract.py",
       "verified_calls": {
@@ -65,8 +65,8 @@
     },
     "vector_math": {
       "wasm_hash": "f82806d9bd358c58e0ff59751145c0ad9998631f59c2c2b4ef9bd4c294067c3d",
-      "contract_id": "CBHT7VKEE64HPX672LZG3QU4F5DZF5W2SCSUQGO4OCG4ASX6L76BWTNG",
-      "deploy_transaction": "c7cc761269bafa58cc3dbab4e282b49101425c45848a0b137451e71492c57981",
+      "contract_id": "CBJU2LPGVZVUXFUSMKUFC6EVXLQPTJ4GIOJLG7GRQL6FEZEBL76CUSIY",
+      "deploy_transaction": "75b1ebff98e5eb48cb2af8a00473379ef76596ad47feca2e56796f05a00c884a",
       "wasm_already_installed": true,
       "source": "tests/fixtures/compiler_suite/vector_contract.py",
       "verified_calls": {
@@ -76,8 +76,8 @@
     },
     "scores": {
       "wasm_hash": "a369c4bd3cd81840a1f01d601f48d975f8d222179e3dd41abebb7101d184da02",
-      "contract_id": "CAL6LR53JQEBQFQBZIOOGDWS6UPPBW3Z4N3ZY6YTFW5MCJHIOGVQTQYY",
-      "deploy_transaction": "6679e0c47fb78620129ca3a07f8dbeff7159ecea4c779a6aefdfe998d986b895",
+      "contract_id": "CCLNXGZTLSICLJPKAHPUMOBWFGRM76GR2XGPQVD2FDQF62EKNI3X7GRO",
+      "deploy_transaction": "ba70475fdcf4a7c6f177cc5d3cfc11efc1fb6d54090bae0fb02d9069e5819828",
       "wasm_already_installed": true,
       "source": "tests/fixtures/compiler_suite/map_contract.py",
       "verified_calls": {
@@ -89,8 +89,8 @@
     },
     "wide_integers": {
       "wasm_hash": "23b68120596540110facef4969e6830c838b94bf9429c12e034a4a0a3bd05759",
-      "contract_id": "CDS6C5C66QI725TIMZAGKJXDMVPRLWVGHYLBZDOQSYW3B5J7LFTDIV54",
-      "deploy_transaction": "0e07b21160f63ce64c440b05cbd6533acac4c6c834807cbefdca0600dee2d39c",
+      "contract_id": "CCCGQZZPDIICSVFOYGVUTLRXIZH2MQHMUR5ONWAHPOLE4C6W4FPUIV4K",
+      "deploy_transaction": "96751f35d590e8461b7e2a675f3459eedcadcf73c824381a49f78c0d0c85681b",
       "wasm_already_installed": true,
       "source": "tests/fixtures/compiler_suite/wide_integer_contract.py",
       "verified_calls": {
@@ -108,16 +108,16 @@
     },
     "amm_u128_kernel": {
       "wasm_hash": "2ae8da44a0e302dc1a6b2603e21905bd78dab27a2f73aaadeeadb5da5357ac2f",
-      "contract_id": "CDD4XNSTTOJJPREJB2QLUWPD2T24XSJGR6DV2WIHHOONAM4HHY4UGAKZ",
-      "deploy_transaction": "f9dc04e4c5d91a5594c82341148faa8359d78b0239a1a4bc1bcfc3e62045628a",
-      "upload_transaction": "3e2612ba411cb2740ca8f2ba43fb392ea0581811dd1fd6a1b88cffbe27c2cfba",
+      "contract_id": "CATMP6MUXOFR7XGTIUGDFVG2OKS5QLCVZW6G4UTG6YAQGX7W6N3INKAQ",
+      "deploy_transaction": "b8ebfa195d6901e94dc04347d3445d5ae9e9971953d18f8a8259dca664c7fde5",
+      "wasm_already_installed": true,
       "source": "tests/fixtures/compiler_suite/amm_kernel_contract.py",
       "verified_calls": {
         "initialize(provider, 2**100, 2**100)": "\"1267650600228229401496703205376\"",
-        "initialize(provider, 2**100, 2**100) transaction": "d734110876aacedccd77166787e513b1c11d10fc73d1d00496a3e04a232156ae",
+        "initialize(provider, 2**100, 2**100) transaction": "190453ca81803b3a9778674889cac2e93dd59c6d46cdbe520789f00ad890d55d",
         "quote(2**80, 2**100, 2**100)": "\"1205297896142523059078906\"",
         "swap_a_for_b(provider, 2**80, quote)": "\"1205297896142523059078906\"",
-        "swap_a_for_b(provider, 2**80, quote) transaction": "19b3e56934c60426d1a2a4b9015ab1144d800e3a7df07e9cd0190884e1c72952",
+        "swap_a_for_b(provider, 2**80, quote) transaction": "08f5c0d1469b59814edb082243c8e2f08d684c58186e0bbd48fabf3f9822bd09",
         "reserve_a() after swap": "\"1267651809154049016125877911552\"",
         "reserve_b() after swap": "\"1267649394930333258973644126470\""
       },
@@ -136,21 +136,21 @@
     },
     "errors": {
       "wasm_hash": "7f6616461989254de3826a015e4ba8fe4acd7fb1d28b75d501b6bd84c5d27cc9",
-      "contract_id": "CAKPIGCHNF2U2UAXITXQTAUGPUTMIDI2IU6SCM4E5Y2GOWW2FUKIDN66",
-      "deploy_transaction": "77033e88384df29ac5533e7d8dc655ed7a8cb165aca4a3f1889299b8a6fa87f1",
+      "contract_id": "CCPBZ7QDH7AOVH4R6PTWZELMPFAJRUZYUQHU7236NPRUWTNDHMUECUIK",
+      "deploy_transaction": "801ed4870f60cfea9403247bc025b0d9d5af8d2a2b0ba897be22698071d79a3b",
       "wasm_already_installed": true,
       "source": "examples/errors/contract.py",
       "verified_calls": {
         "increment() -> 1": "1",
-        "increment() -> 1 transaction": "831f42b703b218fb56dfefc35558ae5f116cc6f7cb2c48432a8e2b4504a94526",
+        "increment() -> 1 transaction": "e2a15d6526365f693c0d5615b99313ef7fe6d07564b2a8351fb00e452ee070bf",
         "increment() -> 2": "2",
-        "increment() -> 2 transaction": "a24c087f1edb1740735caa9dc35ce4e1b2cfd40d2b6b8577844a635f2c042ee7",
+        "increment() -> 2 transaction": "8d64ecdb00df042de599120322879772f63d5ad9bfb32fa22085b581721da8f6",
         "increment() -> 3": "3",
-        "increment() -> 3 transaction": "60b9d2332a20b749230b20c13783f9168b0040f6d6e4613975d580907ab8caaa",
+        "increment() -> 3 transaction": "fa02c32dc411caa125b65dc2e63597fe8bf7177732bcb77b301a6179ad807a9c",
         "increment() -> 4": "4",
-        "increment() -> 4 transaction": "0a8550708baf05e119baa829a9f4c7276ebc664ea3953eb05a12cd1a5cdb59e4",
+        "increment() -> 4 transaction": "ae8aafb215912fc589fa6adc627c821aa60673cda65ba577c99c9d397a4b4e0f",
         "increment() -> 5": "5",
-        "increment() -> 5 transaction": "adfa32cfee6defca53339a17cb4aa74d82ecf2aecda1500ec43a401492b70e53"
+        "increment() -> 5 transaction": "7912206c57f4413ca37c3113e4b9ba61371b173fad09f5581abe339a68af2c84"
       },
       "verified_errors": [
         {
@@ -161,28 +161,28 @@
     },
     "deep_contract_c": {
       "wasm_hash": "ee6228bb048280dfcea685852e1ab2e5ecd69b261713683260d8ba8502aad6be",
-      "contract_id": "CDDTHRTOQD7OBIVPSH4UYHHQWVWLQKLBSQIBLLMPYX5ZRHGNHS76TKQE",
-      "deploy_transaction": "d33ba4225e8f081e2bdfed525d8f6fb6fd5cd0e083263cfef692a486b7764138",
+      "contract_id": "CCMPHXA3YR7X4CGHOVETP5K5TRJZP2YHQJGNQM4RZARSWKMRSIONHYO3",
+      "deploy_transaction": "eacc8f7d5da48ec23fc946524019a532115d22a392072bfad8c340d3effc7796",
       "wasm_already_installed": true,
       "source": "examples/deep_contract_auth/contract_c/contract.py",
       "verified_calls": {}
     },
     "deep_contract_b": {
       "wasm_hash": "89edd394281f65f25690b1acd19b91aacee17b7e51fa2b76b242c5940d20c17e",
-      "contract_id": "CB2YLGN55YYGNOZRMPWB3W6SWQZ6WW2Y75WJWS7D2BAYHA2GH342KDFA",
-      "deploy_transaction": "3fe35de03c1ae25cbeee2e5588fb7b3922e1feaa5e150b2cee6e64b911eb6134",
+      "contract_id": "CCWCBCJE3BHRGB574RV6HNTCS5UK62IP6RDDDT44MOQSRG3GEANAV6RO",
+      "deploy_transaction": "f14d546f50eba468efb92f585cafbd43e7f29f32eca63541571fb1a1d877e459",
       "wasm_already_installed": true,
       "source": "examples/deep_contract_auth/contract_b/contract.py",
       "verified_calls": {}
     },
     "deep_contract_a": {
       "wasm_hash": "63914b6c3d477c7c88c42f379975c681bddbca1c6c48ba3a7577a958cb684228",
-      "contract_id": "CAPDNTP3GL2TEMXB5C6AKHDTXHEVWL24N5DFENFJXTWHTWA7FA4OYXRQ",
-      "deploy_transaction": "5ecc0f0ff5c8091a3b64224881371159abead8b78508fd0703a7f48f0edb4c01",
+      "contract_id": "CDJ6QQQDV4SDCIORS4MSDVCC4V5N3EOIXTNCF76PHZ7IAST5SW2UTVJD",
+      "deploy_transaction": "edd1345c732cf5345b3b1784e0bf36feba9fc4a35ffc59b041b7e595b5772edd",
       "wasm_already_installed": true,
       "source": "examples/deep_contract_auth/contract_a/contract.py",
       "verified_calls": {
-        "call_b(b, c) transaction": "d25360a1850e3d6e8389faff9fb919c8a3549da3d2346dabc33d022f6a85e16e"
+        "call_b(b, c) transaction": "1de89425a8e89906e273398cc602770f03376c4b63e78ef1e4798ab3cf6852f7"
       },
       "verified_errors": [
         {
@@ -190,6 +190,365 @@
           "error": "Missing signing key"
         }
       ]
+    },
+    "increment": {
+      "wasm_hash": "15b2404b3d6b1a5f3cb8e0e0e3bcab7478bbf3a0afcf52b4e205e859c3670e8c",
+      "contract_id": "CAHHMG4ZBM4KQZM35UOY2DUP6H3H75BSTMPOR4LO53DF7BGVQ2GGN6FF",
+      "deploy_transaction": "5d9c98f9915d503e679a40ca2a8a6f1e2f490f1fd8b0c193be93c8987ef9d783",
+      "upload_transaction": "dd11ffc629b2d3dbdc968304d08224191342d531285e6b17e07b8de02c8815f7",
+      "source": "examples/increment/contract.py",
+      "verified_calls": {
+        "increment() -> 1": "1",
+        "increment() -> 1 transaction": "09e009132d57df0a2516e4c74f7669250a5008563065f262c1de16701c79b78b",
+        "increment() -> 2": "2",
+        "increment() -> 2 transaction": "8014609242b61a8e733c9d2423d4a98da6058fbfb38b712721694ecc1cb19445"
+      }
+    },
+    "cross_a": {
+      "wasm_hash": "71c8f42c7f05edb9b028c41f157d52d4d36fd8694716f8af3a292bef52fc137d",
+      "contract_id": "CBG5NX4T6QQQ4DRQXHZJI53GSLC2KIEZYTTTMBFMMJWRQCK43P25GPJU",
+      "deploy_transaction": "2b1178598ab8d96d28fadddd733e1049acdcdf36597055c1b6fc0dfc3ac01a73",
+      "upload_transaction": "2530868d39e065a1b36889b218158a9594049bdb36d78857e0340f73b68548c8",
+      "source": "examples/cross_contract/contract_a/contract.py",
+      "verified_calls": {
+        "add(2, 3)": "5"
+      }
+    },
+    "cross_b": {
+      "wasm_hash": "4f7cc8ceaf08cb6a1643c5f2490a6a18ef34e14492416b69c3c3544d8231142f",
+      "contract_id": "CCOCS6PKB23UF6PYSPJOBXKTR6M6QEGK7MD34T66HIF3BU2YQN5N3DBP",
+      "deploy_transaction": "3afb7978389e0ba5fb96e9a151c0e00c22f2bb208c6b6eaa0645477382395d12",
+      "upload_transaction": "92afe0fb3883472d8ea33b97f51c977e3ab2cd68aa0584b9a51d7129e308b50a",
+      "source": "examples/cross_contract/contract_b/contract.py",
+      "verified_calls": {
+        "add_with(cross_a, 2, 3)": "5"
+      }
+    },
+    "token": {
+      "wasm_hash": "3eda08f2589699fa2ac2aa41a9d74fbd4eabf18e751f1d2b556dcbc6217e6714",
+      "contract_id": "CBMVRTMYQZP6W4F3G5ETRPZQVL6DMRYPP57PJDGCSEJTCA6ZJQP7NAJN",
+      "deploy_transaction": "b76383b40250b597d86779d2f7ff21fb27e723ec9affde117051049cf0d99bff",
+      "wasm_already_installed": true,
+      "source": "examples/token/contract.py",
+      "verified_calls": {
+        "decimals()": "7",
+        "name()": "\"Example\"",
+        "mint(source, 1000) transaction": "6680f83c992480ae77ea2393275ed4359bc5a2a06e8084a7f2ca4083334f3fa7",
+        "balance(source)": "\"1000\""
+      }
+    },
+    "token_b": {
+      "wasm_hash": "3eda08f2589699fa2ac2aa41a9d74fbd4eabf18e751f1d2b556dcbc6217e6714",
+      "contract_id": "CBOGKA4ZZHESOBCPAMAWSTRI3KBFS4CYFGL25Y4PDSM5W6DVVU5KXZU3",
+      "deploy_transaction": "a2ad1fae19d2b63f2c2b56566845b2c71d9e56b22b115a67b7d4d571c634d187",
+      "wasm_already_installed": true,
+      "source": "examples/token/contract.py",
+      "verified_calls": {
+        "name()": "\"ExampleB\""
+      }
+    },
+    "liquidity_pool": {
+      "wasm_hash": "dfac7c5b356f194c611cbb3efa28acb9e0011169369127aeb5dc47e77767335c",
+      "contract_id": "CCNYF2UQDXJILBHKYUZ4ILO7UQI4MZIU2DBQN2V7A6MPQOB24X3UPS7W",
+      "deploy_transaction": "3a7ea9b5b8cadf440da88ae42ae682453ac031a3a2a3ef45d506a1fa24abdf2a",
+      "wasm_already_installed": true,
+      "source": "examples/liquidity_pool/contract.py",
+      "verified_calls": {
+        "get_rsrvs()": "{\"a\":\"0\",\"b\":\"0\"}"
+      }
+    },
+    "pause": {
+      "wasm_hash": "0d79a9ba20d133c36f92046c1921e49415ab2edafdcc699d0a0355136131f5b3",
+      "contract_id": "CDVC7KKDPUEEVLMPFC5F2CTBTBMTVNVMCLJSKCF3S5AO6YLHYNHX2I76",
+      "deploy_transaction": "4ea1d1886f44237d6d626f31a0dd0636b1fb201a320b70f5daa8a673d1eae939",
+      "upload_transaction": "e7fbef4b932ad17c6c8aaefbb4d8659a4bf314cd558086d98b5fe97c15ee0ca0",
+      "source": "examples/pause/contract.py",
+      "verified_calls": {
+        "paused() before": "false",
+        "set(true) transaction": "6e296b8ba725a089c6aca2bd32632dfb022e522420bbc5a2cf922e49aa007fa0",
+        "paused() after": "true"
+      }
+    },
+    "increment_with_pause": {
+      "wasm_hash": "d72328b00653e73fe013fe67bd046344d2686d2c49b81abe297886d95d89b9c5",
+      "contract_id": "CAJB7GFNBP5UD3LDZ2Y24FYJOCGBG7JVJ7BR6AGAVRVLWRE6WQM6RQWJ",
+      "deploy_transaction": "bb1b92f02afe8c8ccb0af1c97e7cbeed3d6bb4b04ef80022d88a130e85c8af4d",
+      "upload_transaction": "8ff2fcdf9f661175217bc01cca9638a671fd3d93aea1ff4e89f29b9ac0ec5767",
+      "source": "examples/increment_with_pause/contract.py",
+      "verified_calls": {},
+      "verified_errors": [
+        {
+          "call": "increment() while paused",
+          "error": "Error(Contract, #1)"
+        }
+      ]
+    },
+    "mint_lock": {
+      "wasm_hash": "db972cc29eb654700d6d085ae0e79f7654beac37ca3c74ecd95ed5d690d726d2",
+      "contract_id": "CDK36Z3S7OPU6DSH3S7YMVGTAGOJT52XO54SKOSNJVHDLI5K6EMXVRYO",
+      "deploy_transaction": "dfbadb5662dce545061016874600cf3697d8ab817f831cbc3b5a753e6b50ab04",
+      "wasm_already_installed": true,
+      "source": "examples/mint-lock/contract.py",
+      "verified_calls": {
+        "admin()": "\"GDPGEPQVJTLUG5NAOIBMFRQWFIY2GTYKYO7WG7H4QZ25OXRQXS3X7SQE\""
+      }
+    },
+    "deployer_child": {
+      "wasm_hash": "ce3be55c808ac8392ee97287d5c96fa490c96c5bbd71b72d99955e8672db52d9",
+      "contract_id": "CAOBTQS4KFA22MH7ELWI7DJLIY6TLPBZJJ7YOBS5STHKNWZHLFISDCLX",
+      "deploy_transaction": "6c8558bd77d3767f7d9905bd0490caeca99e6834a14ef851db6f4a1932eb7d62",
+      "wasm_already_installed": true,
+      "source": "examples/deployer/contract/contract.py",
+      "verified_calls": {
+        "value()": "7"
+      }
+    },
+    "upgradeable_old": {
+      "wasm_hash": "2f4782609e9ade36059526fe2bf673620d140c23598306725c2cc5dffb0ad876",
+      "contract_id": "CDLUVE5KKILDAXNI722RWHCZB6BLEHUW2GNDAKG4UQD34IRWDWAI2DZP",
+      "deploy_transaction": "4aea0740f1482d6973b724ca042c7f0ae06ffbceadbdf7ef1aeea9796e6d2c1b",
+      "upload_transaction": "02922b82ce8ce1ef51d0f594764f9d5765f6b467759204bb25989d38c9985f88",
+      "source": "examples/upgradeable_contract/old_contract/contract.py",
+      "verified_calls": {
+        "version()": "1"
+      }
+    },
+    "upgradeable_new": {
+      "wasm_hash": "546f0ffa933f6e97e71dd2730f9df0cde4777412e8bbad2f2ac03cdccf1d81c2",
+      "contract_id": "CAHVJEW7TZBTB5HMKB5FGG7UQTPP3RYBYJJP67AA6TA2WFAZZSU5Z6NW",
+      "deploy_transaction": "4b6c529f9656b7543c10440a6ec4f061f43f0dd77e41375224fa0577e28ea2dd",
+      "upload_transaction": "7cf8715a89e836aae277b3b5b33aa43516c8cc1412a530e5bc5ee7a250bb6200",
+      "source": "examples/upgradeable_contract/new_contract/contract.py",
+      "verified_calls": {
+        "version()": "2"
+      }
+    },
+    "simple_account": {
+      "wasm_hash": "6e5126a4795d76c7f0c28365bfaaab8df2324e5841215d55f93355d9ab28d1f6",
+      "contract_id": "CDZRD4LYM5R2RARHPNUTCNRJEEJXTNYARI2J22NPREH6FAPIBFNZPC72",
+      "deploy_transaction": "f06432c08f9c2648ae5dc7995bbf0df24b2acef7af2901d323195dcb8336e3d3",
+      "wasm_already_installed": true,
+      "source": "examples/simple_account/contract.py",
+      "verified_calls": {}
+    },
+    "account": {
+      "wasm_hash": "d82f993f4ddbb7241470c5a11a84b92dc6a830fb4fb12150d8cd93f4a2975f2d",
+      "contract_id": "CD6EOJGZLEBLC44PF5JYNVAJGE6CB3ACYALKQJWVN24BQSZANUDZ2NXE",
+      "deploy_transaction": "4926fbea9894acb124e8a2d8d28b9529b725aa4a1ef528dda463aec30ccc7000",
+      "wasm_already_installed": true,
+      "source": "examples/account/contract.py",
+      "verified_calls": {}
+    },
+    "multisig": {
+      "wasm_hash": "87428920244f8178b349e294f663c4bfe954d15e89dc2e1f44856cfc2ebfb54d",
+      "contract_id": "CC2LG3VFWQN3FM7222AZ6RZT5AIJPFBYOD6II4CLQED5REDABBLQ3G3K",
+      "deploy_transaction": "6937e0d6f1362018d206820046571b61c8af0d1abcaade772ce75b15f3ebc19a",
+      "upload_transaction": "3f75b324a7b94eb2d3e5f9d91fddf8761bc83ae6d8b511e9849f80e4a7192cad",
+      "source": "examples/multisig_1_of_n_account/contract.py",
+      "verified_calls": {}
+    },
+    "bls_signature": {
+      "wasm_hash": "e628d5cba82cc895ddff13323a90e270f3c6d94f73ed12c76b19909519e54bae",
+      "contract_id": "CDDE76YII6R6AJSS2MWB6PS5HRPEWFDW5UKOETVDFPWHQ6I43ENK3XDW",
+      "deploy_transaction": "fa47972bf6c069171bb173d1359e9c028642d0d0b2056e1e57f82a110a155b53",
+      "upload_transaction": "6a8b744274ef4b552851a4b9b5b9ee976a5cd069907117c9465663f2505a301f",
+      "source": "examples/bls_signature/contract.py",
+      "verified_calls": {}
+    }
+  },
+  "historical": {
+    "network": "testnet",
+    "network_passphrase": "Test SDF Network ; September 2015",
+    "verified_at": "2026-10-21",
+    "status": "scripted",
+    "note": "2026-10-21 scripted deploy. Compiler-suite sources are tests/fixtures/compiler_suite/. errors and deep_contract_auth are examples/errors and examples/deep_contract_auth. The other soroban-examples ports were not deployed as these IDs.",
+    "protocol": 25,
+    "cli": "stellar 25.2.0 (28484880988199233a7e8e87c97cb12dac323cb3)",
+    "source_account": "GDPGEPQVJTLUG5NAOIBMFRQWFIY2GTYKYO7WG7H4QZ25OXRQXS3X7SQE",
+    "contracts": {
+      "math": {
+        "wasm_hash": "bafa5a29c0ea41043364778d70e13b3059230166971758f25a031f1ab3ddd879",
+        "contract_id": "CBC326TLYBZZVH7OANMSOJC42YGHBGBP23TSVCKNXKDZJOFMYUP6ASDP",
+        "deploy_transaction": "bc148d6966828ad0c3035c75758c3018b981a3ca57c3ca0257db6d8fd8276792",
+        "wasm_already_installed": true,
+        "source": "tests/fixtures/compiler_suite/math_contract.py",
+        "verified_calls": {
+          "add(7, 35)": "42",
+          "sum_to(10)": "45"
+        }
+      },
+      "counter": {
+        "wasm_hash": "28e4105e5398a847d60f08aab26c9bdeadd3387c8e7d50ba6244076d50aeb01b",
+        "contract_id": "CBNL76CYMTPKXZVDSDJDB5Z6NEFSE5J4KCY357E7ZVDANJK73MVEKV22",
+        "deploy_transaction": "e4acc21cb16f97e102d5b54aaafdfe2d26142f29768fad746477713ff944a272",
+        "wasm_already_installed": true,
+        "source": "tests/fixtures/compiler_suite/counter_contract.py",
+        "verified_calls": {
+          "value(user) before": "0",
+          "increment(user, 5)": "5",
+          "increment(user, 5) transaction": "83ff0c7c7ae5ee9731324638b0f366b1c0d27e88866cba562a9c70aa8d8d8800",
+          "value(user) after": "5"
+        }
+      },
+      "typed_events": {
+        "wasm_hash": "47fdf85ed49b0842eeebeca73f1dd4cd057a4d0ab2f56b63e42961852e3b08d3",
+        "contract_id": "CAHJB4F3FYF3OPVBIHRMYGTHFWYPMUIZWWRG232TJXKYZFLMVFDPL4ZQ",
+        "deploy_transaction": "d9564a1e372d16b0108e75115a9efbd407d3d68a469148274f1c71cd8d171d86",
+        "wasm_already_installed": true,
+        "source": "tests/fixtures/compiler_suite/typed_events_contract.py",
+        "verified_calls": {
+          "offset(-40000000000000000)": "-40000000000000007",
+          "label()": "\"PySoroban\"",
+          "fingerprint()": "\"70792d736f726f62616e\"",
+          "record(owner, 100000000000000000)": "100000000000000000",
+          "record(owner, 100000000000000000) transaction": "65ad5150bdf203122a1aca52adfc9a6075ab416ebdeb3e213d0d64b9e816b642"
+        },
+        "verified_events": [
+          {
+            "call": "record(owner, 100000000000000000)",
+            "match": "Event: Updated"
+          }
+        ]
+      },
+      "math_proxy": {
+        "wasm_hash": "3d4cb2df0d1df69bceccf4579fb51566dd5cfe190437837722b7b959d59731a2",
+        "contract_id": "CB6U3U56FHUUG6SERNA5PPNUJETYAW3KS4QYPJPENGKIYT3Z3TFULPFP",
+        "deploy_transaction": "1628e253371aa8416510bff704032affc8708afdd6c024c475c88532a3998b0c",
+        "wasm_already_installed": true,
+        "source": "tests/fixtures/compiler_suite/cross_contract.py",
+        "verified_calls": {
+          "add_with(math, 5, 7)": "12",
+          "sum_with(math, 10)": "45"
+        }
+      },
+      "vector_math": {
+        "wasm_hash": "f82806d9bd358c58e0ff59751145c0ad9998631f59c2c2b4ef9bd4c294067c3d",
+        "contract_id": "CBHT7VKEE64HPX672LZG3QU4F5DZF5W2SCSUQGO4OCG4ASX6L76BWTNG",
+        "deploy_transaction": "c7cc761269bafa58cc3dbab4e282b49101425c45848a0b137451e71492c57981",
+        "wasm_already_installed": true,
+        "source": "tests/fixtures/compiler_suite/vector_contract.py",
+        "verified_calls": {
+          "sum([3,5,8])": "16",
+          "echo([3,5,8])": "[3,5,8]"
+        }
+      },
+      "scores": {
+        "wasm_hash": "a369c4bd3cd81840a1f01d601f48d975f8d222179e3dd41abebb7101d184da02",
+        "contract_id": "CAL6LR53JQEBQFQBZIOOGDWS6UPPBW3Z4N3ZY6YTFW5MCJHIOGVQTQYY",
+        "deploy_transaction": "6679e0c47fb78620129ca3a07f8dbeff7159ecea4c779a6aefdfe998d986b895",
+        "wasm_already_installed": true,
+        "source": "tests/fixtures/compiler_suite/map_contract.py",
+        "verified_calls": {
+          "score({alice:9,bob:12}, bob)": "12",
+          "contains({alice:9}, bob)": "false",
+          "count({alice:9,bob:12})": "2",
+          "echo({alice:9,bob:-12})": "{\"alice\":9,\"bob\":-12}"
+        }
+      },
+      "wide_integers": {
+        "wasm_hash": "23b68120596540110facef4969e6830c838b94bf9429c12e034a4a0a3bd05759",
+        "contract_id": "CDS6C5C66QI725TIMZAGKJXDMVPRLWVGHYLBZDOQSYW3B5J7LFTDIV54",
+        "deploy_transaction": "0e07b21160f63ce64c440b05cbd6533acac4c6c834807cbefdca0600dee2d39c",
+        "wasm_already_installed": true,
+        "source": "tests/fixtures/compiler_suite/wide_integer_contract.py",
+        "verified_calls": {
+          "minimum_i128()": "\"-170141183460469231731687303715884105728\"",
+          "maximum_u128()": "\"340282366920938463463374607431768211455\"",
+          "mul_div_floor(10, 7, 6)": "\"11\"",
+          "echo_i128s([i128::MIN, 0, i128::MAX])": "[\"-170141183460469231731687303715884105728\",\"0\",\"170141183460469231731687303715884105727\"]"
+        },
+        "verified_errors": [
+          {
+            "call": "subtract_u128(0, 1)",
+            "error": "UnreachableCodeReached"
+          }
+        ]
+      },
+      "amm_u128_kernel": {
+        "wasm_hash": "2ae8da44a0e302dc1a6b2603e21905bd78dab27a2f73aaadeeadb5da5357ac2f",
+        "contract_id": "CDD4XNSTTOJJPREJB2QLUWPD2T24XSJGR6DV2WIHHOONAM4HHY4UGAKZ",
+        "deploy_transaction": "f9dc04e4c5d91a5594c82341148faa8359d78b0239a1a4bc1bcfc3e62045628a",
+        "upload_transaction": "3e2612ba411cb2740ca8f2ba43fb392ea0581811dd1fd6a1b88cffbe27c2cfba",
+        "source": "tests/fixtures/compiler_suite/amm_kernel_contract.py",
+        "verified_calls": {
+          "initialize(provider, 2**100, 2**100)": "\"1267650600228229401496703205376\"",
+          "initialize(provider, 2**100, 2**100) transaction": "d734110876aacedccd77166787e513b1c11d10fc73d1d00496a3e04a232156ae",
+          "quote(2**80, 2**100, 2**100)": "\"1205297896142523059078906\"",
+          "swap_a_for_b(provider, 2**80, quote)": "\"1205297896142523059078906\"",
+          "swap_a_for_b(provider, 2**80, quote) transaction": "19b3e56934c60426d1a2a4b9015ab1144d800e3a7df07e9cd0190884e1c72952",
+          "reserve_a() after swap": "\"1267651809154049016125877911552\"",
+          "reserve_b() after swap": "\"1267649394930333258973644126470\""
+        },
+        "verified_events": [
+          {
+            "call": "swap_a_for_b(provider, 2**80, quote)",
+            "match": "Event: Swapped"
+          }
+        ],
+        "verified_errors": [
+          {
+            "call": "quote(0, 1, 1)",
+            "error": "Error(Contract, #4)"
+          }
+        ]
+      },
+      "errors": {
+        "wasm_hash": "7f6616461989254de3826a015e4ba8fe4acd7fb1d28b75d501b6bd84c5d27cc9",
+        "contract_id": "CAKPIGCHNF2U2UAXITXQTAUGPUTMIDI2IU6SCM4E5Y2GOWW2FUKIDN66",
+        "deploy_transaction": "77033e88384df29ac5533e7d8dc655ed7a8cb165aca4a3f1889299b8a6fa87f1",
+        "wasm_already_installed": true,
+        "source": "examples/errors/contract.py",
+        "verified_calls": {
+          "increment() -> 1": "1",
+          "increment() -> 1 transaction": "831f42b703b218fb56dfefc35558ae5f116cc6f7cb2c48432a8e2b4504a94526",
+          "increment() -> 2": "2",
+          "increment() -> 2 transaction": "a24c087f1edb1740735caa9dc35ce4e1b2cfd40d2b6b8577844a635f2c042ee7",
+          "increment() -> 3": "3",
+          "increment() -> 3 transaction": "60b9d2332a20b749230b20c13783f9168b0040f6d6e4613975d580907ab8caaa",
+          "increment() -> 4": "4",
+          "increment() -> 4 transaction": "0a8550708baf05e119baa829a9f4c7276ebc664ea3953eb05a12cd1a5cdb59e4",
+          "increment() -> 5": "5",
+          "increment() -> 5 transaction": "adfa32cfee6defca53339a17cb4aa74d82ecf2aecda1500ec43a401492b70e53"
+        },
+        "verified_errors": [
+          {
+            "call": "increment() past limit",
+            "error": "Error(Contract, #1)"
+          }
+        ]
+      },
+      "deep_contract_c": {
+        "wasm_hash": "ee6228bb048280dfcea685852e1ab2e5ecd69b261713683260d8ba8502aad6be",
+        "contract_id": "CDDTHRTOQD7OBIVPSH4UYHHQWVWLQKLBSQIBLLMPYX5ZRHGNHS76TKQE",
+        "deploy_transaction": "d33ba4225e8f081e2bdfed525d8f6fb6fd5cd0e083263cfef692a486b7764138",
+        "wasm_already_installed": true,
+        "source": "examples/deep_contract_auth/contract_c/contract.py",
+        "verified_calls": {}
+      },
+      "deep_contract_b": {
+        "wasm_hash": "89edd394281f65f25690b1acd19b91aacee17b7e51fa2b76b242c5940d20c17e",
+        "contract_id": "CB2YLGN55YYGNOZRMPWB3W6SWQZ6WW2Y75WJWS7D2BAYHA2GH342KDFA",
+        "deploy_transaction": "3fe35de03c1ae25cbeee2e5588fb7b3922e1feaa5e150b2cee6e64b911eb6134",
+        "wasm_already_installed": true,
+        "source": "examples/deep_contract_auth/contract_b/contract.py",
+        "verified_calls": {}
+      },
+      "deep_contract_a": {
+        "wasm_hash": "63914b6c3d477c7c88c42f379975c681bddbca1c6c48ba3a7577a958cb684228",
+        "contract_id": "CAPDNTP3GL2TEMXB5C6AKHDTXHEVWL24N5DFENFJXTWHTWA7FA4OYXRQ",
+        "deploy_transaction": "5ecc0f0ff5c8091a3b64224881371159abead8b78508fd0703a7f48f0edb4c01",
+        "wasm_already_installed": true,
+        "source": "examples/deep_contract_auth/contract_a/contract.py",
+        "verified_calls": {
+          "call_b(b, c) transaction": "d25360a1850e3d6e8389faff9fb919c8a3549da3d2346dabc33d022f6a85e16e"
+        },
+        "verified_errors": [
+          {
+            "call": "authorized_fn_c without subauth",
+            "error": "Missing signing key"
+          }
+        ]
+      }
     }
   }
 }

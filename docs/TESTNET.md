@@ -16,10 +16,13 @@ verification procedure.
 
 ## Automated run
 
-`scripts/testnet_e2e.py` builds the compiler-suite fixtures plus the checked
-AMM kernel, `examples/errors`, and `examples/deep_contract_auth`. It uploads
-and deploys them with Stellar CLI, invokes them, and rewrites the two records
-above.
+`scripts/testnet_e2e.py` builds the compiler-suite fixtures, the checked AMM
+kernel, `examples/errors`, `examples/deep_contract_auth`, and the constructor
+ports (token, liquidity pool, pause, increment, cross-contract, accounts,
+mint-lock, the deployer child, upgradeable contracts, and bls). It uploads
+and deploys them with Stellar CLI, passes constructor arguments after `--`,
+invokes them, and rewrites the two records above. The previous
+`deployments/testnet.json` is kept once, under `historical`.
 
 ```bash
 python scripts/testnet_e2e.py --identity alice
@@ -314,6 +317,7 @@ Contracts added after those deployments, including `examples/token/` and the
 other ports under `examples/`, are covered by `ContractTest` and the IR/Wasm
 differential suite. Invoking them on a network uses the same CLI flow; see
 [INVOKE.md](INVOKE.md) for the stellar-sdk equivalent. That document does not
-add a second RPC stack. The scripted IDs redeploy the compiler-suite fixtures
-plus `examples/errors` and `examples/deep_contract_auth`. They are not a
-redeploy of the other ports.
+add a second RPC stack. The scripted IDs redeploy the compiler-suite fixtures,
+`examples/errors`, `examples/deep_contract_auth`, and the constructor ports
+listed in the automated run. The six IDs in `web/app/testnet-manifest.ts` are
+the compiler-suite contracts the website buttons call.

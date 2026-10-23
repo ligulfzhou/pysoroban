@@ -2,6 +2,7 @@
 
 import unittest
 
+from pysoroban import compile_file
 from pysoroban.testing import AuthorizationError, ContractError, ContractTest, InvocationError
 
 
@@ -117,6 +118,47 @@ class Direct:
         direct.register_contract("CB", contract_b)
         with self.assertRaises(AuthorizationError):
             direct.invoke("call_b", "CB", "CC")
+
+    def test_payload_union_symbols_stay_outside_the_wasm_scratch(self):
+        wasm = compile_file(f"{ROOT}/account/contract.py").wasm
+        blob = _data_section(wasm)
+        offset = blob.find(b"Signer")
+        self.assertGreaterEqual(offset, 16)
+        self.assertEqual(blob[offset:offset + 6], b"Signer")
+        self.assertTrue(all(byte == 0 for byte in blob[:offset]))
+
+
+def _data_section(wasm: bytes) -> bytes:
+    def uleb(buf, index):
+        value = 0
+        shift = 0
+        while True:
+            byte = buf[index]
+            index += 1
+            value |= (byte & 0x7F) << shift
+            if byte < 128:
+                return value, index
+            shift += 7
+
+    index = 8
+    while index < len(wasm):
+        section_id = wasm[index]
+        index += 1
+        size, index = uleb(wasm, index)
+        payload = wasm[index:index + size]
+        if section_id == 11:
+            count, cursor = uleb(payload, 0)
+            self_check = count == 1 and payload[cursor] == 0 and payload[cursor + 1] == 0x41
+            if not self_check:
+                raise AssertionError("unexpected data section")
+            cursor += 2
+            while payload[cursor] >= 128:
+                cursor += 1
+            cursor += 2  # last sleb byte and end opcode
+            length, cursor = uleb(payload, cursor)
+            return payload[cursor:cursor + length]
+        index += size
+    raise AssertionError("wasm has no data section")
 
 
 if __name__ == "__main__":

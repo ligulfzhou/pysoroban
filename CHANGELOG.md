@@ -2,6 +2,15 @@
 
 All notable changes to PySoroban are documented here.
 
+## 0.19.0a3 — 2026-10-23
+
+- Keep Wasm symbol literals past the linear scratch used to pack a payload
+  union or tuple. `DataKey.Signer(bytes)` was storing the second value on top
+  of the next symbol, so the account constructor trapped in
+  `symbol_new_from_linear_memory` on a zero byte.
+- Refresh the scripted testnet record, including constructor ports. The
+  2026-10-21 deployments stay under `historical` in `deployments/testnet.json`.
+
 ## 0.19.0a2 — 2026-10-22
 
 - Build the sdist and wheel with `SOURCE_DATE_EPOCH` set to the commit
