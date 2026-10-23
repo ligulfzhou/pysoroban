@@ -154,12 +154,19 @@ class SorobanExampleBehaviorTests(unittest.TestCase):
         self.assertEqual(ttl.temporary["MyKey"], 2)
 
         factory = ContractTest.from_file(SOROBAN / "deployer" / "deployer" / "contract.py")
+        child = ContractTest.from_file(SOROBAN / "deployer" / "contract" / "contract.py")
+        factory.register_wasm(b"hash", child)
         factory.invoke("__constructor", "GADMIN")
         with self.assertRaises(AuthorizationError):
             factory.invoke("deploy", b"hash", b"salt", 7)
         address = factory.invoke("deploy", b"hash", b"salt", 7, auth=["GADMIN"])
         self.assertEqual(address, factory.deployments[-1]["address"])
         self.assertEqual(factory.deployments[-1]["args"], (7,))
+        self.assertEqual(factory.contract_at(address).invoke("value"), 7)
+        with self.assertRaisesRegex(InvocationError, "has not run"):
+            child.invoke("value")
+        with self.assertRaisesRegex(InvocationError, "already ran"):
+            factory.contract_at(address).invoke("__constructor", 8)
 
         upgraded = ContractTest.from_file(SOROBAN / "upgradeable_contract" / "old_contract" / "contract.py")
         upgraded.invoke("__constructor", "GADMIN")

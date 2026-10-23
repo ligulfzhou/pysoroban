@@ -1,7 +1,7 @@
 # Releasing to PyPI
 
 The package name is `pysoroban-compiler`. Publishing is a maintainer action.
-This repository does not upload a release by itself. This release is `0.20.0a1`.
+This repository does not upload a release by itself. This release is `0.20.0a2`.
 
 `.github/workflows/publish.yml` builds an sdist and a wheel when a GitHub
 Release is published, then uploads them with
@@ -45,7 +45,7 @@ normalizer.
 
 1. Merge the release commit to `main`. The version in `pyproject.toml` is the
    version that will be uploaded.
-2. Push a tag whose name is `v` plus that version, for example `v0.20.0a1`.
+2. Push a tag whose name is `v` plus that version, for example `v0.20.0a2`.
 3. Publish a GitHub Release from that tag. The workflow starts on
    `release: published`. Pushing the tag alone does not upload to PyPI.
 4. Confirm the new files on

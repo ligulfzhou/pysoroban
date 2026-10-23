@@ -175,8 +175,21 @@ that export only while creating the contract.
 The Wasm export and the spec entry use that name, and the spec entry is
 emitted before the other functions. The return type is `None`. The test host
 runs it through `invoke("__constructor", ...)`, once. A second call, or any
-other call before it, raises `InvocationError`. `deploy.with_constructor`
-still only records the new address and arguments.
+other call before it, raises `InvocationError`.
+
+`ContractTest.register_wasm(wasm_hash, template)` installs that compilation
+for `deploy.with_constructor`. The hash is the `Bytes` value the deployer
+passes. The call builds a fresh instance, derives a synthetic address, and
+runs `__constructor` with the remaining arguments inside the caller's
+transaction. The deploying contract's address is authorized, as it is for any
+direct call, along with the invocation's `auth` list. Storage, events, and
+further calls behave like any other invocation. Entrypoints before the
+constructor still raise, and a second `__constructor` raises. A failure,
+including `fail` and a missing authorization, rolls the new contract and the
+deployment record back. An unknown hash, a template with no `__constructor`,
+or an address that already exists raises `InvocationError` and leaves the
+deployment unrecorded. `deploy.contract` still only records the address.
+`contract_at` returns the instance. The host does not execute raw Wasm bytes.
 
 `try_void`, `try_i32`, `try_u32`, `try_i64`, `try_u64`, `try_i128`,
 `try_u128`, `try_u256`, `try_i256`, `try_bool`, `try_address`, `try_symbol`, `try_string`,
@@ -246,6 +259,8 @@ decoded for 32-bit and 64-bit integers. `Vec[Val]` is allowed.
 `deploy.upload(wasm)` returns the `Bytes` hash of a Wasm payload.
 `deploy.contract(wasm_hash, salt)` and
 `deploy.with_constructor(wasm_hash, salt, *args)` return the new `Address`.
+In the test host, `deploy.contract` records that address.
+`deploy.with_constructor` runs the contract installed with `register_wasm`.
 `deploy.upgrade(wasm_hash)` replaces the current contract Wasm.
 `deploy.asset(serialized_asset)` creates a Stellar Asset Contract from the
 serialized asset bytes and returns its `Address`. The compiler does not build
@@ -259,7 +274,9 @@ bound is `sequence + extend_to`, clamped to `max_live_until_ledger`.
 `ed25519_verify` accepts a triple from `allow_signature` first. Otherwise it
 uses the `cryptography` package when that package is installed.
 `prng` is a local xorshift, not the host PRNG. Deployed addresses are
-synthetic, while `deploy.upload` returns a real SHA-256 digest. `try_*`
+synthetic, while `deploy.upload` returns a real SHA-256 digest.
+`deploy.with_constructor` runs a registered contract's constructor and rolls
+it back with the caller. `try_*`
 catches `fail` in the callee and rolls that callee back. Curve calls return
 the next value queued by `allow_host_result`; the test host does not evaluate
 BLS12-381 or BN254. The host does not build create-contract `Context`
