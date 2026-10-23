@@ -227,6 +227,9 @@ calls are recorded in `deployments/testnet.json`. That file is the latest script
   signature for a registered account. `auth.as_current_contract` emits one
   `InvokerContractAuthEntry` and authorizes that subcall. Create-contract
   contexts and protocol-27 delegated signers are not modeled.
+- There is no general Ethereum ABI decoder. `examples/eth_abi` reads one
+  static tuple of a `bytes32` and two `uint256` words with `Bytes.slice`
+  and `u256.from_be_bytes`. The sum is checked, so it does not wrap.
 - The compiler currently targets a single declared Stellar protocol version.
 - The project has not completed an independent security audit.
 

@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 from pysoroban import compile_file
-from pysoroban.testing import AuthorizationError, ContractError, ContractTest
+from pysoroban.testing import AuthorizationError, ContractError, ContractTest, InvocationError
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -309,6 +309,21 @@ class SorobanExampleBehaviorTests(unittest.TestCase):
         with self.assertRaises(ContractError):
             merkle.invoke("claim", 1, "GBOB", 60, [b"\x00" * 32], auth=["GBOB"])
         self.assertEqual(token.invoke("balance", "CMERKLE"), 60)
+
+    def test_eth_abi_adds_two_static_words(self):
+        contract = load("eth_abi")
+        word = b"\x01" * 32
+        data = word + (1).to_bytes(32, "big") + (2).to_bytes(32, "big")
+        self.assertEqual(contract.invoke("exec", data), word + (3).to_bytes(32, "big"))
+        with self.assertRaises(ContractError) as raised:
+            contract.invoke("exec", data[:-1])
+        self.assertEqual(raised.exception.code, 1)
+        self.assertEqual(raised.exception.case, "DECODE")
+        with self.assertRaises(ContractError):
+            contract.invoke("exec", data + b"\x00")
+        overflow = word + (2**256 - 1).to_bytes(32, "big") + (1).to_bytes(32, "big")
+        with self.assertRaises(InvocationError):
+            contract.invoke("exec", overflow)
 
 
 if __name__ == "__main__":

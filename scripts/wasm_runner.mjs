@@ -213,6 +213,30 @@ class MiniSorobanHost {
       return this.put({ kind: "u256", value: fitU256(this.get(left).value / denominator) });
     };
     if (key === "b.3") return (offset, length) => this.memoryObject("Bytes", offset, length);
+    if (key === "b.8") return (bytes) => tagged32(Buffer.from(this.get(bytes).value, "hex").length, U32_TAG);
+    if (key === "b.e") return (left, right) => this.put({
+      kind: "Bytes",
+      value: this.get(left).value + this.get(right).value,
+    });
+    if (key === "b.f") return (bytes, start, end) => {
+      const raw = Buffer.from(this.get(bytes).value, "hex");
+      const from = Number(decodeU32(start));
+      const to = Number(decodeU32(end));
+      if (from < 0 || to < from || to > raw.length) {
+        throw new WebAssembly.RuntimeError("unreachable: bytes slice");
+      }
+      return this.put({ kind: "Bytes", value: raw.subarray(from, to).toString("hex") });
+    };
+    if (key === "i.a") return (bytes) => {
+      const raw = Buffer.from(this.get(bytes).value, "hex");
+      if (raw.length > 32) throw new WebAssembly.RuntimeError("unreachable: u256 bytes");
+      const value = raw.length === 0 ? 0n : BigInt(`0x${raw.toString("hex")}`);
+      return this.put({ kind: "u256", value });
+    };
+    if (key === "i.b") return (value) => this.put({
+      kind: "Bytes",
+      value: this.get(value).value.toString(16).padStart(64, "0"),
+    });
     if (key === "b.i") return (offset, length) => this.memoryObject("String", offset, length);
     if (key === "b.j") return (offset, length) => this.memoryObject("Symbol", offset, length);
     if (key === "v.3") return (vector) => tagged32(this.get(vector).values.length, U32_TAG);
