@@ -4,9 +4,9 @@ An interactive proof page for the experimental PySoroban compiler.
 
 The page demonstrates three separate pieces of the project:
 
-- **Compile:** edit a soroban-examples port and compile it to Soroban-compatible Wasm in the browser. The default source is `examples/hello_world/contract.py`. Pyodide runs the actual `pysoroban` compiler wheel; the page reports the artifact size, exports and SHA-256 digest.
-- **Ports:** the compiler tabs and the first deployment grid are the Python ports (`hello_world`, `increment`, `events`, `errors`, `auth`, `cross_contract`). They are not deployed as the historical contract IDs.
-- **Call:** simulate read-only calls against the September 2026 compiler-suite deployments through Stellar's public testnet RPC. Those sources now live in `tests/fixtures/compiler_suite/`. No wallet or secret key is required.
+- **Compile:** edit a soroban-examples port and compile it to Soroban-compatible Wasm in the browser. The tabs are Hello, Increment, Events, Errors, Auth, and CrossContract. The default source is `examples/hello_world/contract.py`. Pyodide installs the published `pysoroban-compiler` 0.19.0a2 wheel; the page reports the artifact size, exports and SHA-256 digest.
+- **Ports:** the compiler tabs and the first deployment grid are those six Python ports. They are not the scripted testnet contract IDs.
+- **Call:** simulate read-only calls against the scripted compiler-suite deployments through Stellar's public testnet RPC. Those sources live in `tests/fixtures/compiler_suite/`. No wallet or secret key is required.
 
 This is an experimental language-tooling prototype, not a production smart-contract platform.
 
@@ -35,18 +35,18 @@ npm run lint
 
 ## Browser compiler artifact
 
-The browser installs the pure-Python wheel at:
+The browser installs the published pure-Python wheel:
 
 ```text
-public/compiler/pysoroban_compiler-0.12.0a1-py3-none-any.whl
+public/compiler/pysoroban_compiler-0.19.0a2-py3-none-any.whl
 ```
 
-Rebuild it from the repository root after changing the Python compiler:
+SHA-256: `22ad350565ff66bbcf41177ca63f0ebbed02833f0cf0d408ebc61f86eb4e9d68`
 
-```bash
-python3 -m pip wheel . --no-deps --wheel-dir web/public/compiler
-```
+That file is the PyPI `pysoroban-compiler` 0.19.0a2 release. The tree is
+`0.19.0a3`, which is not published yet, so the demo keeps these bytes. A
+local `pip wheel` build is not the published artifact.
 
 ## Testnet contracts
 
-The September 2026 deployment evidence lives in [`../deployments/testnet.json`](../deployments/testnet.json). That record is the former compiler suite, not the ports in the editor. The UI intentionally performs simulations for its public demo calls, so visitors cannot accidentally submit transactions or spend funds.
+The scripted deployment record lives in [`../deployments/testnet.json`](../deployments/testnet.json). It is the compiler-suite fixtures, not the ports in the editor. The UI intentionally performs simulations for its public demo calls, so visitors cannot accidentally submit transactions or spend funds.

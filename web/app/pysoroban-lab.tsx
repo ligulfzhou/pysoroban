@@ -8,7 +8,7 @@ import { SOURCE_ACCOUNT, testnetContracts } from "./testnet-manifest";
 const PYODIDE_URL =
   "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.mjs";
 const COMPILER_WHEEL =
-  "/compiler/pysoroban_compiler-0.12.0a1-py3-none-any.whl";
+  "/compiler/pysoroban_compiler-0.19.0a2-py3-none-any.whl";
 
 const RPC_URL = "https://soroban-testnet.stellar.org";
 
@@ -678,7 +678,7 @@ export function PySorobanLab() {
           <div className="install-card" id="install">
             <div className="install-release">
               <span>PyPI alpha</span>
-              <strong>0.9.0a2</strong>
+              <strong>0.19.0a2</strong>
             </div>
             <code>pip install --pre pysoroban-compiler</code>
             <a
@@ -725,9 +725,10 @@ export function PySorobanLab() {
             <h2>Edit Python. Build Wasm.</h2>
           </div>
           <p>
-            The editor loads Python ports of stellar/soroban-examples. Hello is
-            the default. Compilation runs locally in your browser using the
-            actual PySoroban package. Your source never leaves this page.
+            The tabs are the Hello, Increment, Events, Errors, Auth, and
+            CrossContract ports already in <code>examples/</code>. Hello is the
+            default. Compilation runs in your browser with the published
+            0.19.0a2 wheel. Your source never leaves this page.
           </p>
         </div>
 
@@ -824,7 +825,7 @@ export function PySorobanLab() {
               <span aria-hidden="true">↓</span>
             </button>
             <p className="build-note">
-              In-browser compiler 0.12.0a1. First build loads the Python runtime.
+              In-browser compiler 0.19.0a2. First build loads the Python runtime.
               Later builds are instant.
             </p>
           </aside>
@@ -854,7 +855,7 @@ assert contract.last_events == (Event(("increment",), result),)`}</code></pre>
           <div className="test-result-card">
             <span className="test-status">● all checks passed</span>
             <strong>129 / 129</strong>
-            <p>Compiler, Typed IR, CLI, auth, storage, events, vectors, maps, and numeric boundaries.</p>
+            <p>Constructors, checked wide integers, accounts, storage, events, collections, and the six editor ports.</p>
             <small>Deterministic IR simulator · network integration remains on testnet</small>
           </div>
         </div>
