@@ -48,6 +48,7 @@ TYPE_NAMES = {
     "i128": ValueType.I128,
     "u128": ValueType.U128,
     "u256": ValueType.U256,
+    "i256": ValueType.I256,
     "Symbol": ValueType.SYMBOL,
     "String": ValueType.STRING,
     "Bytes": ValueType.BYTES,
@@ -66,6 +67,7 @@ TRY_CALL_TYPES = {
     "try_i128": ResultType(ValueType.I128, ValueType.U32),
     "try_u128": ResultType(ValueType.U128, ValueType.U32),
     "try_u256": ResultType(ValueType.U256, ValueType.U32),
+    "try_i256": ResultType(ValueType.I256, ValueType.U32),
     "try_bool": ResultType(ValueType.BOOL, ValueType.U32),
     "try_address": ResultType(ValueType.ADDRESS, ValueType.U32),
     "try_symbol": ResultType(ValueType.SYMBOL, ValueType.U32),
@@ -82,6 +84,7 @@ CONTRACT_CALL_TYPES = {
     "call_i128": ValueType.I128,
     "call_u128": ValueType.U128,
     "call_u256": ValueType.U256,
+    "call_i256": ValueType.I256,
     "call_bool": ValueType.BOOL,
     "call_address": ValueType.ADDRESS,
     "call_symbol": ValueType.SYMBOL,
@@ -735,11 +738,13 @@ class TypeChecker:
                 fail(node, "arithmetic operands must have the same numeric type", "E0509")
             if left is ValueType.U256 and not isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.FloorDiv)):
                 fail(node, "u256 arithmetic supports checked +, -, *, and //", "E0510")
+            if left is ValueType.I256 and not isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.FloorDiv)):
+                fail(node, "i256 arithmetic supports checked +, -, *, and //", "E0510")
             if left in {ValueType.I128, ValueType.U128} and not isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.FloorDiv)):
                 fail(node, "i128/u128 arithmetic supports checked +, -, *, and //", "E0510")
             if isinstance(node.op, ast.FloorDiv):
-                if left not in {ValueType.U32, ValueType.U64, ValueType.U128, ValueType.I128, ValueType.U256}:
-                    fail(node, "floor division is supported for u32, u64, checked u128, checked i128, and checked u256", "E0511")
+                if left not in {ValueType.U32, ValueType.U64, ValueType.U128, ValueType.I128, ValueType.U256, ValueType.I256}:
+                    fail(node, "floor division is supported for u32, u64, checked u128, checked i128, checked u256, and checked i256", "E0511")
                 return left
             if not isinstance(node.op, (ast.Add, ast.Sub, ast.Mult)):
                 fail(node, "supported arithmetic operators are +, -, *, and //", "E0512")
@@ -758,7 +763,7 @@ class TypeChecker:
                 return ValueType.BOOL
             if left not in {
                 ValueType.I32, ValueType.U32, ValueType.I64, ValueType.U64,
-                ValueType.I128, ValueType.U128, ValueType.U256,
+                ValueType.I128, ValueType.U128, ValueType.U256, ValueType.I256,
             } and not is_bytes_type(left) and not isinstance(
                 node.ops[0], (ast.Eq, ast.NotEq)
             ):
@@ -851,6 +856,10 @@ class TypeChecker:
             if len(node.args) != 1 or not is_bytes_type(self.check_expr(node.args[0])):
                 fail(node, "u256.from_be_bytes() takes one Bytes value", "E0658")
             return ValueType.U256
+        if path == ["i256", "from_be_bytes"]:
+            if len(node.args) != 1 or not is_bytes_type(self.check_expr(node.args[0])):
+                fail(node, "i256.from_be_bytes() takes one Bytes value", "E0658")
+            return ValueType.I256
         if path == ["u128", "mul_div_floor"]:
             if len(node.args) != 3:
                 fail(node, "u128.mul_div_floor() takes left, right, and denominator", "E0607")
@@ -859,7 +868,7 @@ class TypeChecker:
                 if actual is not ValueType.U128:
                     fail(argument, f"u128.mul_div_floor() expects u128 arguments, got {actual.value}", "E0608")
             return ValueType.U128
-        if len(path) == 1 and path[0] in {"i32", "u32", "i64", "u64", "i128", "u128", "u256"}:
+        if len(path) == 1 and path[0] in {"i32", "u32", "i64", "u64", "i128", "u128", "u256", "i256"}:
             value = _integer_literal(node.args[0]) if len(node.args) == 1 else None
             if value is None:
                 fail(node, f"{path[0]}() requires one integer literal", "E0609")
@@ -871,6 +880,7 @@ class TypeChecker:
                 "i128": (-(2**127), 2**127 - 1),
                 "u128": (0, 2**128 - 1),
                 "u256": (0, 2**256 - 1),
+                "i256": (-(2**255), 2**255 - 1),
             }
             lower, upper = bounds[path[0]]
             if not lower <= value <= upper:
@@ -953,6 +963,7 @@ class TypeChecker:
             "get_i128": ValueType.I128,
             "get_u128": ValueType.U128,
             "get_u256": ValueType.U256,
+            "get_i256": ValueType.I256,
             "get_bool": ValueType.BOOL,
             "get_symbol": ValueType.SYMBOL,
             "get_string": ValueType.STRING,
@@ -1142,7 +1153,7 @@ class TypeChecker:
                 fail(node.args[2], "auth.as_current_contract() argument cannot be None", "E0664")
             return ValueType.VOID
         if len(path) == 2 and path[1] == "from_val" and path[0] in {
-            "i32", "u32", "i64", "u64", "i128", "u128", "u256", "Address",
+            "i32", "u32", "i64", "u64", "i128", "u128", "u256", "i256", "Address",
         }:
             if len(node.args) != 1 or self.check_expr(node.args[0]) is not ValueType.VAL:
                 fail(node, f"{path[0]}.from_val() takes one Val", "E0665")
@@ -1192,8 +1203,9 @@ class TypeChecker:
                     fail(argument, "authorization arguments cannot be None", "E0655")
             return ValueType.VOID
         if len(path) == 2 and path[1] == "to_be_bytes":
-            if self.variables.get(path[0]) is not ValueType.U256 or node.args:
-                fail(node, "to_be_bytes() is only available on u256 values", "E0658")
+            owner = self.variables.get(path[0])
+            if owner not in {ValueType.U256, ValueType.I256} or node.args:
+                fail(node, "to_be_bytes() is only available on u256 and i256 values", "E0658")
             return ValueType.BYTES
         if len(path) == 2 and path[1] == "to_strkey":
             if self.variables.get(path[0]) is not ValueType.ADDRESS or node.args:

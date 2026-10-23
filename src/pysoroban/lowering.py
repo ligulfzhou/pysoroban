@@ -44,6 +44,7 @@ ANNOTATIONS = {
     "i128": ValueType.I128,
     "u128": ValueType.U128,
     "u256": ValueType.U256,
+    "i256": ValueType.I256,
     "boolean": ValueType.BOOL,
     "bool": ValueType.BOOL,
     "Address": ValueType.ADDRESS,
@@ -291,6 +292,8 @@ class FunctionLowerer:
             return ir.HostCall("bytesn", (self.expression(node.args[0]),), BytesNType(size))
         if path == ["u256", "from_be_bytes"]:
             return ir.HostCall("u256_from_be_bytes", (self.expression(node.args[0]),), ValueType.U256)
+        if path == ["i256", "from_be_bytes"]:
+            return ir.HostCall("i256_from_be_bytes", (self.expression(node.args[0]),), ValueType.I256)
         if path == ["u128", "mul_div_floor"]:
             return ir.HostCall(
                 "u128_mul_div_floor",
@@ -299,7 +302,7 @@ class FunctionLowerer:
             )
         if len(path) == 1 and path[0] in ANNOTATIONS:
             value = _integer_literal(node.args[0]) if path[0] in {
-                "i32", "u32", "i64", "u64", "i128", "u128", "u256"
+                "i32", "u32", "i64", "u64", "i128", "u128", "u256", "i256"
             } else node.args[0].value
             return ir.Constant(value, ANNOTATIONS[path[0]])
         if len(path) == 2 and path[1] == "require_auth":
@@ -436,6 +439,7 @@ class FunctionLowerer:
             "get_i128": ("storage_get_i128", ValueType.I128),
             "get_u128": ("storage_get_u128", ValueType.U128),
             "get_u256": ("storage_get_u256", ValueType.U256),
+            "get_i256": ("storage_get_i256", ValueType.I256),
             "get_bool": ("storage_get_bool", ValueType.BOOL),
             "get_symbol": ("storage_get_symbol", ValueType.SYMBOL),
             "get_string": ("storage_get_string", ValueType.STRING),
@@ -471,6 +475,7 @@ class FunctionLowerer:
             "get_i128": ValueType.I128,
             "get_u128": ValueType.U128,
             "get_u256": ValueType.U256,
+            "get_i256": ValueType.I256,
             "get_bool": ValueType.BOOL,
             "get_symbol": ValueType.SYMBOL,
             "get_string": ValueType.STRING,
@@ -521,9 +526,10 @@ class FunctionLowerer:
                 ValueType.VOID,
             )
         if len(path) == 2 and path[1] == "to_be_bytes":
+            value_type = self.types[path[0]]
             return ir.HostCall(
-                "u256_to_be_bytes",
-                (ir.Local(path[0], ValueType.U256),),
+                "i256_to_be_bytes" if value_type is ValueType.I256 else "u256_to_be_bytes",
+                (ir.Local(path[0], value_type),),
                 ValueType.BYTES,
             )
         if len(path) == 2 and path[1] == "to_strkey":

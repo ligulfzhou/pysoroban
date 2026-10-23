@@ -59,6 +59,7 @@ SPEC_TYPE_NAMES = {
     10: "u128",
     11: "i128",
     12: "u256",
+    13: "i256",
     14: "Bytes",
     16: "String",
     17: "Symbol",

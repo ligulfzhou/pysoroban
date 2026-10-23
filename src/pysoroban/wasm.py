@@ -288,14 +288,15 @@ class FunctionEmitter:
                     ValueType.SYMBOL: SYMBOL_FROM_MEMORY,
                 }[node.type]
                 return self._u32_val(offset) + self._u32_val(len(raw)) + b"\x10" + uleb(constructor)
-            if node.type is ValueType.U256:
+            if node.type in {ValueType.U256, ValueType.I256}:
                 parts = bytearray()
                 for shift in (192, 128, 64, 0):
                     part = (node.value >> shift) & (2**64 - 1)
                     if part >= 2**63:
                         part -= 2**64
                     parts += b"\x42" + sleb(part)
-                return bytes(parts) + b"\x10" + uleb(self.host_indices[("i", "9")])
+                export = "g" if node.type is ValueType.I256 else "9"
+                return bytes(parts) + b"\x10" + uleb(self.host_indices[("i", export)])
             if node.type in WIDE_INTEGER_TYPES:
                 bits = node.value % (2**128)
                 hi = bits >> 64
@@ -325,6 +326,15 @@ class FunctionEmitter:
         if isinstance(node, ir.Binary):
             if node.type is ValueType.U256:
                 export = {"add": "n", "sub": "o", "mul": "p", "div": "q"}[node.op]
+                return (
+                    self.expression(node.left)
+                    + self.expression(node.right)
+                    + b"\x10" + uleb(self.host_indices[("i", export)])
+                )
+            if node.type is ValueType.I256:
+                if node.op == "div":
+                    return self._i256_floor_div(node)
+                export = {"add": "v", "sub": "w", "mul": "x"}[node.op]
                 return (
                     self.expression(node.left)
                     + self.expression(node.right)
@@ -533,7 +543,7 @@ class FunctionEmitter:
             if node.op == "storage_get_bool":
                 return raw + b"\x42\x01\x51"
             if node.op in {
-                "storage_get_i128", "storage_get_u128", "storage_get_u256",
+                "storage_get_i128", "storage_get_u128", "storage_get_u256", "storage_get_i256",
                 "storage_get_symbol", "storage_get_string", "storage_get_bytes",
             }:
                 return raw
@@ -607,7 +617,8 @@ class FunctionEmitter:
             "prng_bytes", "prng_u64", "string_len", "bytes_len", "string_to_bytes",
             "bytes_to_string", "bytes_slice",             "bytes_append", "upload_wasm", "upgrade",
             "deploy_asset", "to_xdr", "bytesn", "u256_to_be_bytes",
-            "u256_from_be_bytes", "address_to_strkey",
+            "u256_from_be_bytes", "i256_to_be_bytes", "i256_from_be_bytes",
+            "address_to_strkey",
         } or node.op in CURVE_HOST:
             return self._simple_host(node)
         if node.op == "require_auth_for":
@@ -759,6 +770,8 @@ class FunctionEmitter:
             "to_xdr": ("b", "_"),
             "u256_to_be_bytes": ("i", "b"),
             "u256_from_be_bytes": ("i", "a"),
+            "i256_to_be_bytes": ("i", "i"),
+            "i256_from_be_bytes": ("i", "h"),
             "address_to_strkey": ("a", "2"),
             "prng_bytes": ("p", "0"),
             "upload_wasm": ("l", "5"),
@@ -1108,6 +1121,43 @@ class FunctionEmitter:
         output += b"\x10" + uleb(self.host_indices[("i", "6")])
         return bytes(output)
 
+    def _i256_floor_div(self, node: ir.Binary) -> bytes:
+        """Python floor division on top of truncating host i256 division.
+
+        q = trunc(a / b) via i.y, which traps on a zero divisor and on
+        overflow (the minimum divided by -1). When the division is inexact
+        and the signs differ, q -= 1 via i.w.
+        """
+        left, right, quotient, product, zero = self._claim_wide_scratch()[:5]
+        try:
+            output = bytearray()
+            output += self.expression(node.left) + b"\x21" + uleb(left)
+            output += self.expression(node.right) + b"\x21" + uleb(right)
+            output += b"\x20" + uleb(left) + b"\x20" + uleb(right)
+            output += b"\x10" + uleb(self.host_indices[("i", "y")]) + b"\x21" + uleb(quotient)
+            output += b"\x20" + uleb(quotient) + b"\x20" + uleb(right)
+            output += b"\x10" + uleb(self.host_indices[("i", "x")]) + b"\x21" + uleb(product)
+            output += b"\x42\x00\x42\x00\x42\x00\x42\x00"
+            output += b"\x10" + uleb(self.host_indices[("i", "g")]) + b"\x21" + uleb(zero)
+            output += b"\x20" + uleb(product) + b"\x20" + uleb(left)
+            output += b"\x10" + uleb(self.host_indices[("x", "0")]) + b"\x50\x45"
+            output += b"\x20" + uleb(left) + b"\x20" + uleb(zero)
+            output += b"\x10" + uleb(self.host_indices[("x", "0")]) + b"\x42\x00\x53"
+            output += b"\x20" + uleb(right) + b"\x20" + uleb(zero)
+            output += b"\x10" + uleb(self.host_indices[("x", "0")]) + b"\x42\x00\x53"
+            output += b"\x73\x71"
+            output += b"\x04\x40"
+            output += b"\x20" + uleb(quotient)
+            output += b"\x42\x00\x42\x00\x42\x00\x42\x01"
+            output += b"\x10" + uleb(self.host_indices[("i", "g")])
+            output += b"\x10" + uleb(self.host_indices[("i", "w")])
+            output += b"\x21" + uleb(quotient)
+            output += b"\x0b"
+            output += b"\x20" + uleb(quotient)
+            return bytes(output)
+        finally:
+            self._release_wide_scratch()
+
     def _u256_part(self, value_local: int, part: int) -> bytes:
         object_export = ("c", "d", "e", "f")[part]
         small_value = (
@@ -1215,7 +1265,10 @@ def _wide_expression_depth(function: ir.Function) -> int:
         if isinstance(node, (ir.Binary, ir.Compare)):
             child = max(expression(node.left), expression(node.right))
             uses_frame = (
-                isinstance(node, ir.Binary) and node.type in WIDE_INTEGER_TYPES
+                isinstance(node, ir.Binary) and (
+                    node.type in WIDE_INTEGER_TYPES
+                    or (node.type is ValueType.I256 and node.op == "div")
+                )
             ) or (
                 isinstance(node, ir.Compare) and node.left.type in WIDE_INTEGER_TYPES
             )
@@ -1263,6 +1316,8 @@ def emit_module(contract: ir.Contract, protocol: int = 25) -> bytes:
         optional(("i", "3", 2))
     if _uses_constant_type(contract, ValueType.U256):
         optional(("i", "9", 4))
+    if _uses_constant_type(contract, ValueType.I256):
+        optional(("i", "g", 4))
     if _uses_constant_type(contract, ValueType.I128):
         optional(("i", "6", 2))
     wide_operations = _wide_operation_types(contract)
@@ -1483,6 +1538,8 @@ def _service_imports(contract: ir.Contract):
         "bytesn": ("b", "8", 1),
         "u256_to_be_bytes": ("i", "b", 1),
         "u256_from_be_bytes": ("i", "a", 1),
+        "i256_to_be_bytes": ("i", "i", 1),
+        "i256_from_be_bytes": ("i", "h", 1),
         "address_to_strkey": ("a", "2", 1),
         "try_call": ("d", "0", 3),
         "union_is": ("v", "1", 2),
@@ -1505,7 +1562,7 @@ def _service_imports(contract: ir.Contract):
 
     def expression(node: ir.Expression):
         nonlocal dynamic_log
-        if isinstance(node, ir.Binary) and node.type in WIDE_INTEGER_TYPES | {ValueType.U256} and node.op in {"add", "sub", "mul", "div"}:
+        if isinstance(node, ir.Binary) and node.type in WIDE_INTEGER_TYPES | {ValueType.U256, ValueType.I256} and node.op in {"add", "sub", "mul", "div"}:
             wide.add((node.type, node.op))
         if isinstance(node, ir.HostCall):
             if node.op in needed:
@@ -1571,6 +1628,14 @@ def _service_imports(contract: ir.Contract):
     for op, item in u256_exports.items():
         if (ValueType.U256, op) in wide:
             add(item)
+    i256_exports = {"add": ("i", "v", 2), "sub": ("i", "w", 2), "mul": ("i", "x", 2), "div": ("i", "y", 2)}
+    for op, item in i256_exports.items():
+        if (ValueType.I256, op) in wide:
+            add(item)
+    if (ValueType.I256, "div") in wide:
+        add(("i", "g", 4))
+        add(("i", "x", 2))
+        add(("i", "w", 2))
     return imports
 
 

@@ -11,6 +11,7 @@ class ValueType(str, Enum):
     I128 = "i128"
     U128 = "u128"
     U256 = "u256"
+    I256 = "i256"
     BOOL = "boolean"
     ADDRESS = "Address"
     SYMBOL = "Symbol"
@@ -23,6 +24,7 @@ class ValueType(str, Enum):
     VEC_I128 = "Vec[i128]"
     VEC_U128 = "Vec[u128]"
     VEC_U256 = "Vec[u256]"
+    VEC_I256 = "Vec[i256]"
     VEC_BOOL = "Vec[boolean]"
     VEC_ADDRESS = "Vec[Address]"
     VEC_SYMBOL = "Vec[Symbol]"
@@ -40,6 +42,7 @@ VEC_TYPES_BY_ELEMENT = {
     ValueType.I128: ValueType.VEC_I128,
     ValueType.U128: ValueType.VEC_U128,
     ValueType.U256: ValueType.VEC_U256,
+    ValueType.I256: ValueType.VEC_I256,
     ValueType.BOOL: ValueType.VEC_BOOL,
     ValueType.ADDRESS: ValueType.VEC_ADDRESS,
     ValueType.SYMBOL: ValueType.VEC_SYMBOL,
@@ -204,6 +207,7 @@ def is_integer_type(value_type: ContractType) -> bool:
         ValueType.I128,
         ValueType.U128,
         ValueType.U256,
+        ValueType.I256,
     }
 
 
@@ -222,6 +226,7 @@ def is_object_type(value_type: ContractType) -> bool:
             ValueType.SYMBOL,
             ValueType.U128,
             ValueType.U256,
+            ValueType.I256,
             ValueType.VAL,
         }
         | set(VEC_ELEMENT_TYPES)

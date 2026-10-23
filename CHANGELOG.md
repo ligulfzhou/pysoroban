@@ -5,14 +5,26 @@ All notable changes to PySoroban are documented here.
 ## Unreleased
 
 - Load the published `pysoroban-compiler` 0.19.0a2 wheel in the browser demo.
-  The install card and editor note use that PyPI release. The tree is
-  `0.19.0a3`, which is not published yet, so the demo stays on 0.19.0a2.
-  The six editor tabs stay the ports already on `main`.
+  The install card and editor note use that PyPI release. This tree is not
+  published yet, so the demo stays on 0.19.0a2. The six editor tabs stay the
+  ports already on `main`.
 - Port `examples/eth_abi`. It decodes one static Ethereum ABI tuple
   (`bytes32`, `uint256`, `uint256`) with `Bytes.slice` and
   `u256.from_be_bytes`, adds the integers with checked `u256` arithmetic,
   and returns the ABI encoding of `(bytes32, uint256)`. A length other than
   96 bytes fails with `DECODE`. There is still no general ABI decoder.
+
+## 0.20.0a1 — 2026-10-23
+
+- Add the `i256` contract type. Literals, comparisons, storage, vectors, and
+  cross-contract returns use the protocol object. Checked `+`, `-`, and `*`
+  call host `i.v`, `i.w`, and `i.x` and trap on overflow. `//` uses truncating
+  host `i.y` and then subtracts one from an inexact mixed-sign quotient so the
+  result matches Python floor division. Division by zero and `i256` minimum
+  divided by `-1` trap. `to_be_bytes` and `from_be_bytes` are the 32-byte
+  two's complement form. Spec type `SC_SPEC_TYPE_I256` is 13 and ScVal
+  `SCV_I256` is 12.
+- Multi-field enum variants are still absent. A union case carries one payload.
 
 ## 0.19.0a3 — 2026-10-23
 
