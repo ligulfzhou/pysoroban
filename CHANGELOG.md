@@ -14,6 +14,15 @@ All notable changes to PySoroban are documented here.
   and returns the ABI encoding of `(bytes32, uint256)`. A length other than
   96 bytes fails with `DECODE`. There is still no general ABI decoder.
 
+## 0.20.0a2 — 2026-10-23
+
+- `deploy.with_constructor` runs the new contract's `__constructor` in the
+  test host. `ContractTest.register_wasm` installs the compilation for a Wasm
+  hash. The constructor runs once, before other entrypoints, with the call's
+  authorization. A failure rolls storage, events, and the deployment back.
+  `deploy.contract` still only records the address. The host does not execute
+  raw Wasm bytes.
+
 ## 0.20.0a1 — 2026-10-23
 
 - Add the `i256` contract type. Literals, comparisons, storage, vectors, and

@@ -6,7 +6,7 @@ class Deployer:
     """Factory that deploys a Wasm hash with constructor arguments.
 
     deploy.with_constructor passes the arguments as a host vector. The test
-    host records the deployment and does not run the new contract.
+    host runs the child installed with ``register_wasm`` for that hash.
     """
 
     @public

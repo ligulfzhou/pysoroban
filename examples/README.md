@@ -12,7 +12,7 @@ a contract.
 
 Shared differences:
 
-- `__constructor` is the protocol constructor. The test host runs it once via `invoke`. `deploy.with_constructor` does not execute the new Wasm.
+- `__constructor` is the protocol constructor. The test host runs it once via `invoke`. `deploy.with_constructor` runs it for a contract installed with `register_wasm`.
 - Token amounts are checked `u128`. The Rust examples use `i128`.
 - `fail` replaces `panic` and `Result`.
 - The test host authorizes the calling contract on a direct call only. The
@@ -21,8 +21,8 @@ Shared differences:
   one deeper `require_auth`.
 - BLS12-381 and BN254 calls are real Wasm imports. The test host returns a
   queued result. `enforce_ttl` is off unless the test sets it.
-- `deploy.with_constructor` records the new address and arguments. It does not
-  execute the deployed contract.
+- `deploy.with_constructor` runs that constructor in the caller's transaction.
+  A failure rolls the deployment back. `deploy.contract` only records the address.
 
 | Example | Python | Notes |
 | --- | --- | --- |
@@ -35,7 +35,7 @@ Shared differences:
 | cross_contract | `cross_contract/` | `u32` addition wraps; Rust `checked_add` panics. |
 | custom_types | `custom_types/contract.py` | `State` struct. |
 | deep_contract_auth | `deep_contract_auth/` | One subcall with one argument. Deeper auth trees are not built. |
-| deployer | `deployer/` | Test host does not run the child constructor. |
+| deployer | `deployer/` | `register_wasm`, then `deploy.with_constructor` runs the child. |
 | errors | `errors/contract.py` | `fail` at 5. |
 | eth_abi | `eth_abi/contract.py` | One static ABI tuple: `bytes32` and two `uint256` words. Checked `u256` sum. No general decoder. |
 | events | `events/contract.py` | One symbol topic, not two static topics. |

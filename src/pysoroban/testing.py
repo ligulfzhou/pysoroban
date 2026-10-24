@@ -4,8 +4,9 @@ This module is intentionally an IR simulator, not a replacement for Soroban's
 Wasm host. It gives contract authors fast unit tests for language semantics,
 authorization requirements, instance storage, and emitted events. A failed
 invocation restores storage and events, including linked contracts from that
-call. Testnet or a native Soroban host remains the source of truth for
-integration testing.
+call. `deploy.with_constructor` runs a contract installed with `register_wasm`
+and rolls that deployment back with the caller. Testnet or a native Soroban
+host remains the source of truth for integration testing.
 """
 
 import copy
@@ -108,6 +109,7 @@ class ContractTest:
         self._current_fn = None
         self._current_args = ()
         self._contracts = {}
+        self._wasm = {}
         self._transaction = None
         self._constructed = False
 
@@ -183,6 +185,25 @@ class ContractTest:
             raise InvocationError("contract address must be a string")
         self._contracts[address] = contract
 
+    def register_wasm(self, wasm_hash: bytes, contract: "ContractTest") -> None:
+        """Install a contract for ``deploy.with_constructor``.
+
+        The hash is the bytes the deployer passes. Each deployment builds a
+        fresh instance from this compilation and runs its ``__constructor``.
+        """
+        if not isinstance(wasm_hash, bytes):
+            raise InvocationError("wasm hash must be bytes")
+        if not isinstance(contract, ContractTest):
+            raise InvocationError("wasm registration needs a ContractTest")
+        self._wasm[wasm_hash] = contract
+
+    def contract_at(self, address: str) -> "ContractTest":
+        """Return the contract deployed or registered at ``address``."""
+        found = self._contracts.get(address)
+        if found is None:
+            raise InvocationError(f"unregistered contract address {address!r}")
+        return found
+
     def authorize_account(self, address: str, payload: bytes, signature: NativeValue, contexts=()) -> None:
         """Pass payload, signature, and contexts to a later ``__check_auth``."""
         if not isinstance(address, str) or not isinstance(payload, bytes):
@@ -200,13 +221,16 @@ class ContractTest:
         auth: Iterable[str],
         transaction: Optional[List[tuple]],
         user_auth: Optional[Iterable[str]] = None,
+        creating: bool = False,
     ) -> NativeValue:
         function = next((item for item in self.contract.functions if item.name == name), None)
         if function is None:
             raise InvocationError(f"unknown contract function {name!r}")
         has_constructor = any(item.name == "__constructor" for item in self.contract.functions)
         if name == "__constructor":
-            if transaction is not None:
+            # Nested calls reject the constructor. Contract creation is the
+            # one path that may run it inside the caller's transaction.
+            if transaction is not None and not creating:
                 raise InvocationError("__constructor runs only at contract creation")
             if self._constructed:
                 raise InvocationError("__constructor already ran")
@@ -266,6 +290,9 @@ class ContractTest:
             list(self.deployments),
             list(self.uploads),
             self.upgraded,
+            self._constructed,
+            dict(self._contracts),
+            dict(self._wasm),
         ))
         try:
             try:
@@ -719,10 +746,17 @@ class ContractTest:
         if call.op == "require_auth_for":
             self._require_auth(values[0])
             return None
-        if call.op in {"deploy", "deploy_constructor"}:
-            address = "C" + hashlib.sha256(repr(values).encode("utf-8")).hexdigest()[:16]
-            self.deployments.append({"address": address, "wasm_hash": values[0], "salt": values[1], "args": values[2:]})
+        if call.op == "deploy":
+            address = _deployment_address(values)
+            self.deployments.append({
+                "address": address,
+                "wasm_hash": values[0],
+                "salt": values[1],
+                "args": values[2:],
+            })
             return address
+        if call.op == "deploy_constructor":
+            return self._deploy_constructor(values)
         if call.op == "upload_wasm":
             digest = hashlib.sha256(values[0]).digest()
             self.uploads.append(digest)
@@ -735,6 +769,62 @@ class ContractTest:
             self.deployments.append({"address": address, "asset": values[0]})
             return address
         raise AssertionError(call.op)
+
+    def _deploy_constructor(self, values: Tuple[NativeValue, ...]) -> str:
+        """Create one instance and run its constructor in this transaction.
+
+        The Wasm bytes themselves are not executed. ``register_wasm`` supplies
+        the compilation whose ``__constructor`` runs with ``values[2:]``.
+        """
+        if len(values) < 2:
+            raise InvocationError("deploy.with_constructor needs a Wasm hash and a salt")
+        wasm_hash = values[0]
+        template = self._wasm.get(wasm_hash)
+        if template is None:
+            raise InvocationError("unknown Wasm hash")
+        if not any(item.name == "__constructor" for item in template.contract.functions):
+            raise InvocationError("deployed contract has no __constructor")
+        address = _deployment_address(values)
+        if address in self._contracts:
+            raise InvocationError("contract already exists")
+        child = ContractTest(template.compilation)
+        child.ledger_sequence = self.ledger_sequence
+        child.ledger_timestamp = self.ledger_timestamp
+        child.ledger_version = self.ledger_version
+        child.network_id = self.network_id
+        child.enforce_ttl = self.enforce_ttl
+        child.max_live_until_ledger = self.max_live_until_ledger
+        child.contract_address = address
+        # Wasm installs are ledger-global. Nested deploys see the same table,
+        # and a failed transaction restores it with the other snapshots.
+        child._wasm = self._wasm
+        child._contracts = dict(self._contracts)
+        child._contracts[address] = child
+        child._contracts.setdefault(self.contract_address, self)
+        self._contracts[address] = child
+        self.deployments.append({
+            "address": address,
+            "wasm_hash": wasm_hash,
+            "salt": values[1],
+            "args": values[2:],
+        })
+        granted = set(self._user_auth)
+        granted.add(self.contract_address)
+        child._auth_state = self._auth_state
+        try:
+            child._invoke(
+                "__constructor",
+                values[2:],
+                {},
+                granted,
+                self._transaction,
+                self._user_auth,
+                creating=True,
+            )
+        except InvocationError:
+            self._contracts.pop(address, None)
+            raise
+        return address
 
     def _entry_expired(self, slot) -> bool:
         if not self.enforce_ttl:
@@ -888,10 +978,15 @@ def _storage_tier(op: str):
     return None
 
 
+def _deployment_address(values: Tuple[NativeValue, ...]) -> str:
+    return "C" + hashlib.sha256(repr(values).encode("utf-8")).hexdigest()[:16]
+
+
 def _restore_transaction(transaction: List[tuple]) -> None:
     for (
         contract, storage, persistent, temporary, ttl, live_until, host_results,
         events, last_events, logs, deployments, uploads, upgraded,
+        constructed, contracts, wasm_hashes,
     ) in reversed(transaction):
         contract._storage = storage
         contract._persistent = persistent
@@ -905,6 +1000,13 @@ def _restore_transaction(transaction: List[tuple]) -> None:
         contract.deployments = deployments
         contract.uploads = uploads
         contract.upgraded = upgraded
+        contract._constructed = constructed
+        # Clear in place. A deployed contract shares the caller's Wasm table,
+        # and a shallow copy of the registry must not replace that object.
+        contract._contracts.clear()
+        contract._contracts.update(contracts)
+        contract._wasm.clear()
+        contract._wasm.update(wasm_hashes)
 
 
 def _ed25519_accepts(key: bytes, message: bytes, signature: bytes) -> bool:

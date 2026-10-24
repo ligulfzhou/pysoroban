@@ -33,7 +33,7 @@ test("renders the PySoroban live proof", async () => {
   assert.match(html, /Compile in browser/);
   assert.match(html, /Download \.wasm/);
   assert.match(html, /Test before testnet/);
-  assert.match(html, /132 \/ 132/);
+  assert.match(html, /138 \/ 138/);
   assert.match(html, /In-browser compiler 0\.19\.0a2/);
   assert.match(html, />0\.19\.0a2</);
   assert.doesNotMatch(html, /0\.12\.0a1|0\.9\.0a2/);

@@ -5,9 +5,9 @@ from pysoroban import Symbol, contract, public, storage, u32
 class Contract:
     """Child contract deployed by the factory.
 
-    Upstream sets the value in ``__constructor``. The factory's
-    ``deploy.with_constructor`` records the arguments and does not run this
-    Wasm, so tests invoke ``__constructor`` directly.
+    Upstream sets the value in ``__constructor``. Register this compilation
+    with ``register_wasm`` and the factory's ``deploy.with_constructor`` runs
+    that constructor.
     """
 
     @public

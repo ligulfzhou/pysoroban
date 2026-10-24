@@ -225,8 +225,10 @@ calls are recorded in `deployments/testnet.json`. That file is the latest script
   `fail` into `Result` and rolls that callee back. It does not turn every host
   error into a `Result`.
 - `__constructor` is exported and listed in the contract spec. The test host
-  runs it once before other entrypoints. `deploy.with_constructor` still does
-  not execute the deployed Wasm.
+  runs it once before other entrypoints. `register_wasm` installs a compilation
+  for a hash. `deploy.with_constructor` builds a fresh instance and runs that
+  constructor in the caller's transaction. It does not execute raw Wasm bytes.
+  `deploy.contract` only records the address.
 - `__check_auth` runs in the test host when `authorize_account` recorded a
   signature for a registered account. `auth.as_current_contract` emits one
   `InvokerContractAuthEntry` and authorizes that subcall. Create-contract
