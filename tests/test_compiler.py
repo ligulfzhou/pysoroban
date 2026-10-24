@@ -82,7 +82,7 @@ class Bad:
     def value(self, x: i32) -> i32:
         return x // 2
 """
-        with self.assertRaisesRegex(CompileError, "floor division is supported for u32, u64, checked u128, checked i128, and checked u256"):
+        with self.assertRaisesRegex(CompileError, "floor division is supported for u32, u64, checked u128, checked i128, checked u256, and checked i256"):
             compile_source(source)
 
     def test_compiles_storage_and_auth_imports(self):

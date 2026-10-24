@@ -27,6 +27,7 @@ SPEC_TYPES = {
     ValueType.U128: 10,
     ValueType.I128: 11,
     ValueType.U256: 12,
+    ValueType.I256: 13,
     ValueType.BYTES: 14,
     ValueType.STRING: 16,
     ValueType.SYMBOL: 17,

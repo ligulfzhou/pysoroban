@@ -36,7 +36,7 @@ when the parser has a node. Codes are grouped as follows:
 
 ## Types and literals
 
-Supported value types are `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `u256`,
+Supported value types are `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `u256`, `i256`,
 `boolean`, `Address`, `Symbol`, `String`, `Bytes`, and `None` (`void`).
 `Vec[T]` is homogeneous. The element may be one of those scalars, `BytesN[N]`,
 another `Vec` or `Map`, `Option`, `Result`, `Tuple`, or a user-defined
@@ -46,7 +46,9 @@ be nested collections. Map keys may not be collections. `Bytes` and `BytesN`
 support ordering comparisons. `to_xdr(value)` returns the Soroban ScVal XDR
 bytes.
 `u256.to_be_bytes()` and `u256.from_be_bytes(data)` convert the raw 32-byte
-integer. `address.to_strkey()` asks the host for the `G...` or `C...` form.
+integer. `i256.to_be_bytes()` and `i256.from_be_bytes(data)` use the same
+32-byte big-endian layout, interpreted as two's complement. Any other length
+traps. `address.to_strkey()` asks the host for the `G...` or `C...` form.
 
 A `@struct` is a named record stored as a Soroban map from field symbol to
 value. An `@enum` is a named `u32` discriminant. A `@union` is a data-carrying
@@ -93,9 +95,10 @@ not short-circuiting Python operators.
 | `i128` | checked `+`, `-`, and `*` | checked floor division | trap | trap |
 | `u128` | checked `+`, `-`, and `*` | checked unsigned floor division | trap | trap |
 | `u256` | checked `+`, `-`, and `*` | checked unsigned floor division | trap | trap |
+| `i256` | checked `+`, `-`, and `*` | checked floor division | trap | trap |
 
 Unary minus is defined for `i32` and `i64` and uses the same wrapping
-subtraction from zero. It is rejected for unsigned types and for `i128`.
+subtraction from zero. It is rejected for unsigned types, `i128`, and `i256`.
 Unary `not` is defined for `boolean` only.
 
 `i128` and `u128` live in Soroban `Val` objects, not in Wasm integer locals.
@@ -121,6 +124,15 @@ floor division call the protocol checked `u256` operations (`i.n`, `i.o`,
 `i.p`, `i.q`). Overflow and division by zero trap inside the host. Literals
 use `u256(...)` and `obj_from_u256_pieces`.
 
+`i256(...)` accepts the same literal forms in `[-2^255, 2^255)`. Values are
+host objects. Addition, subtraction, and multiplication call the protocol
+checked `i256` operations (`i.v`, `i.w`, `i.x`) and trap on overflow.
+Floor division calls `i.y`, which truncates toward zero and traps on a zero
+divisor or when the quotient does not fit (`i256` minimum divided by `-1`).
+An inexact mixed-sign quotient is then decreased by one with `i.w`, matching
+Python `//`. Literals use `obj_from_i256_pieces` (`i.g`). Big-endian bytes
+use `i.h` and `i.i`.
+
 `u128.mul_div_floor(left, right, denominator)` computes
 `floor((left * right) / denominator)` with a `u256` intermediate using the
 same host multiply and divide. A zero denominator traps inside that host
@@ -142,7 +154,7 @@ loop variable is `i32`. Variables assigned in the body must already exist.
 
 `storage.instance`, `storage.persistent`, and `storage.temporary` all
 support `set`, `has`, `remove`, and the typed getters `get_i32`, `get_u32`,
-`get_i64`, `get_u64`, `get_i128`, `get_u128`, `get_bool`, `get_symbol`,
+`get_i64`, `get_u64`, `get_i128`, `get_u128`, `get_u256`, `get_i256`, `get_bool`, `get_symbol`,
 `get_string`, `get_bytes`, and `get_address`. `get(key, Type)` reads any
 supported type, including `Vec`, `Map`, `@struct`, and `@enum`. A missing
 key traps in the host; the test environment raises `StorageMissingError`.
@@ -153,7 +165,7 @@ contract instance and code. The test environment records those requests on
 `ttl_extensions` and does not simulate ledger expiry.
 
 Cross-contract calls are `call_void`, `call_i32`, `call_u32`, `call_i64`,
-`call_u64`, `call_i128`, `call_u128`, `call_u256`, `call_bool`, `call_address`,
+`call_u64`, `call_i128`, `call_u128`, `call_u256`, `call_i256`, `call_bool`, `call_address`,
 `call_symbol`, `call_string`, and `call_bytes`. The first argument is a
 `Symbol` function name. There is no `call_vec` or `call_map`. A call or
 `try_*` whose function symbol is `__constructor` is rejected. The host runs
@@ -167,7 +179,7 @@ other call before it, raises `InvocationError`. `deploy.with_constructor`
 still only records the new address and arguments.
 
 `try_void`, `try_i32`, `try_u32`, `try_i64`, `try_u64`, `try_i128`,
-`try_u128`, `try_u256`, `try_bool`, `try_address`, `try_symbol`, `try_string`,
+`try_u128`, `try_u256`, `try_i256`, `try_bool`, `try_address`, `try_symbol`, `try_string`,
 and `try_bytes` have the same arguments and return `Result[T, u32]`. A callee
 `fail` becomes the error code. The test host rolls that callee back and
 continues the caller. Other failures, including a missing authorization, still

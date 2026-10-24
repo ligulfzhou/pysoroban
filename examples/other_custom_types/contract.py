@@ -25,6 +25,7 @@ from pysoroban import (
     i32,
     i64,
     i128,
+    i256,
     u32,
     u64,
     u128,
@@ -115,7 +116,7 @@ class ComplexStruct:
 class CustomTypesContract:
     """Echo functions for the types PySoroban can pass across the ABI.
 
-    `i256` is not a contract type. A two-field enum variant is a struct payload.
+    `i256_` echoes a signed 256-bit value. A two-field enum variant is a struct payload.
     The `None` variant is named `Empty` because `None` is not a Python name.
     """
 
@@ -244,6 +245,10 @@ class CustomTypesContract:
 
     @public
     def u256_(self, value: u256) -> u256:
+        return value
+
+    @public
+    def i256_(self, value: i256) -> i256:
         return value
 
     @public

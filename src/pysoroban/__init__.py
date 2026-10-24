@@ -5,7 +5,7 @@ support. The compiler reads the source as an AST; contracts are never executed
 by the Python runtime.
 """
 
-__version__ = "0.19.0a3"
+__version__ = "0.20.0a1"
 
 from .compiler import CompilationResult, check_file, check_source, compile_file, compile_source
 from .abi import contract_abi
@@ -34,6 +34,17 @@ class i128:
 
 class u256:
     """Unsigned 256-bit Soroban contract value."""
+
+    def to_be_bytes(self):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    @staticmethod
+    def from_be_bytes(data):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+
+class i256:
+    """Signed 256-bit Soroban contract value."""
 
     def to_be_bytes(self):
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
@@ -93,6 +104,9 @@ class Address:
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
     def call_u256(self, function, *args):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def call_i256(self, function, *args):
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
     def call_bool(self, function, *args):
@@ -192,6 +206,9 @@ class _InstanceStorage:
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
     def get_u256(self, key):
+        raise RuntimeError("PySoroban contract markers cannot be executed in Python")
+
+    def get_i256(self, key):
         raise RuntimeError("PySoroban contract markers cannot be executed in Python")
 
     def get_symbol(self, key):
@@ -441,6 +458,7 @@ __all__ = [
     "u64",
     "u128",
     "union",
+    "i256",
     "u256",
     "validate_wasm",
     "validate_wasm_file",

@@ -53,7 +53,7 @@ class MiniSorobanHost {
     if (type === "i32") return tagged32(value, I32_TAG);
     if (type === "u32") return tagged32(value, U32_TAG);
     if (type === "boolean") return value ? 1n : 0n;
-    if (["i64", "u64", "i128", "u128", "u256"].includes(type)) {
+    if (["i64", "u64", "i128", "u128", "u256", "i256"].includes(type)) {
       return this.put({ kind: type, value: BigInt(value) });
     }
     if (["Address", "Symbol", "String", "Bytes"].includes(type)) {
@@ -93,7 +93,7 @@ class MiniSorobanHost {
       if (tag === U64_SMALL_TAG) return (bits >> 8n).toString();
       return this.get(value).value.toString();
     }
-    if (type === "i128" || type === "u128" || type === "u256") {
+    if (type === "i128" || type === "u128" || type === "u256" || type === "i256") {
       return this.get(value).value.toString();
     }
     if (["Address", "Symbol", "String", "Bytes"].includes(type)) {
@@ -168,21 +168,46 @@ class MiniSorobanHost {
           | BigInt.asUintN(64, loLo),
       ),
     });
+    const fitI256 = (value) => {
+      if (value < -(2n ** 255n) || value >= 2n ** 255n) {
+        throw new WebAssembly.RuntimeError("unreachable: i256 overflow");
+      }
+      return value;
+    };
+    if (key === "i.h") return (bytesHandle) => {
+      const hex = this.get(bytesHandle).value;
+      const raw = Buffer.from(hex, "hex");
+      if (raw.length !== 32) throw new WebAssembly.RuntimeError("unreachable: i256 bytes");
+      let magnitude = 0n;
+      for (const byte of raw) magnitude = (magnitude << 8n) | BigInt(byte);
+      if (raw[0] & 0x80) magnitude -= 2n ** 256n;
+      return this.put({ kind: "i256", value: magnitude });
+    };
+    if (key === "i.i") return (handle) => {
+      let value = this.get(handle).value;
+      if (value < 0n) value += 2n ** 256n;
+      return this.put({ kind: "Bytes", value: value.toString(16).padStart(64, "0") });
+    };
+    if (key === "i.v") return (left, right) => this.put({
+      kind: "i256",
+      value: fitI256(this.get(left).value + this.get(right).value),
+    });
     if (key === "i.x") return (left, right) => this.put({
       kind: "i256",
-      value: this.get(left).value * this.get(right).value,
+      value: fitI256(this.get(left).value * this.get(right).value),
     });
     if (key === "i.w") return (left, right) => this.put({
       kind: "i256",
-      value: this.get(left).value - this.get(right).value,
+      value: fitI256(this.get(left).value - this.get(right).value),
     });
     if (key === "i.y") return (left, right) => {
       const denominator = this.get(right).value;
       if (denominator === 0n) throw new WebAssembly.RuntimeError("unreachable: division by zero");
       const numerator = this.get(left).value;
-      // Host i256 division truncates toward zero.
+      // Host i256 division truncates toward zero and traps when the quotient
+      // does not fit, including the minimum divided by -1.
       const quotient = numerator / denominator;
-      return this.put({ kind: "i256", value: quotient });
+      return this.put({ kind: "i256", value: fitI256(quotient) });
     };
     if (["i.j", "i.k", "i.l", "i.m"].includes(key)) return (value) => {
       const shifts = { "i.j": 192n, "i.k": 128n, "i.l": 64n, "i.m": 0n };

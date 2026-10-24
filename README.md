@@ -27,7 +27,7 @@ run it locally with `cd web && npm install && npm run dev`.
 ## What works
 
 - `@contract` classes and `@public` methods
-- `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `boolean`, `Address`, `Symbol`, `String`,
+- `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `u256`, `i256`, `boolean`, `Address`, `Symbol`, `String`,
   `Bytes`, and `None` signatures
 - integer arithmetic for 32- and 64-bit values: `+`, `-`, `*`, plus `//`
   for `u32` and `u64`
@@ -36,6 +36,8 @@ run it locally with `cd web && npm install && npm run dev`.
   and cross-contract results for those wide values
 - `u128.mul_div_floor(left, right, denominator)` with a widened `u256`
   intermediate, explicit floor rounding, and checked narrowing
+- checked `+`, `-`, `*`, and `//` for `u256` and `i256`. `i256 //` matches
+  Python floor division. Overflow and division by zero trap
 - comparisons, boolean expressions, local variables, and `if/else`
 - metered `for` loops using `range(stop)` or `range(start, stop)` with `i32`
   bounds, lowered to native Wasm loops

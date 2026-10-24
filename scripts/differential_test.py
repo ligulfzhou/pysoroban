@@ -231,6 +231,65 @@ class Wide256:
         ),
     ),
     (
+        "i256",
+        """
+from pysoroban import Bytes, boolean, contract, i256, public
+
+@contract
+class Signed256:
+    @public
+    def add(self, left: i256, right: i256) -> i256:
+        return left + right
+
+    @public
+    def sub(self, left: i256, right: i256) -> i256:
+        return left - right
+
+    @public
+    def mul(self, left: i256, right: i256) -> i256:
+        return left * right
+
+    @public
+    def div(self, left: i256, right: i256) -> i256:
+        return left // right
+
+    @public
+    def less(self, left: i256, right: i256) -> boolean:
+        return left < right
+
+    @public
+    def minimum(self) -> i256:
+        return i256(-(2 ** 255))
+
+    @public
+    def be(self, value: i256) -> Bytes:
+        return value.to_be_bytes()
+
+    @public
+    def parsed(self, data: Bytes) -> i256:
+        return i256.from_be_bytes(data)
+""",
+        (
+            ("i256-add", "add", (-(2**200), 2**100)),
+            ("i256-sub", "sub", (-(2**255), -1)),
+            ("i256-mul", "mul", (-(2**80), 2**40)),
+            ("i256-div-exact", "div", (-(2**80), -(2**20))),
+            ("i256-div-floor-neg-pos", "div", (-7, 3)),
+            ("i256-div-floor-pos-neg", "div", (7, -3)),
+            ("i256-div-floor-neg-neg", "div", (-7, -3)),
+            ("i256-less", "less", (-1, 1)),
+            ("i256-min", "minimum", ()),
+            ("i256-be", "be", (-1,)),
+            ("i256-parse", "parsed", (b"\xff" * 32,)),
+            ("i256-parse-short", "parsed", (b"\xff",), "unreachable"),
+            ("i256-add-overflow", "add", (2**255 - 1, 1), "unreachable"),
+            ("i256-sub-underflow", "sub", (-(2**255), 1), "unreachable"),
+            ("i256-mul-overflow", "mul", (2**200, 2**200), "unreachable"),
+            ("i256-div-zero", "div", (1, 0), "unreachable"),
+            ("i256-div-overflow", "div", (-(2**255), -1), "unreachable"),
+        ),
+    ),
+    (
         "amm-u128-quotes",
         ROOT / "tests" / "fixtures" / "compiler_suite" / "amm_kernel_contract.py",
         (
@@ -285,6 +344,8 @@ class Gate:
 def _normalized(value):
     if isinstance(value, bool) or value is None:
         return value
+    if isinstance(value, (bytes, bytearray)):
+        return value.hex()
     if isinstance(value, int):
         return str(value)
     if isinstance(value, (bytes, bytearray)):

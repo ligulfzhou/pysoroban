@@ -135,6 +135,7 @@ class SorobanExampleBehaviorTests(unittest.TestCase):
         self.assertEqual(kinds.invoke("tuple", ("leaf", 3)), ("leaf", 3))
         self.assertEqual(kinds.invoke("bytes_n", b"123456789"), b"123456789")
         self.assertEqual(kinds.invoke("u256_", 2**200), 2**200)
+        self.assertEqual(kinds.invoke("i256_", -(2**200)), -(2**200))
         self.assertEqual(kinds.invoke("val_", "raw"), "raw")
         self.assertEqual(kinds.invoke("odd", 3), ("ok", 3))
         self.assertEqual(kinds.invoke("odd", 4), ("err", 1))

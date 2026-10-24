@@ -59,6 +59,11 @@ def _value(value, value_type) -> bytes:
     if value_type is ValueType.U256:
         parts = [(value >> shift) & (2**64 - 1) for shift in (192, 128, 64, 0)]
         return _u32(11) + b"".join(_u64(part) for part in parts)
+    if value_type is ValueType.I256:
+        bits = value % 2**256
+        parts = [(bits >> shift) & (2**64 - 1) for shift in (192, 128, 64, 0)]
+        hi = parts[0] - 2**64 if parts[0] >= 2**63 else parts[0]
+        return _u32(12) + _i64(hi) + b"".join(_u64(part) for part in parts[1:])
     if value_type is ValueType.BYTES or isinstance(value_type, BytesNType):
         return _u32(13) + _opaque(value)
     if value_type is ValueType.STRING:

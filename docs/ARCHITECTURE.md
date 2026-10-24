@@ -60,7 +60,7 @@ parsed as data, validated, lowered into typed operations, and encoded.
 
 ## Type and value model
 
-Supported scalar types are `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `u256`,
+Supported scalar types are `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `u256`, `i256`,
 `boolean`, `Address`, `Symbol`, `String`, and `Bytes`. Homogeneous `Vec[T]` and scalar
 `Map[K, V]` types are also represented in the contract model and Soroban XDR
 specification.
@@ -193,11 +193,15 @@ calls are recorded in `deployments/testnet.json`. That file is the latest script
 - `@struct`, `@enum`, and `@union` are supported. Structs are Soroban maps of
   field symbols. Enums are `u32` discriminants. A union case is a symbol, or
   a vector of that symbol plus one payload. Recursive fields are rejected.
-- `//` is defined for `u32`, `u64`, checked `u128`, and checked `i128`.
-  `i32` and `i64` floor division stay rejected. Host `i256` division truncates
-  toward zero; the compiler adjusts an inexact mixed-sign quotient by one so
-  `i128 //` matches Python floor division, and traps when the result is not
-  an `i128` (`i128` minimum divided by `-1`).
+- `//` is defined for `u32`, `u64`, checked `u128`, checked `i128`, checked
+  `u256`, and checked `i256`. `i32` and `i64` floor division stay rejected.
+  Host `i256` division truncates toward zero; the compiler adjusts an inexact
+  mixed-sign quotient by one so `i128 //` and `i256 //` match Python floor
+  division. `i128` minimum divided by `-1` does not fit in `i128`. `i256`
+  minimum divided by `-1` traps in the host divide.
+- `i256` is a contract type: literals, ordering, storage, events, vectors,
+  cross-contract results, and 32-byte two's complement. A union case still
+  carries one payload. A variant with several fields is a `@struct` payload.
 - `i128` and `u128` support ABI pass-through, checked literals, comparisons,
   checked addition, subtraction, multiplication, and floor division, storage,
   events, collections, and cross-contract results.

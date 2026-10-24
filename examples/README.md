@@ -48,7 +48,7 @@ Shared differences:
 | merkle_distribution | `merkle_distribution/contract.py` | Leaf is `to_xdr` of the receiver. Claimed keys are `u32`. |
 | mint-lock | `mint-lock/contract.py` | Struct keys. `minter` returns `MinterInfo`. |
 | multisig_1_of_n_account | `multisig_1_of_n_account/contract.py` | Any one ed25519 signer. Context is unused. |
-| other_custom_types | `other_custom_types/contract.py` | Option, Result, tuples, `u256`, `BytesN`, `Val`, and one-payload unions. No `i256`. A two-field variant is a struct. The `None` variant is `Empty`. |
+| other_custom_types | `other_custom_types/contract.py` | Option, Result, tuples, `u256`, `i256`, `BytesN`, `Val`, and one-payload unions. A two-field variant is a struct. The `None` variant is `Empty`. |
 | pause | `pause/contract.py` | |
 | simple_account | `simple_account/contract.py` | Owner ed25519 check. A test may `allow_signature` or pass a real signature. |
 | single_offer | `single_offer/contract.py` | Prices are `u128`. |
