@@ -2,6 +2,14 @@
 
 All notable changes to PySoroban are documented here.
 
+## Unreleased
+
+- Port `examples/eth_abi`. It decodes one static Ethereum ABI tuple
+  (`bytes32`, `uint256`, `uint256`) with `Bytes.slice` and
+  `u256.from_be_bytes`, adds the integers with checked `u256` arithmetic,
+  and returns the ABI encoding of `(bytes32, uint256)`. A length other than
+  96 bytes fails with `DECODE`. There is still no general ABI decoder.
+
 ## 0.19.0a3 — 2026-10-23
 
 - Keep Wasm symbol literals past the linear scratch used to pack a payload

@@ -37,6 +37,7 @@ Shared differences:
 | deep_contract_auth | `deep_contract_auth/` | One subcall with one argument. Deeper auth trees are not built. |
 | deployer | `deployer/` | Test host does not run the child constructor. |
 | errors | `errors/contract.py` | `fail` at 5. |
+| eth_abi | `eth_abi/contract.py` | One static ABI tuple: `bytes32` and two `uint256` words. Checked `u256` sum. No general decoder. |
 | events | `events/contract.py` | One symbol topic, not two static topics. |
 | hello_world | `hello_world/contract.py` | |
 | increment | `increment/contract.py` | No formatted `log!`. |
@@ -62,7 +63,6 @@ Shared differences:
 | Example | What is missing |
 | --- | --- |
 | assets | Repository image, not a contract. |
-| eth_abi | Ethereum ABI decoding. `u256` and byte copies exist; there is no ABI decoder. |
 | fuzzing | Cargo-fuzz harness. The contract body is the timelock example. |
 | groth16_verifier | The BN254 pairing host calls exist. The example is an arkworks circuit and a prepared verifying key, not those calls. |
 | import_ark_bn254 | Imported arkworks BN254 Wasm, not a contract written in the guest language. |

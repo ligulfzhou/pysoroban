@@ -261,6 +261,24 @@ class Gate:
             ("fail-trap", "pick", (0, 4), "contract error 30064771075"),
         ),
     ),
+    (
+        "eth-abi",
+        ROOT / "examples" / "eth_abi" / "contract.py",
+        (
+            (
+                "abi-add",
+                "exec",
+                (b"\x01" * 32 + (1).to_bytes(32, "big") + (2).to_bytes(32, "big"),),
+            ),
+            ("abi-short", "exec", (b"\x01" * 95,), "contract error 4294967299"),
+            (
+                "abi-overflow",
+                "exec",
+                (b"\x01" * 32 + (2**256 - 1).to_bytes(32, "big") + (1).to_bytes(32, "big"),),
+                "unreachable",
+            ),
+        ),
+    ),
 )
 
 
@@ -269,6 +287,8 @@ def _normalized(value):
         return value
     if isinstance(value, int):
         return str(value)
+    if isinstance(value, (bytes, bytearray)):
+        return value.hex()
     if isinstance(value, (list, tuple)):
         return [_normalized(item) for item in value]
     if isinstance(value, dict):
