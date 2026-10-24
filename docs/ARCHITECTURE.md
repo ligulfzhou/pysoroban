@@ -172,8 +172,8 @@ truth.
 ## Distribution and deployment
 
 The compiler is distributed as a pure-Python wheel with a `pysoroban` CLI. The
-same wheel is loaded by Pyodide in the public browser demo, so browser builds use
-the repository's compiler rather than a TypeScript reimplementation.
+public browser demo loads the published `pysoroban-compiler` 0.19.0a2 wheel
+with Pyodide. It does not reimplement the compiler in TypeScript.
 
 Generated artifacts can be inspected, uploaded, deployed, and invoked with the
 standard Stellar CLI. Deployment IDs, Wasm hashes, transactions, and verified

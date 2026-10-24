@@ -4,6 +4,10 @@ All notable changes to PySoroban are documented here.
 
 ## Unreleased
 
+- Load the published `pysoroban-compiler` 0.19.0a2 wheel in the browser demo.
+  The install card and editor note use that PyPI release. The tree is
+  `0.19.0a3`, which is not published yet, so the demo stays on 0.19.0a2.
+  The six editor tabs stay the ports already on `main`.
 - Port `examples/eth_abi`. It decodes one static Ethereum ABI tuple
   (`bytes32`, `uint256`, `uint256`) with `Bytes.slice` and
   `u256.from_be_bytes`, adds the integers with checked `u256` arithmetic,

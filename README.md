@@ -18,8 +18,9 @@ are the soroban-examples ports. See
 [the reproducible testnet verification](https://github.com/ligulfzhou/pysoroban/blob/main/docs/TESTNET.md).
 
 The [PySoroban Live Proof](https://pysoroban.xyz)
-can compile the example contracts in the browser, show their deployed testnet
-records, and simulate live read-only calls. Its source lives in
+compiles the six editor ports in the browser with the published
+`pysoroban-compiler` 0.19.0a2 wheel, shows the scripted testnet records, and
+simulates live read-only calls. Its source lives in
 [the repository's `web/` directory](https://github.com/ligulfzhou/pysoroban/tree/main/web);
 run it locally with `cd web && npm install && npm run dev`.
 
