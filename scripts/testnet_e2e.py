@@ -10,6 +10,7 @@ auth checks below submit the transaction.
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
 import re
@@ -42,6 +43,9 @@ AMOUNT_IN = "1208925819614629174706176"
 QUOTE = "1205297896142523059078906"
 RESERVE_A_AFTER = "1267651809154049016125877911552"
 RESERVE_B_AFTER = "1267649394930333258973644126470"
+SIGNER_A = "01" + "00" * 31
+SIGNER_B = "02" + "00" * 31
+BLS_KEY = "11" * 96
 
 
 def truncate_hash(value: str) -> str:
@@ -325,6 +329,147 @@ def _catalog() -> list[dict]:
                 },
             ],
         },
+        {
+            "key": "increment",
+            "source": "examples/increment/contract.py",
+            "calls": [
+                {"label": "increment() -> 1", "fn": "increment", "args": [], "expect": "1", "send": "yes"},
+                {"label": "increment() -> 2", "fn": "increment", "args": [], "expect": "2", "send": "yes"},
+            ],
+        },
+        {
+            "key": "cross_a",
+            "source": "examples/cross_contract/contract_a/contract.py",
+            "calls": [
+                {"label": "add(2, 3)", "fn": "add", "args": ["--x", "2", "--y", "3"], "expect": "5"},
+            ],
+        },
+        {
+            "key": "cross_b",
+            "source": "examples/cross_contract/contract_b/contract.py",
+            "calls": [
+                {
+                    "label": "add_with(cross_a, 2, 3)",
+                    "fn": "add_with",
+                    "args": ["--contract", "{cross_a}", "--x", "2", "--y", "3"],
+                    "expect": "5",
+                },
+            ],
+        },
+        {
+            "key": "token",
+            "source": "examples/token/contract.py",
+            "constructor": ["--admin", "{source}", "--decimals", "7", "--name", "Example"],
+            "calls": [
+                {"label": "decimals()", "fn": "decimals", "args": [], "expect": "7"},
+                {"label": "name()", "fn": "name", "args": [], "expect": '"Example"'},
+                {
+                    "label": "mint(source, 1000)",
+                    "fn": "mint",
+                    "args": ["--to", "{source}", "--amount", "1000"],
+                    "send": "yes",
+                },
+                {
+                    "label": "balance(source)",
+                    "fn": "balance",
+                    "args": ["--id", "{source}"],
+                    "expect": '"1000"',
+                },
+            ],
+        },
+        {
+            "key": "token_b",
+            "source": "examples/token/contract.py",
+            "constructor": ["--admin", "{source}", "--decimals", "7", "--name", "ExampleB"],
+            "calls": [
+                {"label": "name()", "fn": "name", "args": [], "expect": '"ExampleB"'},
+            ],
+        },
+        {
+            "key": "liquidity_pool",
+            "source": "examples/liquidity_pool/contract.py",
+            "constructor": ["--token_a", "{token}", "--token_b", "{token_b}"],
+            "calls": [
+                {"label": "get_rsrvs()", "fn": "get_rsrvs", "args": [], "expect": '{"a":"0","b":"0"}'},
+            ],
+        },
+        {
+            "key": "pause",
+            "source": "examples/pause/contract.py",
+            "calls": [
+                {"label": "paused() before", "fn": "paused", "args": [], "expect": "false"},
+                {"label": "set(true)", "fn": "set", "args": ["--paused", "true"], "send": "yes"},
+                {"label": "paused() after", "fn": "paused", "args": [], "expect": "true"},
+            ],
+        },
+        {
+            "key": "increment_with_pause",
+            "source": "examples/increment_with_pause/contract.py",
+            "constructor": ["--pause", "{pause}"],
+            "calls": [
+                {"label": "increment() while paused", "fn": "increment", "args": [], "error": "Error(Contract, #1)"},
+            ],
+        },
+        {
+            "key": "mint_lock",
+            "source": "examples/mint-lock/contract.py",
+            "constructor": ["--admin", "{source}"],
+            "calls": [
+                {"label": "admin()", "fn": "admin", "args": [], "expect": '"{source}"'},
+            ],
+        },
+        {
+            "key": "deployer_child",
+            "source": "examples/deployer/contract/contract.py",
+            "constructor": ["--value", "7"],
+            "calls": [
+                {"label": "value()", "fn": "value", "args": [], "expect": "7"},
+            ],
+        },
+        {
+            "key": "upgradeable_old",
+            "source": "examples/upgradeable_contract/old_contract/contract.py",
+            "constructor": ["--admin", "{source}"],
+            "calls": [
+                {"label": "version()", "fn": "version", "args": [], "expect": "1"},
+            ],
+        },
+        {
+            "key": "upgradeable_new",
+            "source": "examples/upgradeable_contract/new_contract/contract.py",
+            "constructor": ["--admin", "{source}"],
+            "calls": [
+                {"label": "version()", "fn": "version", "args": [], "expect": "2"},
+            ],
+        },
+        {
+            "key": "simple_account",
+            "source": "examples/simple_account/contract.py",
+            "constructor": ["--public_key", SIGNER_A],
+            "interface": ["__constructor"],
+            "calls": [],
+        },
+        {
+            "key": "account",
+            "source": "examples/account/contract.py",
+            "constructor": ["--signers", '["{}"]'.format(SIGNER_A)],
+            "interface": ["__constructor"],
+            "calls": [],
+        },
+        {
+            "key": "multisig",
+            "source": "examples/multisig_1_of_n_account/contract.py",
+            "constructor": ["--signers", '["{}","{}"]'.format(SIGNER_A, SIGNER_B)],
+            "interface": ["__constructor"],
+            "calls": [],
+        },
+        {
+            "key": "bls_signature",
+            "source": "examples/bls_signature/contract.py",
+            "constructor": ["--agg_pk", BLS_KEY],
+            "interface": ["__constructor"],
+            "calls": [],
+        },
     ]
 
 
@@ -377,19 +522,23 @@ def build_wasm(source: str, destination: Path) -> None:
     run([sys.executable, "-m", "pysoroban", "build", source, "-o", str(destination)])
 
 
-def deploy_one(stellar: str, identity: str, wasm: Path) -> dict:
+def deploy_one(stellar: str, identity: str, wasm: Path, constructor: list[str] | None = None) -> dict:
     uploaded = run([
         stellar, "--no-cache", "contract", "upload",
         "--wasm", str(wasm),
         "--source", identity,
         "--network", "testnet",
     ])
-    deployed = run([
+    deploy_command = [
         stellar, "--no-cache", "contract", "deploy",
         "--wasm", str(wasm),
         "--source", identity,
         "--network", "testnet",
-    ])
+    ]
+    if constructor:
+        deploy_command.append("--")
+        deploy_command.extend(constructor)
+    deployed = run(deploy_command)
     upload_text = uploaded.stdout + uploaded.stderr
     deploy_text = deployed.stdout + deployed.stderr
     upload_ids = transaction_hashes(upload_text)
@@ -442,10 +591,12 @@ def invoke(stellar: str, identity: str, contract: str, call: dict, env: dict[str
     if proc.returncode != 0:
         raise SystemExit("{} failed:\n{}".format(call["fn"], text))
     result = invoke_result(proc.stdout)
-    if "expect" in call and result != call["expect"]:
-        raise SystemExit(
-            "{} returned {!r}, expected {!r}".format(call["label"], result, call["expect"])
-        )
+    if "expect" in call:
+        expected = substitute([call["expect"]], env)[0]
+        if result != expected:
+            raise SystemExit(
+                "{} returned {!r}, expected {!r}".format(call["label"], result, expected)
+            )
     if "event" in call and call["event"] not in text:
         raise SystemExit("{} did not publish {!r}:\n{}".format(call["label"], call["event"], text))
     if "expect" in call:
@@ -491,7 +642,8 @@ def main(argv: list[str] | None = None) -> int:
     for item in _catalog():
         wasm = build_dir / (item["key"] + ".wasm")
         build_wasm(str(ROOT / item["source"]), wasm)
-        deployed = deploy_one(stellar, identity, wasm)
+        constructor = substitute(item.get("constructor", []), env)
+        deployed = deploy_one(stellar, identity, wasm, constructor)
         env[item["key"]] = deployed["contract_id"]
         verified = {}
         events = []
@@ -517,15 +669,26 @@ def main(argv: list[str] | None = None) -> int:
             deployed["verified_errors"] = errors
         contracts[item["key"]] = deployed
 
+    verified_at = datetime.date.today().isoformat()
     record = {
         "network": "testnet",
         "network_passphrase": NETWORK_PASSPHRASE,
-        "verified_at": "2026-10-21",
+        "verified_at": verified_at,
+        "status": "scripted",
+        "note": (
+            "{} scripted deploy of the compiler-suite fixtures, errors, deep auth, "
+            "and constructor ports (token, liquidity pool, pause, accounts, "
+            "mint-lock, deployer child, upgradeable, bls). The previous record is historical."
+        ).format(verified_at),
         "protocol": 25,
         "cli": version,
         "source_account": source,
         "contracts": contracts,
     }
+    if args.output.is_file():
+        previous = json.loads(args.output.read_text(encoding="utf-8"))
+        previous.pop("historical", None)
+        record["historical"] = previous
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     args.manifest.write_text(render_manifest(source, contracts), encoding="utf-8")

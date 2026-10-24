@@ -29,7 +29,7 @@ test("renders the PySoroban live proof", async () => {
   assert.match(html, /Compile in browser/);
   assert.match(html, /Download \.wasm/);
   assert.match(html, /Test before testnet/);
-  assert.match(html, /127 \/ 127/);
+  assert.match(html, /128 \/ 128/);
   assert.match(html, /In-browser compiler 0\.12\.0a1/);
   assert.match(html, /examples\/hello_world\/contract\.py/);
   assert.match(html, /examples\/events\/contract\.py/);

@@ -1352,6 +1352,11 @@ def _max_linear_values(contract: ir.Contract) -> int:
                 maximum = max(maximum, len(node.args) - 1)
             elif node.op == "deploy_constructor":
                 maximum = max(maximum, max(0, len(node.args) - 2))
+            elif node.op in {"union_new", "tuple_new"} and len(node.args) > 1:
+                # Payload unions and tuples are packed into the linear scratch
+                # before vec_new_from_linear_memory. The slot count has to
+                # cover every i64 or the store overwrites the next symbol.
+                maximum = max(maximum, len(node.args))
             for arg in node.args:
                 expression(arg)
         elif isinstance(node, ir.Unary):
